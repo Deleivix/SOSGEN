@@ -97,7 +97,7 @@ export default async function handler(
             *   **PROHIBIDO:** NUNCA generes una pregunta donde el operador de la CCR pregunte si van a abandonar el buque.
             *   **SÓLO SI** el escenario que creaste incluye que el buque informa de su abandono, la siguiente pregunta (después de obtener los datos críticos) debe ser sobre las recomendaciones de seguridad. Las opciones de respuesta deben incluir la fraseología correcta para recomendar: **"chalecos salvavidas, radiobaliza (EPIRB) y VHF portátil"**.
         6.  **Protocolo Final:** La última pregunta SIEMPRE debe ser sobre la acción de protocolo final correcta (ej: Acusar recibo y retransmitir MAYDAY RELAY), basándose en el caso.
-        7.  **Proporciona feedback claro y conciso** para cada pregunta explicando por qué la respuesta es correcta según el protocolo.
+        7.  **Proporciona feedback claro y conciso** para cada pregunta explicando por qué la respuesta es correcta según el protocolo. **Para la pregunta final, tu feedback debe explicar que, aunque la comunicación previa para obtener datos ya actúa como un acuse de recibo implícito, el procedimiento formal exige confirmar explícitamente el socorro ("RECEIVED MAYDAY") antes de retransmitir la alerta (MAYDAY RELAY) para asegurar al buque en peligro que la ayuda está en camino.**
         
         **Regla de Idioma:** Si la llamada inicial (scenario) está en inglés, TODAS las opciones de respuesta ('options') deben estar en inglés. El resto del JSON (questionText, feedback) debe estar en español.
 
