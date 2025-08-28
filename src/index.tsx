@@ -219,6 +219,21 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
         </table>
         `
     },
+    { category: 'Calculadora', content: `
+        <div class="coord-converter">
+            <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
+            <p class="translator-desc">Introduzca una coordenada (Lat o Lon) para convertirla al formato estándar <strong>ggg° mm,ddd'</strong>. Use espacios como separadores.</p>
+            <div class="converter-form">
+                <textarea id="coord-input" class="styled-textarea" rows="2" placeholder="Ej: 43 21 30.5 N (GMS)\nEj: 43 21.5 N (GMD)\nEj: 43.35833 (GD)"></textarea>
+                <div class="coord-type-selector">
+                    <label><input type="radio" name="coord-type" value="lat" checked> Latitud</label>
+                    <label><input type="radio" name="coord-type" value="lon"> Longitud</label>
+                </div>
+                <button id="coord-convert-btn" class="primary-btn">Convertir</button>
+            </div>
+            <div id="coord-result" class="translation-result" aria-live="polite"></div>
+        </div>
+    `},
     { category: 'Diccionario', content: `
         <div class="nautical-translator">
             <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
@@ -306,6 +321,7 @@ function renderInfo(container: HTMLElement) {
     `;
     initializeInfoTabs(container);
     initializeNauticalTranslator();
+    initializeCoordinateConverter();
 }
 
 function renderProtocolo(container: HTMLElement) {
@@ -693,6 +709,84 @@ async function initializeSosgen() {
         } finally {
             generateBtn.disabled = false;
         }
+    });
+}
+
+// --- COORDINATE CONVERTER LOGIC ---
+function initializeCoordinateConverter() {
+    const convertBtn = document.getElementById('coord-convert-btn') as HTMLButtonElement;
+    const inputEl = document.getElementById('coord-input') as HTMLTextAreaElement;
+    const resultEl = document.getElementById('coord-result') as HTMLDivElement;
+    
+    if (!convertBtn || !inputEl || !resultEl) return;
+
+    const parseToDD = (input: string): number => {
+        let str = input.trim().toUpperCase();
+        str = str.replace(/,/g, '.'); // Standardize decimal point
+        str = str.replace(/[°'"]/g, ' '); // Replace symbols with spaces
+
+        const parts = str.split(/[\s]+/).filter(p => p.length > 0);
+        
+        const hemisphere = parts.find(p => /^[NSEW]$/.test(p));
+        const numbers = parts
+          .filter(p => !/^[NSEW]$/.test(p))
+          .map(p => parseFloat(p));
+
+        if (numbers.some(isNaN) || numbers.length === 0 || numbers.length > 3) {
+            return NaN;
+        }
+
+        let dd = 0;
+        if (numbers.length === 3) { // DMS
+            dd = Math.abs(numbers[0]) + numbers[1] / 60 + numbers[2] / 3600;
+        } else if (numbers.length === 2) { // DDM
+            dd = Math.abs(numbers[0]) + numbers[1] / 60;
+        } else { // DD
+            dd = numbers[0];
+        }
+        
+        if (hemisphere && /[SW]/.test(hemisphere)) {
+            dd = -Math.abs(dd);
+        } else if (hemisphere && /[NE]/.test(hemisphere)) {
+            dd = Math.abs(dd);
+        } else if (numbers.length === 1 && numbers[0] < 0) {
+            dd = numbers[0]; // Sign is already correct for DD
+        }
+
+        return dd;
+    };
+
+    const formatToDDM = (dd: number, isLon: boolean): string => {
+        if (isNaN(dd)) return '<p class="error">Entrada inválida. Asegúrese de que el formato es correcto.</p>';
+
+        if (isLon && (dd < -180 || dd > 180)) {
+            return `<p class="error">Longitud inválida. Debe estar entre -180 y 180.</p>`;
+        }
+        if (!isLon && (dd < -90 || dd > 90)) {
+            return `<p class="error">Latitud inválida. Debe estar entre -90 y 90.</p>`;
+        }
+
+        const hemisphere = isLon ? (dd >= 0 ? 'E' : 'W') : (dd >= 0 ? 'N' : 'S');
+        const absDd = Math.abs(dd);
+        const degrees = Math.floor(absDd);
+        const minutes = (absDd - degrees) * 60;
+        
+        const degStr = isLon ? String(degrees).padStart(3, '0') : String(degrees);
+        const minutesWithDecimal = minutes.toFixed(3);
+        const [intMin, decMin] = minutesWithDecimal.split('.');
+        const formattedMinutes = intMin.padStart(2, '0');
+        
+        return `<p><strong>${degStr}° ${formattedMinutes},${decMin}' ${hemisphere}</strong></p>`;
+    };
+
+    convertBtn.addEventListener('click', () => {
+        const input = inputEl.value;
+        const coordTypeRadio = document.querySelector<HTMLInputElement>('input[name="coord-type"]:checked');
+        if (!input || !coordTypeRadio) return;
+
+        const isLon = coordTypeRadio.value === 'lon';
+        const dd = parseToDD(input);
+        resultEl.innerHTML = formatToDDM(dd, isLon);
     });
 }
 
