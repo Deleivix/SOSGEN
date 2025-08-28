@@ -16,8 +16,6 @@ const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12"cy="12" r="4"></circle><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line></svg>`,
     // Registro Océano: Clipboard
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
-    // HISTORIAL: Book
-    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
     // PROTOCOLO: Network/Flowchart
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>`,
     // FAROS: Lighthouse
@@ -253,10 +251,6 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
 
 
 // --- RENDER FUNCTIONS ---
-function highlightPlaceholders(text: string): string {
-    return text.replace(/“([^”]+?)”|(_+)/g, `<span class="placeholder">$1$2</span>`);
-}
-
 function renderRegistroOceano(container: HTMLElement) {
     container.innerHTML = `
         <div class="content-card">
@@ -271,27 +265,24 @@ function renderRegistroOceano(container: HTMLElement) {
                 <main class="ro-content">
                     ${REGISTRO_OCEANO_DATA.map((category, index) => `
                         <div class="sub-tab-panel ${index === 0 ? 'active' : ''}" id="sub-tab-${category.category.replace(/\s+/g, '-')}">
-                            ${category.items.map(item => {
-                                const escapedTemplate = item.template.replace(/"/g, '&quot;');
-                                return `
+                            ${category.items.map(item => `
                                     <div class="template-card">
                                         <div class="template-card-header">
                                             <h3 class="template-card-title">${item.title}</h3>
-                                            <button class="copy-btn" data-template="${escapedTemplate}" aria-label="Copiar ${item.title}">
+                                            <button class="copy-btn" aria-label="Copiar ${item.title}">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
                                                 <span>Copiar</span>
                                             </button>
                                         </div>
-                                        <div class="template-card-body">${highlightPlaceholders(item.template)}</div>
-                                    </div>`;
-                            }).join('')}
+                                        <textarea class="styled-textarea template-card-body">${item.template}</textarea>
+                                    </div>`).join('')}
                         </div>
                     `).join('')}
                 </main>
             </div>
         </div>
     `;
-    initializeSubNav(container);
+    initializeRegistroOceano(container);
 }
 
 function renderInfo(container: HTMLElement) {
@@ -443,60 +434,14 @@ function renderSosgen(container: HTMLElement) {
             <button id="sosgen-generate-btn" class="primary-btn">Generar Mensaje</button>
             <div id="sosgen-results" class="sosgen-results"></div>
         </div>
+        <div id="sosgen-history-container" style="margin-top: 2rem;"></div>
     `;
     initializeSosgen();
 }
 
-function renderHistorial(container: HTMLElement) {
-    const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
-    
-    if (logbook.length === 0) {
-        container.innerHTML = `
-            <div class="content-card">
-                <h2 class="content-card-title">Historial de Sucesos</h2>
-                <p class="drill-placeholder">No hay eventos registrados en el historial.</p>
-            </div>`;
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="content-card" style="max-width: 1200px;">
-            <h2 class="content-card-title">Historial de Sucesos</h2>
-            <div id="logbook-list" class="logbook-list">
-                ${logbook.slice().reverse().map((entry: any) => `
-                    <div class="log-entry" data-id="${entry.id}">
-                        <div class="log-entry-header">
-                            <span class="log-entry-type">${entry.type}</span>
-                            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
-                        </div>
-                        <div class="log-entry-content">
-                             <div class="log-entry-spanish">
-                                 <h4>Español</h4>
-                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.spanish}</textarea>
-                             </div>
-                             <div class="log-entry-english">
-                                 <h4>Inglés</h4>
-                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.english}</textarea>
-                             </div>
-                        </div>
-                        <div class="log-entry-actions">
-                            <button class="log-edit-btn secondary-btn">Editar</button>
-                            <button class="log-delete-btn tertiary-btn">Eliminar</button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `;
-
-    initializeHistorialActions(container);
-}
-
-
 const APP_PAGES: Page[] = [
     { name: 'SOSGEN', contentRenderer: renderSosgen },
     { name: 'Registro Océano', contentRenderer: renderRegistroOceano },
-    { name: 'HISTORIAL', contentRenderer: renderHistorial },
     { name: 'PROTOCOLO', contentRenderer: renderProtocolo },
     { name: 'FAROS', contentRenderer: renderLighthouseSimulator },
     { name: 'SIMULACRO', contentRenderer: renderSimulacro },
@@ -555,11 +500,10 @@ function renderApp(container: HTMLElement) {
 }
 
 // --- EVENT HANDLERS & LOGIC ---
-async function handleCopy(button: HTMLButtonElement) {
-    const template = button.dataset.template;
-    if (template) {
+async function handleCopy(button: HTMLButtonElement, textToCopy: string) {
+    if (textToCopy) {
         try {
-            await navigator.clipboard.writeText(template);
+            await navigator.clipboard.writeText(textToCopy);
             const originalContent = button.innerHTML;
             button.innerHTML = `<span>Copiado!</span>`;
             button.disabled = true;
@@ -631,13 +575,16 @@ async function initializeSosgen() {
     const resultsEl = document.getElementById('sosgen-results') as HTMLDivElement;
     if (!generateBtn || !inputEl || !resultsEl) return;
 
-    // Load draft from localStorage
+    const historyContainer = document.getElementById('sosgen-history-container');
+    if (historyContainer) {
+        renderAndInitializeHistory(historyContainer);
+    }
+
     const savedDraft = localStorage.getItem('sosgen_draft');
     if (savedDraft) {
         inputEl.value = savedDraft;
     }
 
-    // Save draft to localStorage on input
     inputEl.addEventListener('input', () => {
         localStorage.setItem('sosgen_draft', inputEl.value);
     });
@@ -687,13 +634,38 @@ async function initializeSosgen() {
             const esMsg = `MAYDAY RELAY (x3)\nAQUI ${fullStationName} (x3)\nMAYDAY\nINFORMACION Nº ${infoNumber} A ${utcTime} UTC.\n\n${extractedData.spanishDescription}\n\nSE REQUIERE A TODOS LOS BARCOS EN LA ZONA, EXTREMAR LA VIGILANCIA, ASISTIR SI ES NECESARIO, E INFORMAR A SALVAMENTO MARITIMO ${mrcc} O ESTACION RADIO COSTERA MAS PROXIMA.\nAQUI ${fullStationName} A ${utcTime} UTC.`;
             const enMsg = `MAYDAY RELAY (x3)\nTHIS IS ${fullStationName} (x3)\nMAYDAY\nINFORMATION Nº ${infoNumber} AT ${utcTime} UTC.\n\n${extractedData.englishDescription}\n\nALL VESSELS IN THE AREA, ARE REQUESTED TO KEEP A SHARP LOOK OUT, ASSIST IF NECESSARY AND MAKE FURTHER REPORTS TO MRCC ${mrcc} OR NEAREST COASTAL RADIO STATION.\nTHIS IS ${fullStationName} AT ${utcTime} UTC.`;
             
-            const escEs = esMsg.replace(/"/g, '&quot;');
-            const escEn = enMsg.replace(/"/g, '&quot;');
-            
             resultsEl.innerHTML = `
-                <div class="sosgen-result-box"><div class="sosgen-result-header"><h3>Mensaje en Español</h3><button class="copy-btn" data-template="${escEs}"><span>Copiar</span></button></div><pre>${highlightPlaceholders(esMsg)}</pre></div>
-                <div class="sosgen-result-box"><div class="sosgen-result-header"><h3>Mensaje en Inglés</h3><button class="copy-btn" data-template="${escEn}"><span>Copiar</span></button></div><pre>${highlightPlaceholders(enMsg)}</pre></div>`;
-
+                <div class="sosgen-result-box">
+                    <div class="sosgen-result-header">
+                        <h3>Mensaje en Español</h3>
+                        <button class="copy-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+                            <span>Copiar</span>
+                        </button>
+                    </div>
+                    <textarea class="styled-textarea" rows="12">${esMsg}</textarea>
+                </div>
+                <div class="sosgen-result-box">
+                    <div class="sosgen-result-header">
+                        <h3>Mensaje en Inglés</h3>
+                        <button class="copy-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+                            <span>Copiar</span>
+                        </button>
+                    </div>
+                    <textarea class="styled-textarea" rows="12">${enMsg}</textarea>
+                </div>`;
+            
+            resultsEl.querySelectorAll('.copy-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const btn = e.currentTarget as HTMLButtonElement;
+                    const resultBox = btn.closest('.sosgen-result-box');
+                    const textarea = resultBox?.querySelector('textarea');
+                    if(textarea) {
+                        handleCopy(btn, textarea.value);
+                    }
+                });
+            });
 
             // Save to logbook
             const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
@@ -708,7 +680,11 @@ async function initializeSosgen() {
             };
             logbook.push(newEntry);
             localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
-            localStorage.removeItem('sosgen_draft'); // Clear draft after successful generation
+            localStorage.removeItem('sosgen_draft');
+
+            if (historyContainer) {
+                renderAndInitializeHistory(historyContainer); // Refresh history
+            }
 
         } catch (error) {
             console.error("Error generating message:", error);
@@ -761,9 +737,10 @@ async function initializeNauticalTranslator() {
 }
 
 
-function initializeSubNav(container: HTMLElement) {
+function initializeRegistroOceano(container: HTMLElement) {
     const layout = container.querySelector('.registro-oceano-layout');
     if (!layout) return;
+
     layout.addEventListener('click', (event) => {
         const target = event.target as HTMLElement;
         const btn = target.closest('.sub-nav-btn');
@@ -775,6 +752,15 @@ function initializeSubNav(container: HTMLElement) {
             btn.classList.add('active');
             const panel = layout.querySelector<HTMLElement>(`#${targetId}`);
             if (panel) panel.classList.add('active');
+        }
+        
+        const copyBtn = target.closest('.copy-btn');
+        if (copyBtn instanceof HTMLButtonElement) {
+            const card = copyBtn.closest('.template-card');
+            const textarea = card?.querySelector('textarea');
+            if(textarea) {
+                handleCopy(copyBtn, textarea.value);
+            }
         }
     });
 }
@@ -938,7 +924,48 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
     resultsEl.innerHTML = `<h3>Resultado: ${score} de ${data.questions.length} correctas</h3>`;
 }
 
-function initializeHistorialActions(container: HTMLElement) {
+function renderAndInitializeHistory(container: HTMLElement) {
+    const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+    
+    if (logbook.length === 0) {
+        container.innerHTML = `
+            <div class="content-card">
+                <h2 class="content-card-title">Historial de Sucesos</h2>
+                <p class="drill-placeholder">No hay eventos registrados en el historial.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="content-card" style="max-width: 1200px;">
+            <h2 class="content-card-title">Historial de Sucesos</h2>
+            <div id="logbook-list" class="logbook-list">
+                ${logbook.slice().reverse().map((entry: any) => `
+                    <div class="log-entry" data-id="${entry.id}">
+                        <div class="log-entry-header">
+                            <span class="log-entry-type">${entry.type}</span>
+                            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
+                        </div>
+                        <div class="log-entry-content">
+                             <div class="log-entry-spanish">
+                                 <h4>Español</h4>
+                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.spanish}</textarea>
+                             </div>
+                             <div class="log-entry-english">
+                                 <h4>Inglés</h4>
+                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.english}</textarea>
+                             </div>
+                        </div>
+                        <div class="log-entry-actions">
+                            <button class="log-edit-btn secondary-btn">Editar</button>
+                            <button class="log-delete-btn tertiary-btn">Eliminar</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
     const list = container.querySelector('#logbook-list');
     if (!list) return;
 
@@ -949,15 +976,12 @@ function initializeHistorialActions(container: HTMLElement) {
         const entryId = entryEl.dataset.id;
         if (!entryId) return;
 
-        // Edit/Save logic
         if (target.classList.contains('log-edit-btn')) {
             const textareas = entryEl.querySelectorAll('textarea');
             textareas.forEach(ta => ta.readOnly = false);
             target.textContent = 'Guardar';
-            target.classList.remove('log-edit-btn');
-            target.classList.add('log-save-btn');
-            target.classList.remove('secondary-btn');
-            target.classList.add('primary-btn-small');
+            target.classList.remove('log-edit-btn', 'secondary-btn');
+            target.classList.add('log-save-btn', 'primary-btn-small');
             entryEl.classList.add('editing');
             (textareas[0] as HTMLTextAreaElement)?.focus();
         } else if (target.classList.contains('log-save-btn')) {
@@ -975,14 +999,11 @@ function initializeHistorialActions(container: HTMLElement) {
             const textareas = entryEl.querySelectorAll('textarea');
             textareas.forEach(ta => ta.readOnly = true);
             target.textContent = 'Editar';
-            target.classList.add('log-edit-btn');
-            target.classList.remove('log-save-btn');
-            target.classList.add('secondary-btn');
-            target.classList.remove('primary-btn-small');
+            target.classList.add('log-edit-btn', 'secondary-btn');
+            target.classList.remove('log-save-btn', 'primary-btn-small');
             entryEl.classList.remove('editing');
         }
 
-        // Delete logic
         if (target.classList.contains('log-delete-btn')) {
             if (confirm('¿Está seguro de que desea eliminar esta entrada del historial?')) {
                 let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
@@ -991,11 +1012,8 @@ function initializeHistorialActions(container: HTMLElement) {
                 entryEl.style.animation = 'fadeOut 0.5s ease forwards';
                 entryEl.addEventListener('animationend', () => {
                     entryEl.remove();
-                     if (updatedLogbook.length === 0) {
-                         const logbookList = document.getElementById('logbook-list');
-                         if(logbookList) {
-                            logbookList.innerHTML = `<p class="drill-placeholder">No hay eventos registrados en el historial.</p>`;
-                         }
+                     if (updatedLogbook.length === 0 && container) {
+                        renderAndInitializeHistory(container); // Re-render history to show empty message
                     }
                 });
             }
@@ -1008,7 +1026,6 @@ function addEventListeners(appContainer: HTMLElement) {
     appContainer.addEventListener('click', (event) => {
         const target = event.target as HTMLElement;
         const navLink = target.closest('.nav-link');
-        const copyButton = target.closest('.copy-btn');
         const brandLink = target.closest('.nav-brand');
 
         if (brandLink) {
@@ -1018,10 +1035,6 @@ function addEventListeners(appContainer: HTMLElement) {
         if (navLink) {
             const pageIndex = parseInt(navLink.getAttribute('data-page-index')!, 10);
             switchToPage(pageIndex);
-            return;
-        }
-        if (copyButton) {
-            handleCopy(copyButton as HTMLButtonElement);
             return;
         }
     });
