@@ -348,6 +348,8 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .simulation-info .info-divider { border: none; height: 1px; background-color: var(--border-color); margin: 1rem 0; }
 
 /* --- Simulacro (Drill) Page --- */
+.drill-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
+.drill-actions .primary-btn { margin-top: 0; flex: 1 1 200px; }
 .drill-container .primary-btn { margin-bottom: 2rem; }
 .drill-content .error { color: var(--danger-color); text-align: center; }
 .drill-placeholder { color: var(--text-secondary); text-align: center; font-style: italic; padding: 2rem 0; }
@@ -364,6 +366,31 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 body.dark-theme .answer-option.correct { background-color: #1A331C; color: #A5D6A7; }
 body.dark-theme .answer-option.incorrect { background-color: var(--danger-color-dark-bg); color: var(--danger-color-dark); }
 .drill-results-summary { text-align: center; font-size: 1.25rem; font-weight: 500; margin-top: 2rem; }
+.answer-feedback {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.answer-feedback strong { color: var(--text-primary); }
+.drill-full-details {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: var(--bg-main);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+.drill-full-details h4 { margin-bottom: 1rem; color: var(--text-primary); }
+.drill-full-details p {
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+    line-height: 1.6;
+}
 
 /* --- GMDSS Procedure Wizard --- */
 .wizard-step { display: none; }

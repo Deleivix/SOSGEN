@@ -370,8 +370,8 @@ function renderProtocolo(container: HTMLElement) {
 
                 <!-- RESULTADOS -->
                 <div class="wizard-step" data-step="result-invalid"><div class="procedure-box"><h3>Procedimiento para Alerta NO VÁLIDA (9.1.4)</h3><ol><li>CCR SÓLO ACUSE DE RECIBO (ACK) SI ESTÁ EN ZONA SAR.</li><li>CCR A LA ESCUCHA, INTENTA CONSEGUIR MÁS INFORMACIÓN.</li><li>SI SE CONFIRMA LA ALERTA, SE PASA AL CASO CORRESPONBIENTE DE ALERTA VÁLIDA.</li></ol></div></div>
-                <div class="wizard-step" data-step="result-pos-in-sar"><div class="procedure-box"><h3>Procedimiento: Válida, con Posición, en Zona SAR (VHF/MF/HF)</h3><ol><li>CCR ACUSE DE RECIBO (ACK).</li><li>VERIFICA POSICIÓN (En puerto no retransmite alerta).</li><li>CCR RETRANSMITE ALERTA.</li><li>CCR A LA ESCUCHA. ESPERA INSTRUCCIONES DEL CCS COORDINADOR.</li><li><b>OCEANO:</b> SAR AUTOMÁTICO CCR Y CNCS -> SÓLO VHF.</li></ol></div></div>
-                <div class="wizard-step" data-step="result-pos-out-sar-vhf"><div class="procedure-box"><h3>Procedimiento: Válida, con Posición, fuera de Zona SAR (VHF)</h3><ol><li>CCR NO ACUSE DE RECIBO (NO ACK).</li><li>CCR A LA ESCUCHA A LA ESPERA DE INSTRUCCIONES DEL CNCS.</li><li><b>OCEANO:</b> SAR AUTOMÁTICO CCR Y CNCS -> Sin texto de mensaje.</li></ol></div></div>
+                <div class="wizard-step" data-step="result-pos-in-sar"><div class="procedure-box"><h3>Procedimiento: Válida, con Posición, en Zona SAR (VHF/MF/HF)</h3><ol><li>CCR ACUSE DE RECIBO (ACK).</li><li>VERIFICA POSICIÓN (En puerto no retransmite alerta).</li><li>CCR RETRANSMITE ALERTA.</li><li>CCR A LA ESCUCHA. ESPERA INSTRUCCIONES DEL CCS COORDINADOR.</li><li><b>OCEANO:</b> SAR AUTOMÁTICO CCR E CNCS -> SÓLO VHF.</li></ol></div></div>
+                <div class="wizard-step" data-step="result-pos-out-sar-vhf"><div class="procedure-box"><h3>Procedimiento: Válida, con Posición, fuera de Zona SAR (VHF)</h3><ol><li>CCR NO ACUSE DE RECIBO (NO ACK).</li><li>CCR A LA ESCUCHA A LA ESPERA DE INSTRUCCIONES DEL CNCS.</li><li><b>OCEANO:</b> SAR AUTOMÁTICO CCR E CNCS -> Sin texto de mensaje.</li></ol></div></div>
                 <div class="wizard-step" data-step="result-pos-out-sar-mfhf"><div class="procedure-box"><h3>Procedimiento: Válida, con Posición, fuera de Zona SAR (MF/HF)</h3><ol><li>CCR NO ACUSE DE RECIBO (NO ACK).</li><li>CCR A LA ESCUCHA A LA ESPERA DE INSTRUCCIONES DEL CNCS.</li></ol></div></div>
                 <div class="wizard-step" data-step="result-no-pos-vhf"><div class="procedure-box"><h3>Procedimiento: Válida, sin Posición (VHF) (9.1.2)</h3><ol><li>CCR ACUSE DE RECIBO (ACK).</li><li>CCR INTENTA CONSEGUIR POSICIÓN (En puerto no retransmite alerta).</li><li>CCR RETRANSMITE ALERTA.</li><li>CCR A LA ESCUCHA. ESPERA INSTRUCCIONES DEL CCS COORDINADOR.</li></ol></div></div>
                 <div class="wizard-step" data-step="result-no-pos-mfhf"><div class="procedure-box"><h3>Procedimiento: Válida, sin Posición (MF/HF) (9.1.3)</h3><ol><li>CCR NO ACUSE DE RECIBO (NO ACK).</li><li>CCR A LA ESCUCHA. Y A LA ESPERA DE INSTRUCCIONES.</li></ol></div></div>
@@ -390,10 +390,13 @@ function renderSimulacro(container: HTMLElement) {
         <div class="content-card">
              <h2 class="content-card-title">Simulador de Casos Prácticos GMDSS</h2>
              <div class="drill-container">
-                 <button id="drill-start-btn" class="primary-btn">Generar Escenario de Simulacro (IA)</button>
+                 <div class="drill-actions">
+                     <button class="primary-btn" data-drill-type="dsc">Simulacro DSC (IA)</button>
+                     <button class="primary-btn" data-drill-type="radiotelephony">Simulacro Radiotelefonía (IA)</button>
+                 </div>
                  <div id="drill-loader" class="loader-container" style="display: none;"><div class="loader"></div></div>
                  <div id="drill-content" class="drill-content">
-                     <p class="drill-placeholder">Pulse el botón para generar un nuevo escenario.</p>
+                     <p class="drill-placeholder">Seleccione un tipo de simulacro para comenzar.</p>
                  </div>
              </div>
         </div>
@@ -1008,19 +1011,27 @@ function initializeGmdssWizard() {
 }
 
 function initializeSimulacro() {
-    const startBtn = document.getElementById('drill-start-btn') as HTMLButtonElement;
-    const drillContent = document.getElementById('drill-content') as HTMLDivElement;
-    const loader = document.getElementById('drill-loader') as HTMLDivElement;
-    
-    if (!startBtn || !drillContent || !loader) return;
-    
-    startBtn.addEventListener('click', async () => {
+    const drillContainer = document.querySelector('.drill-container');
+    if (!drillContainer) return;
+
+    const drillButtons = drillContainer.querySelectorAll<HTMLButtonElement>('.drill-actions button');
+    const drillContent = drillContainer.querySelector<HTMLDivElement>('#drill-content');
+    const loader = drillContainer.querySelector<HTMLDivElement>('#drill-loader');
+
+    if (!drillButtons.length || !drillContent || !loader) return;
+
+    const generateDrill = async (drillType: string) => {
         drillContent.innerHTML = '';
         loader.style.display = 'flex';
-        startBtn.disabled = true;
+        drillButtons.forEach(btn => btn.disabled = true);
 
         try {
-            const apiResponse = await fetch('/api/simulacro');
+            const apiResponse = await fetch('/api/simulacro', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: drillType })
+            });
+
             if (!apiResponse.ok) {
                 const errorData = await apiResponse.json();
                 throw new Error(errorData.details || 'La API devolvió un error.');
@@ -1054,8 +1065,17 @@ function initializeSimulacro() {
             drillContent.innerHTML = `<p class="error">No se pudo generar el simulacro. Inténtelo de nuevo.</p>`;
         } finally {
             loader.style.display = 'none';
-            startBtn.disabled = false;
+            drillButtons.forEach(btn => btn.disabled = false);
         }
+    };
+    
+    drillButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const drillType = button.dataset.drillType;
+            if (drillType) {
+                generateDrill(drillType);
+            }
+        });
     });
 }
 
@@ -1063,10 +1083,11 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
     let score = 0;
     data.questions.forEach((q: any, index: number) => {
         const questionBlock = container.querySelector(`#question-${index}`) as HTMLElement;
+        if (!questionBlock) return;
         const correctAnswerIndex = parseInt(q.correctAnswerIndex, 10);
         const selectedOption = container.querySelector<HTMLInputElement>(`input[name="question-${index}"]:checked`);
         
-        questionBlock.querySelectorAll('.answer-option').forEach(opt => opt.querySelector('input')?.setAttribute('disabled', 'true'));
+        questionBlock.querySelectorAll('.answer-option input').forEach(input => input.setAttribute('disabled', 'true'));
         
         const correctLabel = questionBlock.querySelector<HTMLLabelElement>(`label[for="q${index}-opt${correctAnswerIndex}"]`);
         if (correctLabel) correctLabel.classList.add('correct');
@@ -1080,10 +1101,25 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
                 if (selectedLabel) selectedLabel.classList.add('incorrect');
             }
         }
+
+        if (q.feedback) {
+            const feedbackEl = document.createElement('div');
+            feedbackEl.className = 'answer-feedback';
+            feedbackEl.innerHTML = `<p><strong>Explicación:</strong> ${q.feedback}</p>`;
+            questionBlock.appendChild(feedbackEl);
+        }
     });
 
     const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
-    resultsEl.innerHTML = `<h3>Resultado: ${score} de ${data.questions.length} correctas</h3>`;
+    if (resultsEl) {
+        resultsEl.innerHTML = `<h3>Resultado: ${score} de ${data.questions.length} correctas</h3>`;
+        if (data.fullDetails) {
+            const detailsEl = document.createElement('div');
+            detailsEl.className = 'drill-full-details';
+            detailsEl.innerHTML = `<h4>Detalles Completos del Escenario</h4><p>${data.fullDetails}</p>`;
+            resultsEl.appendChild(detailsEl);
+        }
+    }
 }
 
 function initializeBitacora(container: HTMLElement) {
