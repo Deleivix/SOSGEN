@@ -22,7 +22,7 @@ const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L6 8v12h12V8L12 2z"/><path d="M6 14h12"/><path d="M10 18h4v-4h-4v4z"/><path d="M2 5l4 3"/><path d="M22 5l-4 3"/></svg>`,
     // SIMULACRO: Target
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
-    // BITÁCORA: Book
+    // DIARIO: Book
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
     // INFO: Info circle
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
@@ -56,7 +56,190 @@ const REGISTRO_OCEANO_DATA: Category[] = [
 ];
 
 const QUICK_REFERENCE_DATA: QuickRef[] = [
-    { category: 'Alfabeto Fonético', content: `
+    { category: 'Frecuencias', content: `
+        <h3 class="reference-table-subtitle">Canales VHF (Anexo 2)</h3>
+        <div class="vhf-tables-container">
+            <table class="reference-table">
+                <caption class="header-coruna">CCR LA CORUÑA</caption>
+                <thead><tr class="header-coruna"><th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th></tr><tr class="header-coruna"><th>RETEVISIÓN</th><th>SASEMAR</th></tr></thead>
+                <tbody>
+                    <tr><td rowspan="10">La Coruña</td><td rowspan="10">002241022</td><td>Pasajes</td><td>27</td><td>6</td></tr>
+                    <tr><td>Bilbao</td><td>26</td><td>74</td></tr>
+                    <tr><td>Santander</td><td>24</td><td>72</td></tr>
+                    <tr><td>Cabo Peñas</td><td>27</td><td>6</td></tr>
+                    <tr><td>Navia</td><td>62</td><td>74</td></tr>
+                    <tr><td>Cabo Ortegal</td><td>2</td><td>72</td></tr>
+                    <tr><td>Coruña</td><td>26</td><td>6</td></tr>
+                    <tr><td>Finisterre</td><td>22</td><td>74</td></tr>
+                    <tr><td>Vigo</td><td>20</td><td>6</td></tr>
+                    <tr><td>La Guardia</td><td>82</td><td>72</td></tr>
+                </tbody>
+            </table>
+            <table class="reference-table">
+                <caption class="header-valencia">CCR VALENCIA</caption>
+                <thead><tr class="header-valencia"><th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th></tr><tr class="header-valencia"><th>RETEVISIÓN</th><th>SASEMAR</th></tr></thead>
+                <tbody>
+                    <tr><td rowspan="12">Valencia</td><td rowspan="12">002241024</td><td>Cabo de Gata</td><td>24</td><td>72</td></tr>
+                    <tr><td>Melilla</td><td>25</td><td>6</td></tr>
+                    <tr><td>Cartagena</td><td>27</td><td>6</td></tr>
+                    <tr><td>Cabo la Nao</td><td>85</td><td>74</td></tr>
+                    <tr><td>Castellón</td><td>28</td><td>72</td></tr>
+                    <tr><td>Tarragona</td><td>24</td><td>6</td></tr>
+                    <tr><td>Barcelona</td><td>60</td><td>74</td></tr>
+                    <tr><td>Begur</td><td>23</td><td>6</td></tr>
+                    <tr><td>Cadaqués</td><td>27</td><td>72</td></tr>
+                    <tr><td>Menorca</td><td>85</td><td>6</td></tr>
+                    <tr><td>Palma</td><td>7</td><td>72</td></tr>
+                    <tr><td>Ibiza</td><td>3</td><td>6</td></tr>
+                </tbody>
+            </table>
+            <table class="reference-table">
+                <caption class="header-laspalmas">CCR LAS PALMAS</caption>
+                <thead><tr class="header-laspalmas"><th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th></tr><tr class="header-laspalmas"><th>RETEVISIÓN</th><th>SASEMAR</th></tr></thead>
+                <tbody>
+                    <tr><td rowspan="12">Las Palmas</td><td rowspan="12">002241026</td><td>Huelva</td><td>26</td><td>6</td></tr>
+                    <tr><td>Cádiz</td><td>28</td><td>74</td></tr>
+                    <tr><td>Tarifa</td><td>83</td><td>6</td></tr>
+                    <tr><td>Málaga</td><td>26</td><td>72</td></tr>
+                    <tr><td>Motril</td><td>81</td><td>74</td></tr>
+                    <tr><td>La Palma</td><td>20</td><td>6</td></tr>
+                    <tr><td>Hierro</td><td>23</td><td>74</td></tr>
+                    <tr><td>Gomera</td><td>24</td><td>6</td></tr>
+                    <tr><td>Tenerife</td><td>27</td><td>72</td></tr>
+                    <tr><td>Las Palmas</td><td>26</td><td>74</td></tr>
+                    <tr><td>Fuerteventura</td><td>22</td><td>6</td></tr>
+                    <tr><td>Yaiza</td><td>3</td><td>74</td></tr>
+                    <tr><td>Arrecife</td><td>25</td><td>72</td></tr>
+                    <tr><td>Restinga</td><td>2</td><td>72</td></tr>
+                    <tr><td>Garafía</td><td>60</td><td>74</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 class="reference-table-subtitle">Frecuencias MF y HF (Anexo 2)</h3>
+        <table class="reference-table">
+            <caption class="header-coruna">CCR LA CORUÑA (002241022)</caption>
+            <thead><tr><th>Estación / Radio</th><th>Frec. TX MF (kHz)</th><th>Frec. RX MF (kHz)</th><th>DSC Socorro HF (kHz)</th><th>DSC Int. HF (kHz)</th><th>Telefonía HF (kHz)</th></tr></thead>
+            <tbody>
+                <tr><td>Machichaco Radio</td><td>3.800; 1.677 (D)</td><td>3.340; 2.102 (D)</td><td rowspan="3">4,207.5<br>8.414,5<br>12.577</td><td rowspan="3">4,208.0 (Madrid)<br>4,219,5 (Trijueque)</td><td rowspan="3"><b>Madrid:</b> 4125/4077, 8291/8204, 12290/12230<br><b>Trijueque:</b> 4125/4369, 8291/8728, 12290/13077</td></tr>
+                <tr><td>Coruña Radio</td><td>3.791; 1.707 (D)</td><td>3.331; 2.132 (D)</td></tr>
+                <tr><td>Finisterre Radio</td><td>3.800; 1.698 (D)</td><td>3.340; 2.123 (D)</td></tr>
+            </tbody>
+        </table>
+        <table class="reference-table">
+            <caption class="header-valencia">CCR VALENCIA (002241024)</caption>
+            <thead><tr><th>Estación / Radio</th><th>Frec. TX MF (kHz)</th><th>Frec. RX MF (kHz)</th></tr></thead>
+            <tbody>
+                <tr><td>Cabo la Nao Radio</td><td>3.791; 1.767 (D)</td><td>3.331; 2.111 (D)</td></tr>
+                <tr><td>Palma Radio</td><td>3.800; 1.755 (D)</td><td>3.340; 2.099 (D)</td></tr>
+                <tr><td>Cabo de Gata Radio</td><td>3.800; 1.704 (D)</td><td>3.340; 2.129 (D)</td></tr>
+            </tbody>
+        </table>
+        <table class="reference-table">
+            <caption class="header-laspalmas">CCR LAS PALMAS (002241026)</caption>
+            <thead><tr><th>Estación / Radio</th><th>Frec. TX MF (kHz)</th><th>Frec. RX MF (kHz)</th></tr></thead>
+            <tbody>
+                <tr><td>Tarifa Radio</td><td>3.791; 1.656 (D)</td><td>3.331; 2.081 (D)</td></tr>
+                <tr><td>Las Palmas Radio</td><td>3.791; 1.689 (D)</td><td>3.791; 2.114 (D)</td></tr>
+                <tr><td>Arrecife Radio</td><td>3.800; 1.644 (D)</td><td>3.340; 2.069 (D)</td></tr>
+            </tbody>
+        </table>
+    `},
+    { category: 'Horarios', content: `
+        <h3 class="reference-table-subtitle">Horarios de Emisión desde EECC (UTC)</h3>
+        <table class="reference-table">
+            <thead><tr><th>Servicio</th><th>Estación Radio</th><th>Frecuencia (kHz)</th><th colspan="3">Horarios</th></tr></thead>
+            <tbody>
+                <tr><td rowspan="3">Boletín WX</td><td>Machichaco, Coruña, Finisterre</td><td>1677, 1707, 1698</td><td>09:03</td><td>15:03</td><td>23:03</td></tr>
+                <tr><td>C.Gata, C.Nao, Palma</td><td>1704, 1767, 1755</td><td>10:03</td><td>15:33</td><td>23:33</td></tr>
+                <tr><td>L.Palmas, Arrecife, Tarifa</td><td>1689, 1644, 1656</td><td>10:40</td><td>16:03</td><td>22:33</td></tr>
+                <tr><td rowspan="3">Radioavisos MF</td><td>Machichaco, Coruña, Finisterre</td><td>1677, 1707, 1698</td><td>07:03</td><td>20:33</td><td></td></tr>
+                <tr><td>C.Gata, C.Nao, Palma, Tarifa</td><td>1704, 1767, 1755, 1656</td><td>08:03, 08:40</td><td>19:33, 20:03</td><td></td></tr>
+                <tr><td>L.Palmas, Arrecife</td><td>1689, 1644</td><td>06:33</td><td>21:10</td><td></td></tr>
+                <tr><td rowspan="3">Radioavisos VHF</td><td>CCR La Coruña</td><td>(ver tabla frec.)</td><td>03:00</td><td>17:33</td><td></td></tr>
+                <tr><td>CCR Valencia</td><td>(ver tabla frec.)</td><td>04:10</td><td>18:10</td><td></td></tr>
+                <tr><td>CCR Las Palmas</td><td>(ver tabla frec.)</td><td>02:00, 03:40</td><td>16:33, 19:03</td><td></td></tr>
+            </tbody>
+        </table>
+        <h3 class="reference-table-subtitle">Horarios de Emisión Boletines WX desde CCS (UTC)</h3>
+        <table class="reference-table">
+            <thead><tr><th>CCS</th><th>Canal VHF</th><th>Horarios</th><th>Zona</th></tr></thead>
+            <tbody>
+                <tr><td>Bilbao</td><td>10-74</td><td>04:33, 08:33, 10:33, 18:33, 20:33</td><td>AC+AM - Cantábrico</td></tr>
+                <tr><td>Santander</td><td>72</td><td>05:00, 11:00, 15:00, 21:00</td><td>AC+AM - Cantábrico</td></tr>
+                <tr><td>Gijón</td><td>10</td><td>09:00, 21:00</td><td>AC+AM - Cantábrico</td></tr>
+                <tr><td>A Coruña</td><td>10</td><td>00:05, 04:05, 08:05, 16:05, 20:05</td><td>AC+AM</td></tr>
+                <tr><td>Finisterre</td><td>11</td><td>02:33, 06:33, 10:33, 14:33, 18:33, 22:33</td><td>Pazen, Finisterre, Cantábrico, Porto</td></tr>
+                <tr><td>Vigo</td><td>10</td><td>00:15, 04:15, 08:15, 12:15, 16:15, 20:15</td><td>Finisterre, Porto, San Vicente</td></tr>
+                <tr><td>Huelva</td><td>10</td><td>04:15, 08:15, 12:15, 20:15</td><td>San Vicente, Cádiz, Estrecho</td></tr>
+                <tr><td>Cádiz</td><td>74</td><td>03:15, 07:15, 11:15, 15:15, 19:15, 23:15</td><td>AC+AM - Cádiz, Estrecho</td></tr>
+                <tr><td>Tarifa</td><td>10</td><td>00:15, 04:15, 08:15, 12:15, 16:15, 20:15</td><td>AC+AM - Estrecho</td></tr>
+                <tr><td>Algeciras</td><td>74</td><td>05:15, 15:15, 23:15</td><td>AC+AM - Alborán, Palos</td></tr>
+                <tr><td>Almería</td><td>11</td><td>03:15, 07:15, 11:15, 15:15, 19:15, 23:15</td><td>AC+AM - Alborán, Palos</td></tr>
+                <tr><td>Cartagena</td><td>06</td><td>01:15, 05:15, 09:15, 13:15, 17:15, 21:15</td><td>AC+AM - Palos, Cabrera</td></tr>
+                <tr><td>Valencia</td><td>10-74</td><td>Verano: 03:15, 12:15, 20:15 / Invierno: 04:15</td><td>AC+AM - Palos, Cabrera, Baleares</td></tr>
+                <tr><td>Castellón</td><td>72</td><td>Verano: 07:33, 20:33 / Invierno: 08:33, 21:33</td><td>AC+AM - Baleares</td></tr>
+                <tr><td>Tarragona</td><td>74</td><td>Verano: 11:33, 21:33 / Invierno: 12:33, 22:33</td><td>AC+AM - Baleares</td></tr>
+                <tr><td>Barcelona</td><td>10</td><td>Verano: 05:00, 14:00, 21:00 / Invierno: 06:00, 15:00, 22:00</td><td>AC+AM - Leon, Menorca, Baleares</td></tr>
+                <tr><td>Palma</td><td>10-11</td><td>Verano: 06:35, 09:35, 14:35, 19:35 / Invierno: 07:35, 10:35, 15:35, 20:35</td><td>AC+AM - Menorca, Cabrera, Baleares</td></tr>
+                <tr><td>S.C. Tenerife</td><td>72</td><td>00:15, 04:15, 08:15, 12:15, 16:15, 20:15</td><td></td></tr>
+            </tbody>
+        </table>
+    `},
+    { category: 'Alfabeto Fonético', content: `...` },
+    { category: 'Códigos Q', content: `...` },
+    { category: 'Escala Beaufort & Douglas', content: `...` },
+    { category: 'Calculadora', content: `...` },
+    { category: 'Diccionario', content: `...` }
+];
+// Note: Content for last 5 items is omitted for brevity as it remains unchanged. It will be copied from the existing file.
+QUICK_REFERENCE_DATA[2].content = `...`; // Placeholder for unchanged content
+QUICK_REFERENCE_DATA[3].content = `...`;
+QUICK_REFERENCE_DATA[4].content = `...`;
+QUICK_REFERENCE_DATA[5].content = `...`;
+QUICK_REFERENCE_DATA[6].content = `...`;
+
+
+// --- RENDER FUNCTIONS ---
+function renderRegistroOceano(container: HTMLElement) {
+    container.innerHTML = `
+        <div class="content-card">
+            <div class="registro-oceano-layout">
+                <aside class="ro-sidebar">
+                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
+                        <button class="sub-nav-btn ${index === 0 ? 'active' : ''}" data-target="sub-tab-${category.category.replace(/\s+/g, '-')}">
+                            ${category.category}
+                        </button>
+                    `).join('')}
+                </aside>
+                <main class="ro-content">
+                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
+                        <div class="sub-tab-panel ${index === 0 ? 'active' : ''}" id="sub-tab-${category.category.replace(/\s+/g, '-')}">
+                            ${category.items.map(item => `
+                                    <div class="template-card">
+                                        <div class="template-card-header">
+                                            <h3 class="template-card-title">${item.title}</h3>
+                                            <div class="template-card-actions">
+                                                <button class="save-to-log-btn primary-btn-small" aria-label="Guardar en diario: ${item.title}">Guardar en Diario</button>
+                                                <button class="copy-btn" aria-label="Copiar ${item.title}">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+                                                    <span>Copiar</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <textarea class="styled-textarea template-card-body">${item.template}</textarea>
+                                    </div>`).join('')}
+                        </div>
+                    `).join('')}
+                </main>
+            </div>
+        </div>
+    `;
+    initializeRegistroOceano(container);
+}
+
+function renderInfo(container: HTMLElement) {
+    const fullQuickRefData = [...QUICK_REFERENCE_DATA];
+    fullQuickRefData[2] = { category: 'Alfabeto Fonético', content: `
         <table class="reference-table">
             <thead><tr><th>Letra</th><th>Código</th><th>Letra</th><th>Código</th></tr></thead>
             <tbody>
@@ -75,88 +258,8 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
                 <tr><td>M</td><td>Mike</td><td>Z</td><td>Zulu</td></tr>
             </tbody>
         </table>`
-    },
-    { category: 'Canales VHF', content: `
-        <div class="vhf-tables-container">
-            <table class="reference-table">
-                <caption class="header-coruna">CCR CORUÑA</caption>
-                <thead>
-                    <tr class="header-coruna">
-                        <th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th>
-                    </tr>
-                    <tr class="header-coruna">
-                        <th>CELLNEX</th><th>SASEMAR</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td rowspan="10">CORUÑA</td><td rowspan="10">002241022</td><td>LA GUARDIA</td><td>82</td><td>72</td></tr>
-                    <tr><td>VIGO</td><td>64</td><td>6</td></tr>
-                    <tr><td>FINISTERRE</td><td>22</td><td>74</td></tr>
-                    <tr><td>CORUÑA</td><td>61</td><td>6</td></tr>
-                    <tr><td>ORTEGAL</td><td>2</td><td>72</td></tr>
-                    <tr><td>NAVIA</td><td>62</td><td>74</td></tr>
-                    <tr><td>CABO PEÑAS</td><td>65</td><td>6</td></tr>
-                    <tr><td>SANTANDER</td><td>5</td><td>72</td></tr>
-                    <tr><td>BILBAO</td><td>61</td><td>74</td></tr>
-                    <tr><td>PASAJES</td><td>63</td><td>6</td></tr>
-                </tbody>
-            </table>
-            <table class="reference-table">
-                <caption class="header-valencia">CCR VALENCIA</caption>
-                <thead>
-                    <tr class="header-valencia">
-                        <th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th>
-                    </tr>
-                    <tr class="header-valencia">
-                        <th>CELLNEX</th><th>SASEMAR</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td rowspan="12">VALENCIA</td><td rowspan="12">002241024</td><td>MELILLA</td><td>1</td><td>6</td></tr>
-                    <tr><td>CABO GATA</td><td>5</td><td>72</td></tr>
-                    <tr><td>CARTAGENA</td><td>65</td><td>6</td></tr>
-                    <tr><td>CABO LA NAO</td><td>4</td><td>74</td></tr>
-                    <tr><td>CASTELLÓN</td><td>63</td><td>72</td></tr>
-                    <tr><td>IBIZA</td><td>3</td><td>6</td></tr>
-                    <tr><td>MENORCA</td><td>4</td><td>6</td></tr>
-                    <tr><td>PALMA</td><td>7</td><td>72</td></tr>
-                    <tr><td>TARRAGONA</td><td>1</td><td>6</td></tr>
-                    <tr><td>BARCELONA</td><td>60</td><td>74</td></tr>
-                    <tr><td>BEGUR</td><td>23</td><td>6</td></tr>
-                    <tr><td>CADAQUÉS</td><td>65</td><td>72</td></tr>
-                </tbody>
-            </table>
-            <table class="reference-table">
-                <caption class="header-laspalmas">CCR LAS PALMAS</caption>
-                <thead>
-                    <tr class="header-laspalmas">
-                        <th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th>
-                    </tr>
-                    <tr class="header-laspalmas">
-                        <th>CELLNEX</th><th>SASEMAR</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td rowspan="15">LAS PALMAS</td><td rowspan="15">002241026</td><td>HUELVA</td><td>61</td><td>6</td></tr>
-                    <tr><td>CÁDIZ</td><td>63</td><td>74</td></tr>
-                    <tr><td>TARIFA</td><td>83</td><td>6</td></tr>
-                    <tr><td>MÁLAGA</td><td>61</td><td>72</td></tr>
-                    <tr><td>MOTRIL</td><td>81</td><td>72</td></tr>
-                    <tr><td>LA PALMA</td><td>64</td><td>6</td></tr>
-                    <tr><td>HIERRO</td><td>23</td><td>74</td></tr>
-                    <tr><td>GOMERA</td><td>1</td><td>6</td></tr>
-                    <tr><td>TENERIFE</td><td>65</td><td>72</td></tr>
-                    <tr><td>LAS PALMAS</td><td>61</td><td>74</td></tr>
-                    <tr><td>FUERTEVENTURA</td><td>22</td><td>72</td></tr>
-                    <tr><td>YAIZA</td><td>3</td><td>74</td></tr>
-                    <tr><td>ARRECIFE</td><td>1</td><td>72</td></tr>
-                    <tr><td>LA RESTINGA</td><td>2</td><td>72</td></tr>
-                    <tr><td>GARAFÍA</td><td>60</td><td>74</td></tr>
-                </tbody>
-            </table>
-        </div>`
-    },
-    { category: 'Códigos Q', content: `
+    };
+    fullQuickRefData[3] = { category: 'Códigos Q', content: `
         <table class="reference-table">
             <thead><tr><th>Código</th><th>Significado</th></tr></thead>
             <tbody>
@@ -169,8 +272,8 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
                 <tr><td>QSY</td><td>¿Debo cambiar de frecuencia? / Cambie a la frecuencia...</td></tr>
             </tbody>
         </table>`
-    },
-    { category: 'Escala Beaufort & Douglas', content: `
+    };
+    fullQuickRefData[4] = { category: 'Escalas', content: `
         <h3 class="reference-table-subtitle">Escala Beaufort / Beaufort Wind Scale</h3>
         <table class="reference-table">
             <thead>
@@ -220,8 +323,8 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
             </tbody>
         </table>
         `
-    },
-    { category: 'Calculadora', content: `
+    };
+    fullQuickRefData[5] = { category: 'Calculadora', content: `
         <div class="coord-converter">
             <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
             <p class="translator-desc">Introduzca un par de coordenadas (Latitud y Longitud) para convertirlas al formato estándar <strong>gg° mm,ddd' N/S ggg° mm,ddd' E/W</strong>. Use espacios como separadores.</p>
@@ -231,8 +334,8 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
             </div>
             <div id="coord-result" class="translation-result" aria-live="polite"></div>
         </div>
-    `},
-    { category: 'Diccionario', content: `
+    `};
+    fullQuickRefData[6] = { category: 'Diccionario', content: `
         <div class="nautical-translator">
             <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
             <p class="translator-desc">Traduce términos o frases cortas entre español e inglés.</p>
@@ -259,57 +362,19 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
              </tbody>
         </table>
         `
-    }
-];
+    };
 
-
-// --- RENDER FUNCTIONS ---
-function renderRegistroOceano(container: HTMLElement) {
-    container.innerHTML = `
-        <div class="content-card">
-            <div class="registro-oceano-layout">
-                <aside class="ro-sidebar">
-                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
-                        <button class="sub-nav-btn ${index === 0 ? 'active' : ''}" data-target="sub-tab-${category.category.replace(/\s+/g, '-')}">
-                            ${category.category}
-                        </button>
-                    `).join('')}
-                </aside>
-                <main class="ro-content">
-                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
-                        <div class="sub-tab-panel ${index === 0 ? 'active' : ''}" id="sub-tab-${category.category.replace(/\s+/g, '-')}">
-                            ${category.items.map(item => `
-                                    <div class="template-card">
-                                        <div class="template-card-header">
-                                            <h3 class="template-card-title">${item.title}</h3>
-                                            <button class="copy-btn" aria-label="Copiar ${item.title}">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
-                                                <span>Copiar</span>
-                                            </button>
-                                        </div>
-                                        <textarea class="styled-textarea template-card-body">${item.template}</textarea>
-                                    </div>`).join('')}
-                        </div>
-                    `).join('')}
-                </main>
-            </div>
-        </div>
-    `;
-    initializeRegistroOceano(container);
-}
-
-function renderInfo(container: HTMLElement) {
     container.innerHTML = `
         <div class="content-card">
             <div class="info-nav-tabs">
-                 ${QUICK_REFERENCE_DATA.map((item, index) => `
+                 ${fullQuickRefData.map((item, index) => `
                     <button class="info-nav-btn ${index === 0 ? 'active' : ''}" data-target="ref-tab-${index}">
                         ${item.category}
                     </button>
                 `).join('')}
             </div>
             <main class="info-content">
-                ${QUICK_REFERENCE_DATA.map((item, index) => `
+                ${fullQuickRefData.map((item, index) => `
                     <div class="sub-tab-panel ${index === 0 ? 'active' : ''}" id="ref-tab-${index}">
                        ${item.content}
                     </div>
@@ -457,61 +522,13 @@ function renderSosgen(container: HTMLElement) {
     initializeSosgen();
 }
 
-function renderBitacora(container: HTMLElement) {
+function renderDiario(container: HTMLElement) {
     const logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
     
-    if (logbook.length === 0) {
-        container.innerHTML = `
-            <div class="content-card">
-                <h2 class="content-card-title">Bitácora de Actividad</h2>
-                <p class="drill-placeholder">No hay eventos registrados en la bitácora.</p>
-            </div>`;
-        return;
-    }
-
-    const renderContent = (entry: any) => {
-        switch (entry.type) {
-            case 'SOSGEN':
-                return `
-                     <div class="log-entry-sosgen-grid">
-                         <div class="log-entry-spanish">
-                             <h4>Español</h4>
-                             <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
-                         </div>
-                         <div class="log-entry-english">
-                             <h4>Inglés</h4>
-                             <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
-                         </div>
-                    </div>`;
-            case 'Simulacro DSC':
-            case 'Simulacro Radiotelefonía':
-                return `
-                    <div class="log-details">
-                        <p><strong>Resultado:</strong> ${entry.content.result}</p>
-                        <p><strong>Escenario:</strong></p>
-                        <div class="log-scenario">${entry.content.scenario}</div>
-                    </div>`;
-            case 'Conversión Coordenadas':
-                return `
-                    <div class="log-details">
-                        <p><strong>Entrada:</strong> ${entry.content.input}</p>
-                        <p><strong>Salida (Lat):</strong> ${entry.content.output.lat}</p>
-                        <p><strong>Salida (Lon):</strong> ${entry.content.output.lon}</p>
-                    </div>`;
-            case 'Traducción Náutica':
-                return `
-                    <div class="log-details">
-                        <p><strong>Entrada:</strong> ${entry.content.input}</p>
-                        <p><strong>Salida:</strong> ${entry.content.output}</p>
-                    </div>`;
-            default:
-                return `<pre>${JSON.stringify(entry.content, null, 2)}</pre>`;
-        }
-    }
-
     container.innerHTML = `
         <div class="content-card" style="max-width: 1200px;">
-            <h2 class="content-card-title">Bitácora de Actividad</h2>
+            <h2 class="content-card-title">Diario de Guardia</h2>
+            ${logbook.length === 0 ? '<p class="drill-placeholder">No hay eventos registrados en el diario.</p>' : `
             <div id="logbook-list" class="logbook-list">
                 ${logbook.slice().reverse().map((entry: any) => `
                     <div class="log-entry" data-id="${entry.id}">
@@ -519,9 +536,7 @@ function renderBitacora(container: HTMLElement) {
                             <span class="log-entry-type">${entry.type}</span>
                             <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
                         </div>
-                        <div class="log-entry-content">
-                            ${renderContent(entry)}
-                        </div>
+                        <div class="log-entry-content">${renderLogEntryContent(entry)}</div>
                         <div class="log-entry-actions">
                             ${entry.type === 'SOSGEN' ? '<button class="log-edit-btn secondary-btn">Editar</button>' : ''}
                             <button class="log-delete-btn tertiary-btn">Eliminar</button>
@@ -529,10 +544,53 @@ function renderBitacora(container: HTMLElement) {
                     </div>
                 `).join('')}
             </div>
+            `}
         </div>
     `;
+    
+    if (logbook.length > 0) {
+        initializeDiario(container);
+    }
+}
 
-    initializeBitacora(container);
+function renderLogEntryContent(entry: any) {
+    switch (entry.type) {
+        case 'SOSGEN':
+            return `
+                <div class="log-entry-content-grid-2">
+                     <div>
+                         <h4>Español</h4>
+                         <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
+                     </div>
+                     <div>
+                         <h4>Inglés</h4>
+                         <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
+                     </div>
+                </div>`;
+        case 'Simulacro DSC':
+        case 'Simulacro Radiotelefonía':
+            return `
+                <div class="log-details">
+                    <p><strong>Resultado:</strong> ${entry.content.result}</p>
+                    <p><strong>Escenario:</strong></p>
+                    <div class="log-scenario">${entry.content.scenario}</div>
+                </div>`;
+        case 'Conversión Coordenadas':
+            return `
+                <div class="log-details">
+                    <p><strong>Entrada:</strong> ${entry.content.input}</p>
+                    <p><strong>Salida (Lat):</strong> ${entry.content.output.lat}</p>
+                    <p><strong>Salida (Lon):</strong> ${entry.content.output.lon}</p>
+                </div>`;
+        case 'Traducción Náutica':
+            return `
+                <div class="log-details">
+                    <p><strong>Entrada:</strong> ${entry.content.input}</p>
+                    <p><strong>Salida:</strong> ${entry.content.output}</p>
+                </div>`;
+        default: // Manual entries from Registro Oceano
+            return `<textarea class="styled-textarea" rows="6" readonly>${entry.content.text}</textarea>`;
+    }
 }
 
 const APP_PAGES: Page[] = [
@@ -541,7 +599,7 @@ const APP_PAGES: Page[] = [
     { name: 'PROTOCOLO', contentRenderer: renderProtocolo },
     { name: 'FAROS', contentRenderer: renderLighthouseSimulator },
     { name: 'SIMULACRO', contentRenderer: renderSimulacro },
-    { name: 'BITÁCORA', contentRenderer: renderBitacora },
+    { name: 'DIARIO', contentRenderer: renderDiario },
     { name: 'INFO', contentRenderer: renderInfo },
 ];
 
@@ -556,10 +614,8 @@ function switchToPage(pageIndex: number) {
     const activePanel = document.getElementById(`page-${pageIndex}`) as HTMLElement;
     if (activePanel) {
         activePanel.classList.add('active');
-        if (!activePanel.innerHTML.trim()) {
-            APP_PAGES[pageIndex].contentRenderer(activePanel);
-        } else if (APP_PAGES[pageIndex].name === 'BITÁCORA') {
-            // Always re-render Bitácora to show the latest logs
+        const needsRefresh = APP_PAGES[pageIndex].name === 'DIARIO';
+        if (!activePanel.innerHTML.trim() || needsRefresh) {
             APP_PAGES[pageIndex].contentRenderer(activePanel);
         }
     }
@@ -999,6 +1055,23 @@ function initializeRegistroOceano(container: HTMLElement) {
                 handleCopy(copyBtn, textarea.value);
             }
         }
+        
+        const saveBtn = target.closest('.save-to-log-btn');
+        if (saveBtn instanceof HTMLButtonElement) {
+            const card = saveBtn.closest('.template-card');
+            const title = card?.querySelector('.template-card-title')?.textContent;
+            const text = card?.querySelector('textarea')?.value;
+            if (title && text) {
+                logAppEvent(title, { text });
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Guardado!';
+                saveBtn.disabled = true;
+                setTimeout(() => {
+                    saveBtn.textContent = originalText;
+                    saveBtn.disabled = false;
+                }, 2000);
+            }
+        }
     });
 }
 
@@ -1290,7 +1363,7 @@ function displayInteractiveDrill(data: any, container: HTMLDivElement) {
 }
 
 
-function initializeBitacora(container: HTMLElement) {
+function initializeDiario(container: HTMLElement) {
     const list = container.querySelector('#logbook-list');
     if (!list) return;
 
@@ -1310,8 +1383,8 @@ function initializeBitacora(container: HTMLElement) {
             entryEl.classList.add('editing');
             (textareas[0] as HTMLTextAreaElement)?.focus();
         } else if (target.classList.contains('log-save-btn')) {
-            const spanishText = (entryEl.querySelector('.log-entry-spanish textarea') as HTMLTextAreaElement)?.value;
-            const englishText = (entryEl.querySelector('.log-entry-english textarea') as HTMLTextAreaElement)?.value;
+            const spanishText = (entryEl.querySelector('.log-entry-sosgen-grid textarea:nth-child(1)') as HTMLTextAreaElement)?.value;
+            const englishText = (entryEl.querySelector('.log-entry-sosgen-grid textarea:nth-child(2)') as HTMLTextAreaElement)?.value;
             
             let logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
             const entryIndex = logbook.findIndex((entry: any) => entry.id === entryId);
@@ -1330,7 +1403,7 @@ function initializeBitacora(container: HTMLElement) {
         }
 
         if (target.classList.contains('log-delete-btn')) {
-            if (confirm('¿Está seguro de que desea eliminar esta entrada de la bitácora?')) {
+            if (confirm('¿Está seguro de que desea eliminar esta entrada del diario?')) {
                 let logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
                 const updatedLogbook = logbook.filter((entry: any) => entry.id !== entryId);
                 localStorage.setItem('app_logbook', JSON.stringify(updatedLogbook));
@@ -1338,7 +1411,7 @@ function initializeBitacora(container: HTMLElement) {
                 entryEl.addEventListener('animationend', () => {
                     entryEl.remove();
                      if (updatedLogbook.length === 0 && container) {
-                        renderBitacora(container); // Re-render to show empty message
+                        renderDiario(container); // Re-render to show empty message
                     }
                 });
             }

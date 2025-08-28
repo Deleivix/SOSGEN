@@ -263,10 +263,11 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 }
 .template-card:has(.template-card-body:focus) { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3); }
 .template-card-header {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
   padding: 1rem 1.5rem; background-color: transparent; border-bottom: 1px solid var(--border-color);
 }
-.template-card-title { font-weight: 500; color: var(--text-primary); }
+.template-card-title { font-weight: 500; color: var(--text-primary); flex-grow: 1; }
+.template-card-actions { display: flex; gap: 0.75rem; flex-shrink: 0; }
 .template-card-body {
   padding: 1.5rem; font-family: var(--font-mono); background-color: var(--bg-card);
   white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; color: var(--text-secondary);
@@ -415,14 +416,15 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
 }
 .wizard-restart-btn:hover { background-color: var(--text-primary); transform: translateY(-2px); }
 
-/* --- Bitácora (Logbook) --- */
+/* --- Diario (Logbook) --- */
 .logbook-list { display: flex; flex-direction: column; gap: 1.5rem; }
 .log-entry { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; transition: all 0.2s ease; }
 .log-entry.editing { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3); }
 .log-entry-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background-color: var(--bg-main); border-bottom: 1px solid var(--border-color); }
 .log-entry-type { font-weight: 500; color: var(--text-primary); }
 .log-entry-ts { font-size: 0.9rem; color: var(--text-secondary); }
-.log-entry-content { padding: 1.5rem; display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+.log-entry-content { padding: 1.5rem; }
+.log-entry-content-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 .log-entry-content .styled-textarea { min-height: 120px; }
 .log-entry-content h4 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.5rem; }
 .log-entry-actions { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem; background-color: var(--bg-main); }
