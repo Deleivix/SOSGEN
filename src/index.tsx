@@ -22,7 +22,7 @@ const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L6 8v12h12V8L12 2z"/><path d="M6 14h12"/><path d="M10 18h4v-4h-4v4z"/><path d="M2 5l4 3"/><path d="M22 5l-4 3"/></svg>`,
     // SIMULACRO: Target
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
-    // DIARIO: Book
+    // BITÁCORA: Book
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
     // INFO: Info circle
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
@@ -57,13 +57,13 @@ const REGISTRO_OCEANO_DATA: Category[] = [
 
 const QUICK_REFERENCE_DATA: QuickRef[] = [
     { category: 'Frecuencias', content: `
-        <h3 class="reference-table-subtitle">Canales VHF (Anexo 2)</h3>
+        <h3 class="reference-table-subtitle">Canales VHF</h3>
         <div class="vhf-tables-container">
             <table class="reference-table">
-                <caption class="header-coruna">CCR LA CORUÑA</caption>
-                <thead><tr class="header-coruna"><th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th></tr><tr class="header-coruna"><th>RETEVISIÓN</th><th>SASEMAR</th></tr></thead>
+                <caption class="header-coruna">CCR LA CORUÑA (002241022)</caption>
+                <thead><tr><th>EECC</th><th>Canal Retevisión</th><th>Canal Sasemar</th></tr></thead>
                 <tbody>
-                    <tr><td rowspan="10">La Coruña</td><td rowspan="10">002241022</td><td>Pasajes</td><td>27</td><td>6</td></tr>
+                    <tr><td>Pasajes</td><td>27</td><td>6</td></tr>
                     <tr><td>Bilbao</td><td>26</td><td>74</td></tr>
                     <tr><td>Santander</td><td>24</td><td>72</td></tr>
                     <tr><td>Cabo Peñas</td><td>27</td><td>6</td></tr>
@@ -76,10 +76,10 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
                 </tbody>
             </table>
             <table class="reference-table">
-                <caption class="header-valencia">CCR VALENCIA</caption>
-                <thead><tr class="header-valencia"><th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th></tr><tr class="header-valencia"><th>RETEVISIÓN</th><th>SASEMAR</th></tr></thead>
+                <caption class="header-valencia">CCR VALENCIA (002241024)</caption>
+                <thead><tr><th>EECC</th><th>Canal Retevisión</th><th>Canal Sasemar</th></tr></thead>
                 <tbody>
-                    <tr><td rowspan="12">Valencia</td><td rowspan="12">002241024</td><td>Cabo de Gata</td><td>24</td><td>72</td></tr>
+                    <tr><td>Cabo de Gata</td><td>24</td><td>72</td></tr>
                     <tr><td>Melilla</td><td>25</td><td>6</td></tr>
                     <tr><td>Cartagena</td><td>27</td><td>6</td></tr>
                     <tr><td>Cabo la Nao</td><td>85</td><td>74</td></tr>
@@ -94,10 +94,10 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
                 </tbody>
             </table>
             <table class="reference-table">
-                <caption class="header-laspalmas">CCR LAS PALMAS</caption>
-                <thead><tr class="header-laspalmas"><th rowspan="2">CCR</th><th rowspan="2">MMSI</th><th rowspan="2">EECC</th><th colspan="2">CANAL</th></tr><tr class="header-laspalmas"><th>RETEVISIÓN</th><th>SASEMAR</th></tr></thead>
+                <caption class="header-laspalmas">CCR LAS PALMAS (002241026)</caption>
+                <thead><tr><th>EECC</th><th>Canal Retevisión</th><th>Canal Sasemar</th></tr></thead>
                 <tbody>
-                    <tr><td rowspan="12">Las Palmas</td><td rowspan="12">002241026</td><td>Huelva</td><td>26</td><td>6</td></tr>
+                    <tr><td>Huelva</td><td>26</td><td>6</td></tr>
                     <tr><td>Cádiz</td><td>28</td><td>74</td></tr>
                     <tr><td>Tarifa</td><td>83</td><td>6</td></tr>
                     <tr><td>Málaga</td><td>26</td><td>72</td></tr>
@@ -115,75 +115,6 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
                 </tbody>
             </table>
         </div>
-        <h3 class="reference-table-subtitle">Frecuencias MF y HF (Anexo 2)</h3>
-        <table class="reference-table">
-            <caption class="header-coruna">CCR LA CORUÑA (002241022)</caption>
-            <thead><tr><th>Estación / Radio</th><th>Frec. TX MF (kHz)</th><th>Frec. RX MF (kHz)</th><th>DSC Socorro HF (kHz)</th><th>DSC Int. HF (kHz)</th><th>Telefonía HF (kHz)</th></tr></thead>
-            <tbody>
-                <tr><td>Machichaco Radio</td><td>3.800; 1.677 (D)</td><td>3.340; 2.102 (D)</td><td rowspan="3">4,207.5<br>8.414,5<br>12.577</td><td rowspan="3">4,208.0 (Madrid)<br>4,219,5 (Trijueque)</td><td rowspan="3"><b>Madrid:</b> 4125/4077, 8291/8204, 12290/12230<br><b>Trijueque:</b> 4125/4369, 8291/8728, 12290/13077</td></tr>
-                <tr><td>Coruña Radio</td><td>3.791; 1.707 (D)</td><td>3.331; 2.132 (D)</td></tr>
-                <tr><td>Finisterre Radio</td><td>3.800; 1.698 (D)</td><td>3.340; 2.123 (D)</td></tr>
-            </tbody>
-        </table>
-        <table class="reference-table">
-            <caption class="header-valencia">CCR VALENCIA (002241024)</caption>
-            <thead><tr><th>Estación / Radio</th><th>Frec. TX MF (kHz)</th><th>Frec. RX MF (kHz)</th></tr></thead>
-            <tbody>
-                <tr><td>Cabo la Nao Radio</td><td>3.791; 1.767 (D)</td><td>3.331; 2.111 (D)</td></tr>
-                <tr><td>Palma Radio</td><td>3.800; 1.755 (D)</td><td>3.340; 2.099 (D)</td></tr>
-                <tr><td>Cabo de Gata Radio</td><td>3.800; 1.704 (D)</td><td>3.340; 2.129 (D)</td></tr>
-            </tbody>
-        </table>
-        <table class="reference-table">
-            <caption class="header-laspalmas">CCR LAS PALMAS (002241026)</caption>
-            <thead><tr><th>Estación / Radio</th><th>Frec. TX MF (kHz)</th><th>Frec. RX MF (kHz)</th></tr></thead>
-            <tbody>
-                <tr><td>Tarifa Radio</td><td>3.791; 1.656 (D)</td><td>3.331; 2.081 (D)</td></tr>
-                <tr><td>Las Palmas Radio</td><td>3.791; 1.689 (D)</td><td>3.791; 2.114 (D)</td></tr>
-                <tr><td>Arrecife Radio</td><td>3.800; 1.644 (D)</td><td>3.340; 2.069 (D)</td></tr>
-            </tbody>
-        </table>
-    `},
-    { category: 'Horarios', content: `
-        <h3 class="reference-table-subtitle">Horarios de Emisión desde EECC (UTC)</h3>
-        <table class="reference-table">
-            <thead><tr><th>Servicio</th><th>Estación Radio</th><th>Frecuencia (kHz)</th><th colspan="3">Horarios</th></tr></thead>
-            <tbody>
-                <tr><td rowspan="3">Boletín WX</td><td>Machichaco, Coruña, Finisterre</td><td>1677, 1707, 1698</td><td>09:03</td><td>15:03</td><td>23:03</td></tr>
-                <tr><td>C.Gata, C.Nao, Palma</td><td>1704, 1767, 1755</td><td>10:03</td><td>15:33</td><td>23:33</td></tr>
-                <tr><td>L.Palmas, Arrecife, Tarifa</td><td>1689, 1644, 1656</td><td>10:40</td><td>16:03</td><td>22:33</td></tr>
-                <tr><td rowspan="3">Radioavisos MF</td><td>Machichaco, Coruña, Finisterre</td><td>1677, 1707, 1698</td><td>07:03</td><td>20:33</td><td></td></tr>
-                <tr><td>C.Gata, C.Nao, Palma, Tarifa</td><td>1704, 1767, 1755, 1656</td><td>08:03, 08:40</td><td>19:33, 20:03</td><td></td></tr>
-                <tr><td>L.Palmas, Arrecife</td><td>1689, 1644</td><td>06:33</td><td>21:10</td><td></td></tr>
-                <tr><td rowspan="3">Radioavisos VHF</td><td>CCR La Coruña</td><td>(ver tabla frec.)</td><td>03:00</td><td>17:33</td><td></td></tr>
-                <tr><td>CCR Valencia</td><td>(ver tabla frec.)</td><td>04:10</td><td>18:10</td><td></td></tr>
-                <tr><td>CCR Las Palmas</td><td>(ver tabla frec.)</td><td>02:00, 03:40</td><td>16:33, 19:03</td><td></td></tr>
-            </tbody>
-        </table>
-        <h3 class="reference-table-subtitle">Horarios de Emisión Boletines WX desde CCS (UTC)</h3>
-        <table class="reference-table">
-            <thead><tr><th>CCS</th><th>Canal VHF</th><th>Horarios</th><th>Zona</th></tr></thead>
-            <tbody>
-                <tr><td>Bilbao</td><td>10-74</td><td>04:33, 08:33, 10:33, 18:33, 20:33</td><td>AC+AM - Cantábrico</td></tr>
-                <tr><td>Santander</td><td>72</td><td>05:00, 11:00, 15:00, 21:00</td><td>AC+AM - Cantábrico</td></tr>
-                <tr><td>Gijón</td><td>10</td><td>09:00, 21:00</td><td>AC+AM - Cantábrico</td></tr>
-                <tr><td>A Coruña</td><td>10</td><td>00:05, 04:05, 08:05, 16:05, 20:05</td><td>AC+AM</td></tr>
-                <tr><td>Finisterre</td><td>11</td><td>02:33, 06:33, 10:33, 14:33, 18:33, 22:33</td><td>Pazen, Finisterre, Cantábrico, Porto</td></tr>
-                <tr><td>Vigo</td><td>10</td><td>00:15, 04:15, 08:15, 12:15, 16:15, 20:15</td><td>Finisterre, Porto, San Vicente</td></tr>
-                <tr><td>Huelva</td><td>10</td><td>04:15, 08:15, 12:15, 20:15</td><td>San Vicente, Cádiz, Estrecho</td></tr>
-                <tr><td>Cádiz</td><td>74</td><td>03:15, 07:15, 11:15, 15:15, 19:15, 23:15</td><td>AC+AM - Cádiz, Estrecho</td></tr>
-                <tr><td>Tarifa</td><td>10</td><td>00:15, 04:15, 08:15, 12:15, 16:15, 20:15</td><td>AC+AM - Estrecho</td></tr>
-                <tr><td>Algeciras</td><td>74</td><td>05:15, 15:15, 23:15</td><td>AC+AM - Alborán, Palos</td></tr>
-                <tr><td>Almería</td><td>11</td><td>03:15, 07:15, 11:15, 15:15, 19:15, 23:15</td><td>AC+AM - Alborán, Palos</td></tr>
-                <tr><td>Cartagena</td><td>06</td><td>01:15, 05:15, 09:15, 13:15, 17:15, 21:15</td><td>AC+AM - Palos, Cabrera</td></tr>
-                <tr><td>Valencia</td><td>10-74</td><td>Verano: 03:15, 12:15, 20:15 / Invierno: 04:15</td><td>AC+AM - Palos, Cabrera, Baleares</td></tr>
-                <tr><td>Castellón</td><td>72</td><td>Verano: 07:33, 20:33 / Invierno: 08:33, 21:33</td><td>AC+AM - Baleares</td></tr>
-                <tr><td>Tarragona</td><td>74</td><td>Verano: 11:33, 21:33 / Invierno: 12:33, 22:33</td><td>AC+AM - Baleares</td></tr>
-                <tr><td>Barcelona</td><td>10</td><td>Verano: 05:00, 14:00, 21:00 / Invierno: 06:00, 15:00, 22:00</td><td>AC+AM - Leon, Menorca, Baleares</td></tr>
-                <tr><td>Palma</td><td>10-11</td><td>Verano: 06:35, 09:35, 14:35, 19:35 / Invierno: 07:35, 10:35, 15:35, 20:35</td><td>AC+AM - Menorca, Cabrera, Baleares</td></tr>
-                <tr><td>S.C. Tenerife</td><td>72</td><td>00:15, 04:15, 08:15, 12:15, 16:15, 20:15</td><td></td></tr>
-            </tbody>
-        </table>
     `},
     { category: 'Alfabeto Fonético', content: `...` },
     { category: 'Códigos Q', content: `...` },
@@ -192,11 +123,11 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
     { category: 'Diccionario', content: `...` }
 ];
 // Note: Content for last 5 items is omitted for brevity as it remains unchanged. It will be copied from the existing file.
-QUICK_REFERENCE_DATA[2].content = `...`; // Placeholder for unchanged content
+QUICK_REFERENCE_DATA[1].content = `...`; // Placeholder for unchanged content
+QUICK_REFERENCE_DATA[2].content = `...`;
 QUICK_REFERENCE_DATA[3].content = `...`;
 QUICK_REFERENCE_DATA[4].content = `...`;
 QUICK_REFERENCE_DATA[5].content = `...`;
-QUICK_REFERENCE_DATA[6].content = `...`;
 
 
 // --- RENDER FUNCTIONS ---
@@ -218,15 +149,12 @@ function renderRegistroOceano(container: HTMLElement) {
                                     <div class="template-card">
                                         <div class="template-card-header">
                                             <h3 class="template-card-title">${item.title}</h3>
-                                            <div class="template-card-actions">
-                                                <button class="save-to-log-btn primary-btn-small" aria-label="Guardar en diario: ${item.title}">Guardar en Diario</button>
-                                                <button class="copy-btn" aria-label="Copiar ${item.title}">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
-                                                    <span>Copiar</span>
-                                                </button>
-                                            </div>
+                                            <button class="copy-btn" aria-label="Copiar ${item.title}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+                                                <span>Copiar</span>
+                                            </button>
                                         </div>
-                                        <textarea class="styled-textarea template-card-body">${item.template}</textarea>
+                                        <div contenteditable="true" class="template-card-body">${item.template}</div>
                                     </div>`).join('')}
                         </div>
                     `).join('')}
@@ -239,7 +167,7 @@ function renderRegistroOceano(container: HTMLElement) {
 
 function renderInfo(container: HTMLElement) {
     const fullQuickRefData = [...QUICK_REFERENCE_DATA];
-    fullQuickRefData[2] = { category: 'Alfabeto Fonético', content: `
+    fullQuickRefData[1] = { category: 'Alfabeto Fonético', content: `
         <table class="reference-table">
             <thead><tr><th>Letra</th><th>Código</th><th>Letra</th><th>Código</th></tr></thead>
             <tbody>
@@ -259,7 +187,7 @@ function renderInfo(container: HTMLElement) {
             </tbody>
         </table>`
     };
-    fullQuickRefData[3] = { category: 'Códigos Q', content: `
+    fullQuickRefData[2] = { category: 'Códigos Q', content: `
         <table class="reference-table">
             <thead><tr><th>Código</th><th>Significado</th></tr></thead>
             <tbody>
@@ -273,7 +201,7 @@ function renderInfo(container: HTMLElement) {
             </tbody>
         </table>`
     };
-    fullQuickRefData[4] = { category: 'Escalas', content: `
+    fullQuickRefData[3] = { category: 'Escalas', content: `
         <h3 class="reference-table-subtitle">Escala Beaufort / Beaufort Wind Scale</h3>
         <table class="reference-table">
             <thead>
@@ -324,7 +252,7 @@ function renderInfo(container: HTMLElement) {
         </table>
         `
     };
-    fullQuickRefData[5] = { category: 'Calculadora', content: `
+    fullQuickRefData[4] = { category: 'Calculadora', content: `
         <div class="coord-converter">
             <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
             <p class="translator-desc">Introduzca un par de coordenadas (Latitud y Longitud) para convertirlas al formato estándar <strong>gg° mm,ddd' N/S ggg° mm,ddd' E/W</strong>. Use espacios como separadores.</p>
@@ -335,7 +263,7 @@ function renderInfo(container: HTMLElement) {
             <div id="coord-result" class="translation-result" aria-live="polite"></div>
         </div>
     `};
-    fullQuickRefData[6] = { category: 'Diccionario', content: `
+    fullQuickRefData[5] = { category: 'Diccionario', content: `
         <div class="nautical-translator">
             <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
             <p class="translator-desc">Traduce términos o frases cortas entre español e inglés.</p>
@@ -462,16 +390,11 @@ function renderSimulacro(container: HTMLElement) {
         <div class="content-card">
              <h2 class="content-card-title">Simulador de Casos Prácticos GMDSS</h2>
              <div class="drill-container">
-                <div id="drill-type-selection">
-                    <p>Seleccione el tipo de simulacro que desea realizar:</p>
-                    <div class="drill-type-options">
-                        <button class="secondary-btn" id="drill-dsc-btn" style="width: auto;">Alerta DSC</button>
-                        <button class="secondary-btn" id="drill-radio-btn" style="width: auto;">Llamada Radiotelefonía</button>
-                    </div>
-                </div>
-                <div id="drill-loader" class="loader-container" style="display: none;"><div class="loader"></div></div>
-                <div id="drill-content" class="drill-content" style="margin-top: 2rem;"></div>
-                <button id="drill-restart-btn" class="primary-btn" style="display: none; margin-top: 2rem;">Realizar otro Simulacro</button>
+                 <button id="drill-start-btn" class="primary-btn">Generar Escenario de Simulacro (IA)</button>
+                 <div id="drill-loader" class="loader-container" style="display: none;"><div class="loader"></div></div>
+                 <div id="drill-content" class="drill-content">
+                     <p class="drill-placeholder">Pulse el botón para generar un nuevo escenario.</p>
+                 </div>
              </div>
         </div>
     `;
@@ -522,13 +445,13 @@ function renderSosgen(container: HTMLElement) {
     initializeSosgen();
 }
 
-function renderDiario(container: HTMLElement) {
-    const logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
+function renderBitacora(container: HTMLElement) {
+    const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
     
     container.innerHTML = `
         <div class="content-card" style="max-width: 1200px;">
-            <h2 class="content-card-title">Diario de Guardia</h2>
-            ${logbook.length === 0 ? '<p class="drill-placeholder">No hay eventos registrados en el diario.</p>' : `
+            <h2 class="content-card-title">Bitácora de Mensajes Generados</h2>
+            ${logbook.length === 0 ? '<p class="drill-placeholder">No hay mensajes generados.</p>' : `
             <div id="logbook-list" class="logbook-list">
                 ${logbook.slice().reverse().map((entry: any) => `
                     <div class="log-entry" data-id="${entry.id}">
@@ -536,9 +459,18 @@ function renderDiario(container: HTMLElement) {
                             <span class="log-entry-type">${entry.type}</span>
                             <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
                         </div>
-                        <div class="log-entry-content">${renderLogEntryContent(entry)}</div>
+                        <div class="log-entry-content">
+                             <div>
+                                 <h4>Español</h4>
+                                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
+                             </div>
+                             <div>
+                                 <h4>Inglés</h4>
+                                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
+                             </div>
+                        </div>
                         <div class="log-entry-actions">
-                            ${entry.type === 'SOSGEN' ? '<button class="log-edit-btn secondary-btn">Editar</button>' : ''}
+                            <button class="log-edit-btn secondary-btn">Editar</button>
                             <button class="log-delete-btn tertiary-btn">Eliminar</button>
                         </div>
                     </div>
@@ -549,47 +481,7 @@ function renderDiario(container: HTMLElement) {
     `;
     
     if (logbook.length > 0) {
-        initializeDiario(container);
-    }
-}
-
-function renderLogEntryContent(entry: any) {
-    switch (entry.type) {
-        case 'SOSGEN':
-            return `
-                <div class="log-entry-content-grid-2">
-                     <div>
-                         <h4>Español</h4>
-                         <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
-                     </div>
-                     <div>
-                         <h4>Inglés</h4>
-                         <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
-                     </div>
-                </div>`;
-        case 'Simulacro DSC':
-        case 'Simulacro Radiotelefonía':
-            return `
-                <div class="log-details">
-                    <p><strong>Resultado:</strong> ${entry.content.result}</p>
-                    <p><strong>Escenario:</strong></p>
-                    <div class="log-scenario">${entry.content.scenario}</div>
-                </div>`;
-        case 'Conversión Coordenadas':
-            return `
-                <div class="log-details">
-                    <p><strong>Entrada:</strong> ${entry.content.input}</p>
-                    <p><strong>Salida (Lat):</strong> ${entry.content.output.lat}</p>
-                    <p><strong>Salida (Lon):</strong> ${entry.content.output.lon}</p>
-                </div>`;
-        case 'Traducción Náutica':
-            return `
-                <div class="log-details">
-                    <p><strong>Entrada:</strong> ${entry.content.input}</p>
-                    <p><strong>Salida:</strong> ${entry.content.output}</p>
-                </div>`;
-        default: // Manual entries from Registro Oceano
-            return `<textarea class="styled-textarea" rows="6" readonly>${entry.content.text}</textarea>`;
+        initializeBitacora(container);
     }
 }
 
@@ -599,7 +491,7 @@ const APP_PAGES: Page[] = [
     { name: 'PROTOCOLO', contentRenderer: renderProtocolo },
     { name: 'FAROS', contentRenderer: renderLighthouseSimulator },
     { name: 'SIMULACRO', contentRenderer: renderSimulacro },
-    { name: 'DIARIO', contentRenderer: renderDiario },
+    { name: 'BITÁCORA', contentRenderer: renderBitacora },
     { name: 'INFO', contentRenderer: renderInfo },
 ];
 
@@ -614,7 +506,7 @@ function switchToPage(pageIndex: number) {
     const activePanel = document.getElementById(`page-${pageIndex}`) as HTMLElement;
     if (activePanel) {
         activePanel.classList.add('active');
-        const needsRefresh = APP_PAGES[pageIndex].name === 'DIARIO';
+        const needsRefresh = APP_PAGES[pageIndex].name === 'BITÁCORA';
         if (!activePanel.innerHTML.trim() || needsRefresh) {
             APP_PAGES[pageIndex].contentRenderer(activePanel);
         }
@@ -656,9 +548,9 @@ function renderApp(container: HTMLElement) {
 }
 
 // --- LOGGING ---
-function logAppEvent(type: string, content: object) {
+function logSosgenEvent(type: string, content: object) {
     try {
-        const logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
+        const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
         const newEntry = {
             id: Date.now().toString(),
             timestamp: new Date().toISOString(),
@@ -666,7 +558,7 @@ function logAppEvent(type: string, content: object) {
             content
         };
         logbook.push(newEntry);
-        localStorage.setItem('app_logbook', JSON.stringify(logbook));
+        localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
     } catch (e) {
         console.error("Failed to write to logbook:", e);
     }
@@ -836,7 +728,7 @@ async function initializeSosgen() {
                 });
             });
 
-            logAppEvent('SOSGEN', { spanish: esMsg, english: enMsg });
+            logSosgenEvent('SOSGEN', { spanish: esMsg, english: enMsg });
             localStorage.removeItem('sosgen_draft');
 
         } catch (error) {
@@ -979,13 +871,6 @@ function initializeCoordinateConverter() {
         }
 
         resultEl.innerHTML = htmlResult;
-
-        if (!latResult.error && !lonResult.error) {
-            logAppEvent('Conversión Coordenadas', {
-                input: input,
-                output: { lat: latResult.text, lon: lonResult.text }
-            });
-        }
     });
 }
 
@@ -1018,7 +903,6 @@ async function initializeNauticalTranslator() {
 
             const data = await apiResponse.json();
             resultEl.innerHTML = `<p>${data.translation}</p>`;
-            logAppEvent('Traducción Náutica', { input: textToTranslate, output: data.translation });
 
         } catch (error) {
             console.error("Translation Error:", error);
@@ -1050,26 +934,9 @@ function initializeRegistroOceano(container: HTMLElement) {
         const copyBtn = target.closest('.copy-btn');
         if (copyBtn instanceof HTMLButtonElement) {
             const card = copyBtn.closest('.template-card');
-            const textarea = card?.querySelector('textarea');
-            if(textarea) {
-                handleCopy(copyBtn, textarea.value);
-            }
-        }
-        
-        const saveBtn = target.closest('.save-to-log-btn');
-        if (saveBtn instanceof HTMLButtonElement) {
-            const card = saveBtn.closest('.template-card');
-            const title = card?.querySelector('.template-card-title')?.textContent;
-            const text = card?.querySelector('textarea')?.value;
-            if (title && text) {
-                logAppEvent(title, { text });
-                const originalText = saveBtn.textContent;
-                saveBtn.textContent = 'Guardado!';
-                saveBtn.disabled = true;
-                setTimeout(() => {
-                    saveBtn.textContent = originalText;
-                    saveBtn.disabled = false;
-                }, 2000);
+            const body = card?.querySelector('.template-card-body');
+            if(body) {
+                handleCopy(copyBtn, body.textContent || '');
             }
         }
     });
@@ -1140,230 +1007,86 @@ function initializeGmdssWizard() {
     }
 }
 
-async function startDrill(drillType: 'dsc' | 'radiotelephony') {
+function initializeSimulacro() {
+    const startBtn = document.getElementById('drill-start-btn') as HTMLButtonElement;
     const drillContent = document.getElementById('drill-content') as HTMLDivElement;
     const loader = document.getElementById('drill-loader') as HTMLDivElement;
-    const typeSelection = document.getElementById('drill-type-selection') as HTMLDivElement;
-    const restartBtn = document.getElementById('drill-restart-btn') as HTMLButtonElement;
-
-    if (!drillContent || !loader || !typeSelection || !restartBtn) return;
     
-    drillContent.innerHTML = '';
-    loader.style.display = 'flex';
-    typeSelection.style.display = 'none';
-    restartBtn.style.display = 'none';
-
-    try {
-        const apiResponse = await fetch('/api/simulacro', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: drillType }),
-        });
-        if (!apiResponse.ok) {
-            const errorData = await apiResponse.json();
-            throw new Error(errorData.details || 'La API devolvió un error.');
-        }
-        
-        const drillData = await apiResponse.json();
-        if (drillData.type === 'dsc') {
-            displayDscDrill(drillData, drillContent);
-        } else if (drillData.type === 'radiotelephony') {
-            displayInteractiveDrill(drillData, drillContent);
-        }
-        restartBtn.style.display = 'block';
-
-    } catch (error) {
-        console.error("Drill Generation Error:", error);
-        drillContent.innerHTML = `<p class="error">No se pudo generar el simulacro. Inténtelo de nuevo.</p>`;
-        restartBtn.style.display = 'block';
-    } finally {
-        loader.style.display = 'none';
-    }
-}
-
-function initializeSimulacro() {
-    const dscBtn = document.getElementById('drill-dsc-btn') as HTMLButtonElement;
-    const radioBtn = document.getElementById('drill-radio-btn') as HTMLButtonElement;
-    const restartBtn = document.getElementById('drill-restart-btn') as HTMLButtonElement;
-    const drillContent = document.getElementById('drill-content') as HTMLDivElement;
-    const typeSelection = document.getElementById('drill-type-selection') as HTMLDivElement;
-
-    if (!dscBtn || !radioBtn || !restartBtn || !typeSelection) return;
-
-    dscBtn.addEventListener('click', () => startDrill('dsc'));
-    radioBtn.addEventListener('click', () => startDrill('radiotelephony'));
-    restartBtn.addEventListener('click', () => {
-        typeSelection.style.display = 'block';
+    if (!startBtn || !drillContent || !loader) return;
+    
+    startBtn.addEventListener('click', async () => {
         drillContent.innerHTML = '';
-        restartBtn.style.display = 'none';
+        loader.style.display = 'flex';
+        startBtn.disabled = true;
+
+        try {
+            const apiResponse = await fetch('/api/simulacro');
+            if (!apiResponse.ok) {
+                const errorData = await apiResponse.json();
+                throw new Error(errorData.details || 'La API devolvió un error.');
+            }
+            const drillData = await apiResponse.json();
+            
+            let html = `<div class="drill-scenario">${drillData.scenario}</div><div class="drill-questions">`;
+            drillData.questions.forEach((q: any, index: number) => {
+                html += `
+                    <div class="question-block" id="question-${index}" data-correct-index="${q.correctAnswerIndex}">
+                        <p class="question-text">${index + 1}. ${q.questionText}</p>
+                        <div class="answer-options">
+                            ${q.options.map((opt: string, optIndex: number) => `
+                                <label class="answer-option" for="q${index}-opt${optIndex}">
+                                    <input type="radio" name="question-${index}" id="q${index}-opt${optIndex}" value="${optIndex}">
+                                    <span>${opt}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div><button id="drill-check-btn" class="primary-btn">Verificar Respuestas</button><div id="drill-results" class="drill-results-summary"></div>`;
+            drillContent.innerHTML = html;
+
+            const checkBtn = drillContent.querySelector('#drill-check-btn');
+            checkBtn?.addEventListener('click', () => checkDrillAnswers(drillData, drillContent), { once: true });
+
+        } catch (error) {
+            console.error("Drill Generation Error:", error);
+            drillContent.innerHTML = `<p class="error">No se pudo generar el simulacro. Inténtelo de nuevo.</p>`;
+        } finally {
+            loader.style.display = 'none';
+            startBtn.disabled = false;
+        }
     });
 }
 
-
-function displayDscDrill(data: any, container: HTMLDivElement) {
-    let html = `<div class="drill-scenario">${data.scenario}</div><div class="drill-questions">`;
-    data.questions.forEach((q: any, index: number) => {
-        html += `
-            <div class="question-block" id="question-${index}" data-correct-index="${q.correctAnswerIndex}">
-                <p class="question-text">${index + 1}. ${q.questionText}</p>
-                <div class="answer-options">
-                    ${q.options.map((opt: string, optIndex: number) => `
-                        <label class="answer-option" for="q${index}-opt${optIndex}">
-                            <input type="radio" name="question-${index}" id="q${index}-opt${optIndex}" value="${optIndex}">
-                            <span>${opt}</span>
-                        </label>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    });
-    html += `</div><button id="drill-check-btn" class="primary-btn">Verificar Respuestas</button><div id="drill-results" class="drill-results-summary"></div>`;
-    container.innerHTML = html;
-
-    const checkBtn = container.querySelector('#drill-check-btn');
-    checkBtn?.addEventListener('click', () => {
-        const resultText = checkDscDrillAnswers(data, container);
-        logAppEvent('Simulacro DSC', { scenario: data.scenario, result: resultText });
-        if (checkBtn instanceof HTMLButtonElement) checkBtn.disabled = true;
-    }, { once: true });
-}
-
-function checkDscDrillAnswers(data: any, container: HTMLDivElement): string {
+function checkDrillAnswers(data: any, container: HTMLDivElement) {
     let score = 0;
     data.questions.forEach((q: any, index: number) => {
         const questionBlock = container.querySelector(`#question-${index}`) as HTMLElement;
         const correctAnswerIndex = parseInt(q.correctAnswerIndex, 10);
         const selectedOption = container.querySelector<HTMLInputElement>(`input[name="question-${index}"]:checked`);
         
-        const options = questionBlock.querySelectorAll('.answer-option');
-        options.forEach(opt => {
-            opt.classList.add('disabled');
-            opt.querySelector('input')?.setAttribute('disabled', 'true');
-        });
-        options[correctAnswerIndex].classList.add('correct');
+        questionBlock.querySelectorAll('.answer-option').forEach(opt => opt.querySelector('input')?.setAttribute('disabled', 'true'));
+        
+        const correctLabel = questionBlock.querySelector<HTMLLabelElement>(`label[for="q${index}-opt${correctAnswerIndex}"]`);
+        if (correctLabel) correctLabel.classList.add('correct');
 
         if (selectedOption) {
             const selectedAnswerIndex = parseInt(selectedOption.value, 10);
             if (selectedAnswerIndex === correctAnswerIndex) {
                 score++;
             } else {
-                if(options[selectedAnswerIndex]) {
-                    options[selectedAnswerIndex].classList.add('incorrect');
-                }
+                const selectedLabel = questionBlock.querySelector<HTMLLabelElement>(`label[for="q${index}-opt${selectedAnswerIndex}"]`);
+                if (selectedLabel) selectedLabel.classList.add('incorrect');
             }
         }
     });
 
-    const resultText = `${score} de ${data.questions.length} correctas`;
     const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
-    resultsEl.innerHTML = `<h3>Resultado: ${resultText}</h3>`;
-    return resultText;
+    resultsEl.innerHTML = `<h3>Resultado: ${score} de ${data.questions.length} correctas</h3>`;
 }
 
-function displayInteractiveDrill(data: any, container: HTMLDivElement) {
-    let currentQuestionIndex = 0;
-    let score = 0;
-
-    // Robust cleanup: Remove any handler that might be lingering from a previous, unfinished drill.
-    if ((container as any).__interactiveDrillHandler) {
-        container.removeEventListener('change', (container as any).__interactiveDrillHandler);
-        delete (container as any).__interactiveDrillHandler;
-    }
-
-    function renderQuestion(index: number) {
-        const q = data.questions[index];
-        const questionHtml = `
-            <div class="question-block" data-question-index="${index}">
-                <p class="question-text">${index + 1}. ${q.questionText}</p>
-                <div class="answer-options">
-                     ${q.options.map((opt: string, optIndex: number) => `
-                        <label class="answer-option" for="q${index}-opt${optIndex}">
-                            <input type="radio" name="question-${index}" id="q${index}-opt${optIndex}" value="${optIndex}">
-                            <span>${opt}</span>
-                        </label>
-                    `).join('')}
-                </div>
-                <div class="drill-feedback"></div>
-            </div>
-        `;
-        const questionContainer = container.querySelector('.drill-questions') as HTMLDivElement;
-        if(questionContainer) {
-            questionContainer.innerHTML += questionHtml;
-        }
-    }
-
-    container.innerHTML = `
-        <div class="drill-scenario">${data.scenario}</div>
-        <div class="drill-questions"></div>
-        <div id="drill-results" class="drill-results-summary"></div>
-    `;
-
-    renderQuestion(currentQuestionIndex);
-    
-    const interactiveDrillHandler = (event: Event) => {
-        const target = event.target as HTMLInputElement;
-        if (target.type !== 'radio') return;
-
-        const questionBlock = target.closest('.question-block') as HTMLElement;
-        if (!questionBlock || questionBlock.dataset.answered) return;
-        questionBlock.dataset.answered = 'true';
-
-        const qIndex = parseInt(questionBlock.dataset.questionIndex || '0', 10);
-        const questionData = data.questions[qIndex];
-        const correctAnswerIndex = questionData.correctAnswerIndex;
-        const selectedAnswerIndex = parseInt(target.value, 10);
-
-        const options = questionBlock.querySelectorAll('.answer-option');
-        options.forEach(opt => {
-            opt.classList.add('disabled');
-            opt.querySelector('input')?.setAttribute('disabled', 'true');
-        });
-
-        const feedbackEl = questionBlock.querySelector('.drill-feedback') as HTMLDivElement;
-        
-        if (selectedAnswerIndex === correctAnswerIndex) {
-            score++;
-            options[selectedAnswerIndex].classList.add('correct');
-            feedbackEl.classList.add('correct');
-            feedbackEl.innerHTML = `<strong>Correcto.</strong> ${questionData.feedback}`;
-        } else {
-            options[selectedAnswerIndex].classList.add('incorrect');
-            options[correctAnswerIndex].classList.add('correct');
-            feedbackEl.classList.add('incorrect');
-            feedbackEl.innerHTML = `<strong>Incorrecto.</strong> ${questionData.feedback}`;
-        }
-
-        currentQuestionIndex++;
-        if (currentQuestionIndex < data.questions.length) {
-            setTimeout(() => renderQuestion(currentQuestionIndex), 1000);
-        } else {
-            const resultText = `${score} de ${data.questions.length} correctas`;
-            const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
-            if (resultsEl) {
-                resultsEl.innerHTML = `
-                    <h3>Resultado Final: ${resultText}</h3>
-                    <h4>Resumen del Escenario Completo:</h4>
-                    <p class="drill-full-details">${data.fullDetails}</p>
-                `;
-            }
-            logAppEvent('Simulacro Radiotelefonía', { scenario: data.fullDetails, result: resultText });
-            
-            // Final cleanup of the current handler
-            if ((container as any).__interactiveDrillHandler) {
-                container.removeEventListener('change', (container as any).__interactiveDrillHandler);
-                delete (container as any).__interactiveDrillHandler;
-            }
-        }
-    };
-    
-    // Store a reference to the handler on the container and add the listener.
-    // This allows for robust cleanup at the start of the next drill.
-    (container as any).__interactiveDrillHandler = interactiveDrillHandler;
-    container.addEventListener('change', interactiveDrillHandler);
-}
-
-
-function initializeDiario(container: HTMLElement) {
+function initializeBitacora(container: HTMLElement) {
     const list = container.querySelector('#logbook-list');
     if (!list) return;
 
@@ -1383,15 +1106,15 @@ function initializeDiario(container: HTMLElement) {
             entryEl.classList.add('editing');
             (textareas[0] as HTMLTextAreaElement)?.focus();
         } else if (target.classList.contains('log-save-btn')) {
-            const spanishText = (entryEl.querySelector('.log-entry-sosgen-grid textarea:nth-child(1)') as HTMLTextAreaElement)?.value;
-            const englishText = (entryEl.querySelector('.log-entry-sosgen-grid textarea:nth-child(2)') as HTMLTextAreaElement)?.value;
+            const spanishText = (entryEl.querySelector('textarea:nth-of-type(1)') as HTMLTextAreaElement)?.value;
+            const englishText = (entryEl.querySelector('textarea:nth-of-type(2)') as HTMLTextAreaElement)?.value;
             
-            let logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
+            let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
             const entryIndex = logbook.findIndex((entry: any) => entry.id === entryId);
             if (entryIndex > -1) {
                 logbook[entryIndex].content.spanish = spanishText;
                 logbook[entryIndex].content.english = englishText;
-                localStorage.setItem('app_logbook', JSON.stringify(logbook));
+                localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
             }
 
             const textareas = entryEl.querySelectorAll('textarea');
@@ -1403,15 +1126,15 @@ function initializeDiario(container: HTMLElement) {
         }
 
         if (target.classList.contains('log-delete-btn')) {
-            if (confirm('¿Está seguro de que desea eliminar esta entrada del diario?')) {
-                let logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
+            if (confirm('¿Está seguro de que desea eliminar esta entrada de la bitácora?')) {
+                let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
                 const updatedLogbook = logbook.filter((entry: any) => entry.id !== entryId);
-                localStorage.setItem('app_logbook', JSON.stringify(updatedLogbook));
+                localStorage.setItem('sosgen_logbook', JSON.stringify(updatedLogbook));
                 entryEl.style.animation = 'fadeOut 0.5s ease forwards';
                 entryEl.addEventListener('animationend', () => {
                     entryEl.remove();
                      if (updatedLogbook.length === 0 && container) {
-                        renderDiario(container); // Re-render to show empty message
+                        renderBitacora(container); // Re-render to show empty message
                     }
                 });
             }
@@ -1463,20 +1186,8 @@ function initializeTheme() {
     }
 }
 
-function migrateLogbook() {
-    const oldLog = localStorage.getItem('sosgen_logbook');
-    const newLog = localStorage.getItem('app_logbook');
-    if (oldLog && !newLog) {
-        localStorage.setItem('app_logbook', oldLog);
-        // We can remove the old logbook to clean up, but it's safer to leave it
-        // in case of issues. Let's leave it for now.
-        // localStorage.removeItem('sosgen_logbook');
-    }
-}
-
 
 document.addEventListener('DOMContentLoaded', () => {
-    migrateLogbook();
     const appContainer = document.getElementById('app');
     if (appContainer) {
         renderApp(appContainer);
