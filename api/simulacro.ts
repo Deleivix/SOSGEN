@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/ai';
 
 export default async function handler(
   request: VercelRequest,
@@ -87,12 +87,12 @@ export default async function handler(
         **REGLAS INQUEBRANTABLES:**
         1.  **Selecciona aleatoriamente UNO de los 5 casos.**
         2.  **Crea un escenario completo pero oculto:** Define: nombre del buque, POB, posición (o falta de ella), naturaleza del socorro. Opcionalmente, el escenario puede incluir que el buque está informando que abandona la nave.
-        3.  **Genera una llamada inicial:** Redacta la primera transmisión que la CCR recibiría. Debe ser realista y, si el caso lo requiere, incompleta. La llamada puede ser en español o inglés (50% de probabilidad).
-        4.  **Crea una secuencia de 3 a 4 preguntas INTERACTIVAS que sigan este orden ESTRICTO:**
-            *   **Pregunta 1 (PRIORIDAD MÁXIMA):** Obtener la **POSICIÓN**, a menos que ya se haya dado. Las opciones deben ser sobre cómo preguntar la posición.
-            *   **Pregunta 2:** Obtener el **POB (Personas a Bordo)**, a menos que ya se haya dado.
-            *   **Pregunta 3:** Obtener la **NATURALEZA DEL PELIGRO**, a menos que ya se haya dado.
-            *   **PROHIBIDO:** No hagas preguntas sobre otra información. El objetivo es obtener los datos críticos para retransmitir la alerta lo antes posible.
+        3.  **Genera una llamada inicial (scenario):** Redacta la primera transmisión que la CCR recibiría. Debe ser realista y, si el caso lo requiere, incompleta. La llamada puede ser en español o inglés (50% de probabilidad).
+        4.  **Regla de Información Faltante (CRÍTICA):**
+            *   **Analiza la llamada inicial (scenario).**
+            *   **Identifica qué datos críticos (POSICIÓN, POB, NATURALEZA DEL PELIGRO) ya han sido proporcionados.**
+            *   **Crea una secuencia de preguntas INTERACTIVAS ÚNICAMENTE para la información que FALTA**, siguiendo el estricto orden de prioridad: 1º POSICIÓN, 2º POB, 3º NATURALEZA DEL PELIGRO.
+            *   **PROHIBIDO:** No generes preguntas sobre información que ya se ha dado. Si el buque da su nombre, no preguntes el nombre. Si da el POB, no preguntes el POB. El objetivo es obtener los datos críticos para retransmitir la alerta lo antes posible.
         5.  **Regla de Abandono de Buque:**
             *   **PROHIBIDO:** NUNCA generes una pregunta donde el operador de la CCR pregunte si van a abandonar el buque.
             *   **SÓLO SI** el escenario que creaste incluye que el buque informa de su abandono, la siguiente pregunta (después de obtener los datos críticos) debe ser sobre las recomendaciones de seguridad. Las opciones de respuesta deben incluir la fraseología correcta para recomendar: **"chalecos salvavidas, radiobaliza (EPIRB) y VHF portátil"**.

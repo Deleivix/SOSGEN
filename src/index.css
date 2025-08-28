@@ -415,16 +415,25 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
 }
 .wizard-restart-btn:hover { background-color: var(--text-primary); transform: translateY(-2px); }
 
-/* --- Historial (Logbook) --- */
+/* --- Bitácora (Logbook) --- */
 .logbook-list { display: flex; flex-direction: column; gap: 1.5rem; }
 .log-entry { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; transition: all 0.2s ease; }
 .log-entry.editing { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3); }
 .log-entry-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background-color: var(--bg-main); border-bottom: 1px solid var(--border-color); }
 .log-entry-type { font-weight: 500; color: var(--text-primary); }
 .log-entry-ts { font-size: 0.9rem; color: var(--text-secondary); }
-.log-entry-content { padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.log-entry-content { padding: 1.5rem; display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+.log-entry-content .styled-textarea { min-height: 120px; }
 .log-entry-content h4 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.5rem; }
 .log-entry-actions { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem; background-color: var(--bg-main); }
+.log-details { font-family: var(--font-sans); font-size: 0.95rem; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+.log-details p { margin-bottom: 0.5rem; }
+.log-details p:last-child { margin-bottom: 0; }
+.log-details strong { color: var(--text-primary); font-weight: 500; }
+.log-details .log-scenario {
+    font-family: var(--font-mono); font-size: 0.9rem; background-color: var(--bg-main);
+    padding: 0.75rem; border-radius: 4px; margin-top: 0.5rem; border: 1px solid var(--border-color);
+}
 
 /* Loader */
 .loader-container { display: flex; justify-content: center; align-items: center; padding: 3rem; min-height: 200px; }
@@ -448,5 +457,5 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
   .page-banner { padding: 2rem 1rem; } .banner-title { font-size: 2rem; }
   .content-card { padding: 1.5rem; }
   .registro-oceano-layout { flex-direction: column; } .ro-sidebar { flex: 0 0 auto; }
-  .log-entry-content { grid-template-columns: 1fr; }
+  .log-entry-content-grid-2 { grid-template-columns: 1fr; }
 }

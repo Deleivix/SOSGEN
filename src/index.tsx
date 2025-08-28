@@ -22,6 +22,8 @@ const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L6 8v12h12V8L12 2z"/><path d="M6 14h12"/><path d="M10 18h4v-4h-4v4z"/><path d="M2 5l4 3"/><path d="M22 5l-4 3"/></svg>`,
     // SIMULACRO: Target
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
+    // BITÁCORA: Book
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
     // INFO: Info circle
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
 ];
@@ -451,9 +453,86 @@ function renderSosgen(container: HTMLElement) {
             <button id="sosgen-generate-btn" class="primary-btn">Generar Mensaje</button>
             <div id="sosgen-results" class="sosgen-results"></div>
         </div>
-        <div id="sosgen-history-container" style="margin-top: 2rem;"></div>
     `;
     initializeSosgen();
+}
+
+function renderBitacora(container: HTMLElement) {
+    const logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
+    
+    if (logbook.length === 0) {
+        container.innerHTML = `
+            <div class="content-card">
+                <h2 class="content-card-title">Bitácora de Actividad</h2>
+                <p class="drill-placeholder">No hay eventos registrados en la bitácora.</p>
+            </div>`;
+        return;
+    }
+
+    const renderContent = (entry: any) => {
+        switch (entry.type) {
+            case 'SOSGEN':
+                return `
+                     <div class="log-entry-sosgen-grid">
+                         <div class="log-entry-spanish">
+                             <h4>Español</h4>
+                             <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
+                         </div>
+                         <div class="log-entry-english">
+                             <h4>Inglés</h4>
+                             <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
+                         </div>
+                    </div>`;
+            case 'Simulacro DSC':
+            case 'Simulacro Radiotelefonía':
+                return `
+                    <div class="log-details">
+                        <p><strong>Resultado:</strong> ${entry.content.result}</p>
+                        <p><strong>Escenario:</strong></p>
+                        <div class="log-scenario">${entry.content.scenario}</div>
+                    </div>`;
+            case 'Conversión Coordenadas':
+                return `
+                    <div class="log-details">
+                        <p><strong>Entrada:</strong> ${entry.content.input}</p>
+                        <p><strong>Salida (Lat):</strong> ${entry.content.output.lat}</p>
+                        <p><strong>Salida (Lon):</strong> ${entry.content.output.lon}</p>
+                    </div>`;
+            case 'Traducción Náutica':
+                return `
+                    <div class="log-details">
+                        <p><strong>Entrada:</strong> ${entry.content.input}</p>
+                        <p><strong>Salida:</strong> ${entry.content.output}</p>
+                    </div>`;
+            default:
+                return `<pre>${JSON.stringify(entry.content, null, 2)}</pre>`;
+        }
+    }
+
+    container.innerHTML = `
+        <div class="content-card" style="max-width: 1200px;">
+            <h2 class="content-card-title">Bitácora de Actividad</h2>
+            <div id="logbook-list" class="logbook-list">
+                ${logbook.slice().reverse().map((entry: any) => `
+                    <div class="log-entry" data-id="${entry.id}">
+                        <div class="log-entry-header">
+                            <span class="log-entry-type">${entry.type}</span>
+                            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
+                        </div>
+                        <div class="log-entry-content">
+                            ${renderContent(entry)}
+                        </div>
+                        <div class="log-entry-actions">
+                            ${entry.type === 'SOSGEN' ? '<button class="log-edit-btn secondary-btn">Editar</button>' : ''}
+                            <button class="log-delete-btn tertiary-btn">Eliminar</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    initializeBitacora(container);
 }
 
 const APP_PAGES: Page[] = [
@@ -462,6 +541,7 @@ const APP_PAGES: Page[] = [
     { name: 'PROTOCOLO', contentRenderer: renderProtocolo },
     { name: 'FAROS', contentRenderer: renderLighthouseSimulator },
     { name: 'SIMULACRO', contentRenderer: renderSimulacro },
+    { name: 'BITÁCORA', contentRenderer: renderBitacora },
     { name: 'INFO', contentRenderer: renderInfo },
 ];
 
@@ -477,6 +557,9 @@ function switchToPage(pageIndex: number) {
     if (activePanel) {
         activePanel.classList.add('active');
         if (!activePanel.innerHTML.trim()) {
+            APP_PAGES[pageIndex].contentRenderer(activePanel);
+        } else if (APP_PAGES[pageIndex].name === 'BITÁCORA') {
+            // Always re-render Bitácora to show the latest logs
             APP_PAGES[pageIndex].contentRenderer(activePanel);
         }
     }
@@ -515,6 +598,24 @@ function renderApp(container: HTMLElement) {
     const initialActivePanel = container.querySelector<HTMLElement>('.page-panel.active');
     if(initialActivePanel) { APP_PAGES[0].contentRenderer(initialActivePanel); }
 }
+
+// --- LOGGING ---
+function logAppEvent(type: string, content: object) {
+    try {
+        const logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
+        const newEntry = {
+            id: Date.now().toString(),
+            timestamp: new Date().toISOString(),
+            type,
+            content
+        };
+        logbook.push(newEntry);
+        localStorage.setItem('app_logbook', JSON.stringify(logbook));
+    } catch (e) {
+        console.error("Failed to write to logbook:", e);
+    }
+}
+
 
 // --- EVENT HANDLERS & LOGIC ---
 async function handleCopy(button: HTMLButtonElement, textToCopy: string) {
@@ -591,11 +692,6 @@ async function initializeSosgen() {
     const inputEl = document.getElementById('sosgen-input') as HTMLTextAreaElement;
     const resultsEl = document.getElementById('sosgen-results') as HTMLDivElement;
     if (!generateBtn || !inputEl || !resultsEl) return;
-
-    const historyContainer = document.getElementById('sosgen-history-container');
-    if (historyContainer) {
-        renderAndInitializeHistory(historyContainer);
-    }
 
     const savedDraft = localStorage.getItem('sosgen_draft');
     if (savedDraft) {
@@ -684,24 +780,8 @@ async function initializeSosgen() {
                 });
             });
 
-            // Save to logbook
-            const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
-            const newEntry = {
-                id: Date.now().toString(),
-                timestamp: new Date().toISOString(),
-                type: 'SOSGEN',
-                content: {
-                    spanish: esMsg,
-                    english: enMsg
-                }
-            };
-            logbook.push(newEntry);
-            localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
+            logAppEvent('SOSGEN', { spanish: esMsg, english: enMsg });
             localStorage.removeItem('sosgen_draft');
-
-            if (historyContainer) {
-                renderAndInitializeHistory(historyContainer); // Refresh history
-            }
 
         } catch (error) {
             console.error("Error generating message:", error);
@@ -843,6 +923,13 @@ function initializeCoordinateConverter() {
         }
 
         resultEl.innerHTML = htmlResult;
+
+        if (!latResult.error && !lonResult.error) {
+            logAppEvent('Conversión Coordenadas', {
+                input: input,
+                output: { lat: latResult.text, lon: lonResult.text }
+            });
+        }
     });
 }
 
@@ -875,6 +962,7 @@ async function initializeNauticalTranslator() {
 
             const data = await apiResponse.json();
             resultEl.innerHTML = `<p>${data.translation}</p>`;
+            logAppEvent('Traducción Náutica', { input: textToTranslate, output: data.translation });
 
         } catch (error) {
             console.error("Translation Error:", error);
@@ -1061,12 +1149,13 @@ function displayDscDrill(data: any, container: HTMLDivElement) {
 
     const checkBtn = container.querySelector('#drill-check-btn');
     checkBtn?.addEventListener('click', () => {
-        checkDscDrillAnswers(data, container);
+        const resultText = checkDscDrillAnswers(data, container);
+        logAppEvent('Simulacro DSC', { scenario: data.scenario, result: resultText });
         if (checkBtn instanceof HTMLButtonElement) checkBtn.disabled = true;
     }, { once: true });
 }
 
-function checkDscDrillAnswers(data: any, container: HTMLDivElement) {
+function checkDscDrillAnswers(data: any, container: HTMLDivElement): string {
     let score = 0;
     data.questions.forEach((q: any, index: number) => {
         const questionBlock = container.querySelector(`#question-${index}`) as HTMLElement;
@@ -1092,13 +1181,21 @@ function checkDscDrillAnswers(data: any, container: HTMLDivElement) {
         }
     });
 
+    const resultText = `${score} de ${data.questions.length} correctas`;
     const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
-    resultsEl.innerHTML = `<h3>Resultado: ${score} de ${data.questions.length} correctas</h3>`;
+    resultsEl.innerHTML = `<h3>Resultado: ${resultText}</h3>`;
+    return resultText;
 }
 
 function displayInteractiveDrill(data: any, container: HTMLDivElement) {
     let currentQuestionIndex = 0;
     let score = 0;
+
+    // Robust cleanup: Remove any handler that might be lingering from a previous, unfinished drill.
+    if ((container as any).__interactiveDrillHandler) {
+        container.removeEventListener('change', (container as any).__interactiveDrillHandler);
+        delete (container as any).__interactiveDrillHandler;
+    }
 
     function renderQuestion(index: number) {
         const q = data.questions[index];
@@ -1117,7 +1214,9 @@ function displayInteractiveDrill(data: any, container: HTMLDivElement) {
             </div>
         `;
         const questionContainer = container.querySelector('.drill-questions') as HTMLDivElement;
-        questionContainer.innerHTML += questionHtml;
+        if(questionContainer) {
+            questionContainer.innerHTML += questionHtml;
+        }
     }
 
     container.innerHTML = `
@@ -1127,97 +1226,71 @@ function displayInteractiveDrill(data: any, container: HTMLDivElement) {
     `;
 
     renderQuestion(currentQuestionIndex);
-
-    container.addEventListener('change', (event) => {
+    
+    const interactiveDrillHandler = (event: Event) => {
         const target = event.target as HTMLInputElement;
-        if (target.type === 'radio') {
-            const questionBlock = target.closest('.question-block') as HTMLElement;
-            if (!questionBlock || questionBlock.dataset.answered) return;
-            questionBlock.dataset.answered = 'true';
+        if (target.type !== 'radio') return;
 
-            const qIndex = parseInt(questionBlock.dataset.questionIndex || '0', 10);
-            const questionData = data.questions[qIndex];
-            const correctAnswerIndex = questionData.correctAnswerIndex;
-            const selectedAnswerIndex = parseInt(target.value, 10);
+        const questionBlock = target.closest('.question-block') as HTMLElement;
+        if (!questionBlock || questionBlock.dataset.answered) return;
+        questionBlock.dataset.answered = 'true';
 
-            const options = questionBlock.querySelectorAll('.answer-option');
-            options.forEach(opt => {
-                opt.classList.add('disabled');
-                opt.querySelector('input')?.setAttribute('disabled', 'true');
-            });
+        const qIndex = parseInt(questionBlock.dataset.questionIndex || '0', 10);
+        const questionData = data.questions[qIndex];
+        const correctAnswerIndex = questionData.correctAnswerIndex;
+        const selectedAnswerIndex = parseInt(target.value, 10);
 
-            const feedbackEl = questionBlock.querySelector('.drill-feedback') as HTMLDivElement;
-            
-            if (selectedAnswerIndex === correctAnswerIndex) {
-                score++;
-                options[selectedAnswerIndex].classList.add('correct');
-                feedbackEl.classList.add('correct');
-                feedbackEl.innerHTML = `<strong>Correcto.</strong> ${questionData.feedback}`;
-            } else {
-                options[selectedAnswerIndex].classList.add('incorrect');
-                options[correctAnswerIndex].classList.add('correct');
-                feedbackEl.classList.add('incorrect');
-                feedbackEl.innerHTML = `<strong>Incorrecto.</strong> ${questionData.feedback}`;
-            }
+        const options = questionBlock.querySelectorAll('.answer-option');
+        options.forEach(opt => {
+            opt.classList.add('disabled');
+            opt.querySelector('input')?.setAttribute('disabled', 'true');
+        });
 
-            currentQuestionIndex++;
-            if (currentQuestionIndex < data.questions.length) {
-                setTimeout(() => renderQuestion(currentQuestionIndex), 1000);
-            } else {
-                const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
+        const feedbackEl = questionBlock.querySelector('.drill-feedback') as HTMLDivElement;
+        
+        if (selectedAnswerIndex === correctAnswerIndex) {
+            score++;
+            options[selectedAnswerIndex].classList.add('correct');
+            feedbackEl.classList.add('correct');
+            feedbackEl.innerHTML = `<strong>Correcto.</strong> ${questionData.feedback}`;
+        } else {
+            options[selectedAnswerIndex].classList.add('incorrect');
+            options[correctAnswerIndex].classList.add('correct');
+            feedbackEl.classList.add('incorrect');
+            feedbackEl.innerHTML = `<strong>Incorrecto.</strong> ${questionData.feedback}`;
+        }
+
+        currentQuestionIndex++;
+        if (currentQuestionIndex < data.questions.length) {
+            setTimeout(() => renderQuestion(currentQuestionIndex), 1000);
+        } else {
+            const resultText = `${score} de ${data.questions.length} correctas`;
+            const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
+            if (resultsEl) {
                 resultsEl.innerHTML = `
-                    <h3>Resultado Final: ${score} de ${data.questions.length} correctas</h3>
+                    <h3>Resultado Final: ${resultText}</h3>
                     <h4>Resumen del Escenario Completo:</h4>
                     <p class="drill-full-details">${data.fullDetails}</p>
                 `;
             }
+            logAppEvent('Simulacro Radiotelefonía', { scenario: data.fullDetails, result: resultText });
+            
+            // Final cleanup of the current handler
+            if ((container as any).__interactiveDrillHandler) {
+                container.removeEventListener('change', (container as any).__interactiveDrillHandler);
+                delete (container as any).__interactiveDrillHandler;
+            }
         }
-    });
+    };
+    
+    // Store a reference to the handler on the container and add the listener.
+    // This allows for robust cleanup at the start of the next drill.
+    (container as any).__interactiveDrillHandler = interactiveDrillHandler;
+    container.addEventListener('change', interactiveDrillHandler);
 }
 
 
-function renderAndInitializeHistory(container: HTMLElement) {
-    const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
-    
-    if (logbook.length === 0) {
-        container.innerHTML = `
-            <div class="content-card">
-                <h2 class="content-card-title">Historial de Sucesos</h2>
-                <p class="drill-placeholder">No hay eventos registrados en el historial.</p>
-            </div>`;
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="content-card" style="max-width: 1200px;">
-            <h2 class="content-card-title">Historial de Sucesos</h2>
-            <div id="logbook-list" class="logbook-list">
-                ${logbook.slice().reverse().map((entry: any) => `
-                    <div class="log-entry" data-id="${entry.id}">
-                        <div class="log-entry-header">
-                            <span class="log-entry-type">${entry.type}</span>
-                            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
-                        </div>
-                        <div class="log-entry-content">
-                             <div class="log-entry-spanish">
-                                 <h4>Español</h4>
-                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.spanish}</textarea>
-                             </div>
-                             <div class="log-entry-english">
-                                 <h4>Inglés</h4>
-                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.english}</textarea>
-                             </div>
-                        </div>
-                        <div class="log-entry-actions">
-                            <button class="log-edit-btn secondary-btn">Editar</button>
-                            <button class="log-delete-btn tertiary-btn">Eliminar</button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `;
-
+function initializeBitacora(container: HTMLElement) {
     const list = container.querySelector('#logbook-list');
     if (!list) return;
 
@@ -1240,12 +1313,12 @@ function renderAndInitializeHistory(container: HTMLElement) {
             const spanishText = (entryEl.querySelector('.log-entry-spanish textarea') as HTMLTextAreaElement)?.value;
             const englishText = (entryEl.querySelector('.log-entry-english textarea') as HTMLTextAreaElement)?.value;
             
-            let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+            let logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
             const entryIndex = logbook.findIndex((entry: any) => entry.id === entryId);
             if (entryIndex > -1) {
                 logbook[entryIndex].content.spanish = spanishText;
                 logbook[entryIndex].content.english = englishText;
-                localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
+                localStorage.setItem('app_logbook', JSON.stringify(logbook));
             }
 
             const textareas = entryEl.querySelectorAll('textarea');
@@ -1257,15 +1330,15 @@ function renderAndInitializeHistory(container: HTMLElement) {
         }
 
         if (target.classList.contains('log-delete-btn')) {
-            if (confirm('¿Está seguro de que desea eliminar esta entrada del historial?')) {
-                let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+            if (confirm('¿Está seguro de que desea eliminar esta entrada de la bitácora?')) {
+                let logbook = JSON.parse(localStorage.getItem('app_logbook') || '[]');
                 const updatedLogbook = logbook.filter((entry: any) => entry.id !== entryId);
-                localStorage.setItem('sosgen_logbook', JSON.stringify(updatedLogbook));
+                localStorage.setItem('app_logbook', JSON.stringify(updatedLogbook));
                 entryEl.style.animation = 'fadeOut 0.5s ease forwards';
                 entryEl.addEventListener('animationend', () => {
                     entryEl.remove();
                      if (updatedLogbook.length === 0 && container) {
-                        renderAndInitializeHistory(container); // Re-render history to show empty message
+                        renderBitacora(container); // Re-render to show empty message
                     }
                 });
             }
@@ -1317,7 +1390,20 @@ function initializeTheme() {
     }
 }
 
+function migrateLogbook() {
+    const oldLog = localStorage.getItem('sosgen_logbook');
+    const newLog = localStorage.getItem('app_logbook');
+    if (oldLog && !newLog) {
+        localStorage.setItem('app_logbook', oldLog);
+        // We can remove the old logbook to clean up, but it's safer to leave it
+        // in case of issues. Let's leave it for now.
+        // localStorage.removeItem('sosgen_logbook');
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
+    migrateLogbook();
     const appContainer = document.getElementById('app');
     if (appContainer) {
         renderApp(appContainer);
