@@ -440,12 +440,29 @@ const APP_PAGES: Page[] = [
     { name: 'INFO', contentRenderer: renderInfo },
 ];
 
+function switchToPage(pageIndex: number) {
+    document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
+    const navLink = document.querySelector(`.nav-link[data-page-index="${pageIndex}"]`);
+    if (navLink) {
+        navLink.classList.add('active');
+    }
+
+    document.querySelectorAll('.page-panel').forEach(panel => panel.classList.remove('active'));
+    const activePanel = document.getElementById(`page-${pageIndex}`) as HTMLElement;
+    if (activePanel) {
+        activePanel.classList.add('active');
+        if (!activePanel.innerHTML.trim()) {
+            APP_PAGES[pageIndex].contentRenderer(activePanel);
+        }
+    }
+}
+
 function renderApp(container: HTMLElement) {
     const navHtml = `
         <nav>
             <div class="nav-top"></div>
             <div class="nav-bottom">
-                <div class="nav-brand">
+                <div class="nav-brand" style="cursor: pointer;" title="Ir a la página principal de SOSGEN">
                     ${NEW_LOGO_SVG}
                     <span>SOSGEN</span>
                 </div>
@@ -796,19 +813,37 @@ async function initializeSimulacro() {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
             const prompt = `
-            Crea un escenario de simulacro de socorro marítimo (GMDSS) y preguntas de evaluación. El escenario debe incluir:
-            1.  **Tipo de emergencia:** Varada, vía de agua, incendio, hundimiento, hombre al agua, colisión, etc.
-            2.  **Buque o artefacto flotante:** Nombre, MMSI (puede ser inválido como 000000000, 224000000, 123456789), o una descripción (ej. 'velero de 12 metros').
-            3.  **Posición:** Coordenadas GPS en formato 'ggg-mm,ddd N/S/E/W' o una descripción. Determina si la posición está dentro o fuera de la Zona SAR española (aguas de Galicia, Cantábrico, Mediterráneo, Estrecho, Baleares, Canarias).
-            4.  **Banda de comunicación:** VHF, MF, o HF.
+            Eres un instructor GMDSS. Tu única tarea es generar un caso práctico para un operador de Estación Radio Costera (CCR) española, basándote ESTRICTAMENTE en el siguiente flujograma. NO seas creativo.
 
-            Genera 3-4 preguntas de opción múltiple (3 opciones cada una) basadas en el escenario para evaluar la correcta aplicación del protocolo GMDSS. Las preguntas deben cubrir temas como:
-            -   Validez de la alerta/MMSI.
-            -   Si se debe o no acusar recibo (ACK) basándose en la banda y la zona SAR.
-            -   Si se debe retransmitir la alerta (Mayday Relay).
-            -   La prioridad de las comunicaciones.
+            **Flujograma de Protocolo GMDSS:**
 
-            Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema proporcionado. La respuesta debe ser concisa y directa.
+            1.  **Inicio:** Se recibe una alerta (VHF, MF, o HF).
+            2.  **Decisión 1: ¿VÁLIDA o NO VÁLIDA?** (Válida = MMSI correcto. No Válida = MMSI inválido, ej: 123456789, 000000000).
+
+            3.  **RUTA: ALERTA VÁLIDA**
+                *   **Decisión 2: ¿Tiene POSICIÓN?**
+                *   **3a. CON POSICIÓN:**
+                    *   **Decisión 3: ¿Dentro o Fuera de ZONA SAR?**
+                    *   **CASO 1 (Válida, con Pos., EN ZONA SAR, VHF/MF/HF):** 1. ACK. 2. Retransmite Alerta. 3. Escucha y espera instrucciones.
+                    *   **CASO 2 (Válida, con Pos., FUERA ZONA SAR, VHF):** 1. NO ACK. 2. Escucha y espera instrucciones.
+                    *   **CASO 3 (Válida, con Pos., FUERA ZONA SAR, MF/HF):** 1. NO ACK. 2. Escucha y espera instrucciones.
+                *   **3b. SIN POSICIÓN:**
+                    *   **Decisión 4: ¿Banda de recepción?**
+                    *   **CASO 4 (Válida, sin Pos., VHF):** 1. ACK. 2. Intenta conseguir posición y retransmite. 3. Escucha y espera instrucciones.
+                    *   **CASO 5 (Válida, sin Pos., MF/HF):** 1. NO ACK. 2. Escucha y espera instrucciones.
+
+            4.  **RUTA: ALERTA NO VÁLIDA**
+                *   **CASO 6 (No Válida):** 1. SÓLO ACK SI ESTÁ EN ZONA SAR. 2. Escucha e intenta conseguir más información. 3. Si se confirma, tratar como VÁLIDA.
+
+            **Tu Tarea:**
+
+            1.  **Selecciona aleatoriamente UNO de los 6 CASOS** descritos arriba.
+            2.  **Crea un escenario extremadamente simple** que se ajuste perfectamente al caso seleccionado. El escenario debe contener únicamente la información necesaria: Banda (VHF, MF, o HF), MMSI (válido/inválido), Posición (presente/ausente, y si está dentro/fuera de SAR), y una naturaleza de socorro corta (ej: "vía de agua").
+            3.  **REGLA CRÍTICA:** Si el MMSI es inválido, NO incluyas nombre de buque.
+            4.  **Genera 2-3 preguntas de opción múltiple (3 opciones)** que evalúen los pasos exactos del protocolo para el caso seleccionado. Las preguntas deben ser directas y sin ambigüedad sobre la acción a tomar (ej: "¿Debe la CCR acusar recibo (ACK)?", "¿Cuál es el siguiente paso correcto?").
+
+            **Formato de Salida:**
+            Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema proporcionado. Asegúrate de que los campos 'isSar', 'band', 'hasPosition' y 'isMmsiValid' en 'details' reflejen con precisión el escenario que has creado.
             `;
             
             const schema = {
@@ -927,19 +962,21 @@ function addEventListeners(appContainer: HTMLElement) {
         const target = event.target as HTMLElement;
         const navLink = target.closest('.nav-link');
         const copyButton = target.closest('.copy-btn');
-        if (navLink) {
-            const pageIndex = parseInt(navLink.getAttribute('data-page-index')!, 10);
-            document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
-            navLink.classList.add('active');
-            document.querySelectorAll('.page-panel').forEach(panel => panel.classList.remove('active'));
-            const activePanel = document.getElementById(`page-${pageIndex}`);
-            if (activePanel) {
-                activePanel.classList.add('active');
-                if(!activePanel.innerHTML.trim()){ APP_PAGES[pageIndex].contentRenderer(activePanel); }
-            }
+        const brandLink = target.closest('.nav-brand');
+
+        if (brandLink) {
+            switchToPage(0);
             return;
         }
-        if (copyButton) { handleCopy(copyButton as HTMLButtonElement); return; }
+        if (navLink) {
+            const pageIndex = parseInt(navLink.getAttribute('data-page-index')!, 10);
+            switchToPage(pageIndex);
+            return;
+        }
+        if (copyButton) {
+            handleCopy(copyButton as HTMLButtonElement);
+            return;
+        }
     });
 
     const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
