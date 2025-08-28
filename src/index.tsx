@@ -7,6 +7,7 @@
 interface Template { title: string; template: string; }
 interface Category { category: string; items: Template[]; }
 interface QuickRef { category: string; content: string; }
+interface PhoneEntry { name: string; number: string; location: string; keywords: string[]; }
 interface Page { name: string; contentRenderer: (container: HTMLElement) => void; }
 
 const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
@@ -18,7 +19,7 @@ const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
     // PROTOCOLO: Network/Flowchart
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>`,
-    // FAROS: Lighthouse
+    // SEÑALES: Lighthouse Icon
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L6 8v12h12V8L12 2z"/><path d="M6 14h12"/><path d="M10 18h4v-4h-4v4z"/><path d="M2 5l4 3"/><path d="M22 5l-4 3"/></svg>`,
     // SIMULACRO: Target
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
@@ -55,8 +56,76 @@ const REGISTRO_OCEANO_DATA: Category[] = [
       { category: 'Otros', items: [ { title: 'Reorganización del Servicio', template: 'Por contingencias, se reorganiza el servicio en el “CCR que transfiere” hacia el “CCR que asume transferencia” en turno de “Añadir turno”.' } ] }
 ];
 
+const PHONE_DIRECTORY_DATA: PhoneEntry[] = [
+    // Add your full phone directory here
+    { name: 'Salvamento Marítimo (EMERGENCIAS)', number: '900 202 202', location: 'Nacional', keywords: ['urgencia', 'sos', 'sasemar'] },
+    { name: 'Guardia Civil del Mar', number: '062', location: 'Nacional', keywords: ['policia', 'gc'] },
+    { name: 'Centro Nacional de Coordinación de Salvamento (CNCS)', number: '917 559 100', location: 'Madrid', keywords: ['mrcc', 'cncs'] },
+    { name: 'MRCC Madrid', number: '917 559 133', location: 'Madrid', keywords: ['coordinacion'] },
+    { name: 'MRCC Barcelona', number: '932 234 782', location: 'Barcelona', keywords: ['cataluña'] },
+    { name: 'MRCC Valencia', number: '963 679 302', location: 'Valencia', keywords: ['levante'] },
+    { name: 'MRCC Tarifa', number: '956 684 740', location: 'Tarifa', keywords: ['estrecho', 'gibraltar'] },
+    { name: 'MRCC Finisterre', number: '981 767 400', location: 'A Coruña', keywords: ['galicia', 'noroeste'] },
+    { name: 'MRCC Las Palmas', number: '928 467 757', location: 'Gran Canaria', keywords: ['canarias'] },
+    { name: 'Instituto Nacional de Meteorología (AEMET)', number: '807 170 370', location: 'Nacional', keywords: ['tiempo', 'meteo', 'aemet'] },
+];
+
 const QUICK_REFERENCE_DATA: QuickRef[] = [
-    { category: 'Frecuencias', content: `
+    { category: 'Directorio', content: `...` },
+    { category: 'Frecuencias', content: `...` },
+    { category: 'Alfabeto Fonético', content: `...` },
+    { category: 'Códigos Q', content: `...` },
+    { category: 'Escalas', content: `...` },
+    { category: 'Calculadora', content: `...` },
+    { category: 'Diccionario', content: `...` }
+];
+
+
+// --- RENDER FUNCTIONS ---
+function renderRegistroOceano(container: HTMLElement) {
+    container.innerHTML = `
+        <div class="content-card">
+            <div class="registro-oceano-layout">
+                <aside class="ro-sidebar">
+                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
+                        <button class="sub-nav-btn ${index === 0 ? 'active' : ''}" data-target="sub-tab-${category.category.replace(/\s+/g, '-')}">
+                            ${category.category}
+                        </button>
+                    `).join('')}
+                </aside>
+                <main class="ro-content">
+                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
+                        <div class="sub-tab-panel ${index === 0 ? 'active' : ''}" id="sub-tab-${category.category.replace(/\s+/g, '-')}">
+                            ${category.items.map(item => `
+                                    <div class="template-card">
+                                        <div class="template-card-header">
+                                            <h3 class="template-card-title">${item.title}</h3>
+                                            <button class="copy-btn" aria-label="Copiar ${item.title}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+                                                <span>Copiar</span>
+                                            </button>
+                                        </div>
+                                        <div contenteditable="true" class="template-card-body">${item.template}</div>
+                                    </div>`).join('')}
+                        </div>
+                    `).join('')}
+                </main>
+            </div>
+        </div>
+    `;
+    initializeRegistroOceano(container);
+}
+
+function renderInfo(container: HTMLElement) {
+    const fullQuickRefData = [...QUICK_REFERENCE_DATA];
+    fullQuickRefData[0] = { category: 'Directorio', content: `
+        <h3 class="reference-table-subtitle">Directorio Telefónico Marítimo</h3>
+        <input type="search" id="phone-search-input" class="phone-directory-search" placeholder="Buscar por nombre, centro, etc.">
+        <div id="phone-directory-list" class="phone-directory-list">
+            <!-- Phone entries will be rendered here by JS -->
+        </div>
+    `};
+    fullQuickRefData[1] = { category: 'Frecuencias', content: `
         <h3 class="reference-table-subtitle">Canales VHF</h3>
         <div class="vhf-tables-container">
             <table class="reference-table">
@@ -115,59 +184,8 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
                 </tbody>
             </table>
         </div>
-    `},
-    { category: 'Alfabeto Fonético', content: `...` },
-    { category: 'Códigos Q', content: `...` },
-    { category: 'Escala Beaufort & Douglas', content: `...` },
-    { category: 'Calculadora', content: `...` },
-    { category: 'Diccionario', content: `...` }
-];
-// Note: Content for last 5 items is omitted for brevity as it remains unchanged. It will be copied from the existing file.
-QUICK_REFERENCE_DATA[1].content = `...`; // Placeholder for unchanged content
-QUICK_REFERENCE_DATA[2].content = `...`;
-QUICK_REFERENCE_DATA[3].content = `...`;
-QUICK_REFERENCE_DATA[4].content = `...`;
-QUICK_REFERENCE_DATA[5].content = `...`;
-
-
-// --- RENDER FUNCTIONS ---
-function renderRegistroOceano(container: HTMLElement) {
-    container.innerHTML = `
-        <div class="content-card">
-            <div class="registro-oceano-layout">
-                <aside class="ro-sidebar">
-                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
-                        <button class="sub-nav-btn ${index === 0 ? 'active' : ''}" data-target="sub-tab-${category.category.replace(/\s+/g, '-')}">
-                            ${category.category}
-                        </button>
-                    `).join('')}
-                </aside>
-                <main class="ro-content">
-                    ${REGISTRO_OCEANO_DATA.map((category, index) => `
-                        <div class="sub-tab-panel ${index === 0 ? 'active' : ''}" id="sub-tab-${category.category.replace(/\s+/g, '-')}">
-                            ${category.items.map(item => `
-                                    <div class="template-card">
-                                        <div class="template-card-header">
-                                            <h3 class="template-card-title">${item.title}</h3>
-                                            <button class="copy-btn" aria-label="Copiar ${item.title}">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
-                                                <span>Copiar</span>
-                                            </button>
-                                        </div>
-                                        <div contenteditable="true" class="template-card-body">${item.template}</div>
-                                    </div>`).join('')}
-                        </div>
-                    `).join('')}
-                </main>
-            </div>
-        </div>
-    `;
-    initializeRegistroOceano(container);
-}
-
-function renderInfo(container: HTMLElement) {
-    const fullQuickRefData = [...QUICK_REFERENCE_DATA];
-    fullQuickRefData[1] = { category: 'Alfabeto Fonético', content: `
+    `};
+    fullQuickRefData[2] = { category: 'Alfabeto Fonético', content: `
         <table class="reference-table">
             <thead><tr><th>Letra</th><th>Código</th><th>Letra</th><th>Código</th></tr></thead>
             <tbody>
@@ -187,7 +205,7 @@ function renderInfo(container: HTMLElement) {
             </tbody>
         </table>`
     };
-    fullQuickRefData[2] = { category: 'Códigos Q', content: `
+    fullQuickRefData[3] = { category: 'Códigos Q', content: `
         <table class="reference-table">
             <thead><tr><th>Código</th><th>Significado</th></tr></thead>
             <tbody>
@@ -201,7 +219,7 @@ function renderInfo(container: HTMLElement) {
             </tbody>
         </table>`
     };
-    fullQuickRefData[3] = { category: 'Escalas', content: `
+    fullQuickRefData[4] = { category: 'Escalas', content: `
         <h3 class="reference-table-subtitle">Escala Beaufort / Beaufort Wind Scale</h3>
         <table class="reference-table">
             <thead>
@@ -252,7 +270,7 @@ function renderInfo(container: HTMLElement) {
         </table>
         `
     };
-    fullQuickRefData[4] = { category: 'Calculadora', content: `
+    fullQuickRefData[5] = { category: 'Calculadora', content: `
         <div class="coord-converter">
             <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
             <p class="translator-desc">Introduzca un par de coordenadas (Latitud y Longitud) para convertirlas al formato estándar <strong>gg° mm,ddd' N/S ggg° mm,ddd' E/W</strong>. Use espacios como separadores.</p>
@@ -263,7 +281,7 @@ function renderInfo(container: HTMLElement) {
             <div id="coord-result" class="translation-result" aria-live="polite"></div>
         </div>
     `};
-    fullQuickRefData[5] = { category: 'Diccionario', content: `
+    fullQuickRefData[6] = { category: 'Diccionario', content: `
         <div class="nautical-translator">
             <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
             <p class="translator-desc">Traduce términos o frases cortas entre español e inglés.</p>
@@ -311,6 +329,7 @@ function renderInfo(container: HTMLElement) {
         </div>
     `;
     initializeInfoTabs(container);
+    initializePhoneDirectory();
     initializeNauticalTranslator();
     initializeCoordinateConverter();
 }
@@ -405,28 +424,55 @@ function renderSimulacro(container: HTMLElement) {
 }
 
 
-function renderLighthouseSimulator(container: HTMLElement) {
+function renderMaritimeSignalsSimulator(container: HTMLElement) {
     container.innerHTML = `
         <div class="content-card">
-            <h2 class="content-card-title">Simulador de Faros</h2>
-            <div class="simulator-display">
-                <form id="simulator-form" class="simulator-form" aria-label="Simulador de faros">
-                    <input type="text" id="light-char-input" class="simulator-input" placeholder="Ej: Gp Fl(2+1) W 15s" required aria-label="Característica de la luz">
-                    <button type="submit" class="simulator-btn">Simular</button>
-                </form>
-                <div class="lighthouse-schematic" aria-hidden="true">
-                    <div class="lighthouse-tower"></div>
-                    <div class="lighthouse-top">
-                        <div id="lighthouse-light" class="lighthouse-light"></div>
+            <h2 class="content-card-title">Simulador de Señales Marítimas</h2>
+            <div class="info-nav-tabs">
+                <button class="info-nav-btn active" data-target="simulator-tab-lighthouse">Faros</button>
+                <button class="info-nav-btn" data-target="simulator-tab-buoy">Boyas y Marcas</button>
+            </div>
+            
+            <div id="simulator-tab-lighthouse" class="sub-tab-panel active">
+                <div class="simulator-display">
+                    <form id="lighthouse-simulator-form" class="simulator-form" aria-label="Simulador de faros">
+                        <input type="text" id="lighthouse-char-input" class="simulator-input" placeholder="Ej: Gp Fl(2+1) W 15s" required aria-label="Característica de la luz">
+                        <button type="submit" class="simulator-btn">Simular</button>
+                    </form>
+                    <div class="lighthouse-schematic" aria-hidden="true">
+                        <div class="lighthouse-tower"></div>
+                        <div class="lighthouse-top">
+                            <div id="lighthouse-light" class="lighthouse-light"></div>
+                        </div>
+                    </div>
+                    <div id="lighthouse-simulation-info" class="simulation-info" aria-live="polite">
+                        <p>Introduzca la característica de una luz y pulse "Simular".</p>
                     </div>
                 </div>
-                <div id="simulation-info" class="simulation-info" aria-live="polite">
-                    <p>Introduzca la característica de una luz y pulse "Simular".</p>
+            </div>
+
+            <div id="simulator-tab-buoy" class="sub-tab-panel">
+                <div class="simulator-display">
+                    <form id="buoy-simulator-form" class="simulator-form" aria-label="Simulador de boyas">
+                        <input type="text" id="buoy-char-input" class="simulator-input" placeholder="Ej: Q G" required aria-label="Característica de la luz">
+                        <button type="submit" class="simulator-btn">Simular</button>
+                    </form>
+                    <div class="buoy-schematic" aria-hidden="true">
+                        <div class="buoy-body"></div>
+                        <div class="buoy-top">
+                           <div id="buoy-light" class="buoy-light"></div>
+                        </div>
+                    </div>
+                    <div id="buoy-simulation-info" class="simulation-info" aria-live="polite">
+                        <p>Introduzca la característica de una boya y pulse "Simular".</p>
+                    </div>
                 </div>
             </div>
         </div>
     `;
+    initializeInfoTabs(container); // Re-use the tab switching logic
     initializeLighthouseSimulator();
+    initializeBuoySimulator();
 }
 
 function renderSosgen(container: HTMLElement) {
@@ -456,28 +502,7 @@ function renderBitacora(container: HTMLElement) {
             <h2 class="content-card-title">Bitácora de Mensajes Generados</h2>
             ${logbook.length === 0 ? '<p class="drill-placeholder">No hay mensajes generados.</p>' : `
             <div id="logbook-list" class="logbook-list">
-                ${logbook.slice().reverse().map((entry: any) => `
-                    <div class="log-entry" data-id="${entry.id}">
-                        <div class="log-entry-header">
-                            <span class="log-entry-type">${entry.type}</span>
-                            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
-                        </div>
-                        <div class="log-entry-content">
-                             <div>
-                                 <h4>Español</h4>
-                                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
-                             </div>
-                             <div>
-                                 <h4>Inglés</h4>
-                                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
-                             </div>
-                        </div>
-                        <div class="log-entry-actions">
-                            <button class="log-edit-btn secondary-btn">Editar</button>
-                            <button class="log-delete-btn tertiary-btn">Eliminar</button>
-                        </div>
-                    </div>
-                `).join('')}
+                ${logbook.slice().reverse().map(createLogEntryHTML).join('')}
             </div>
             `}
         </div>
@@ -492,7 +517,7 @@ const APP_PAGES: Page[] = [
     { name: 'SOSGEN', contentRenderer: renderSosgen },
     { name: 'Registro Océano', contentRenderer: renderRegistroOceano },
     { name: 'PROTOCOLO', contentRenderer: renderProtocolo },
-    { name: 'FAROS', contentRenderer: renderLighthouseSimulator },
+    { name: 'SEÑALES', contentRenderer: renderMaritimeSignalsSimulator },
     { name: 'SIMULACRO', contentRenderer: renderSimulacro },
     { name: 'BITÁCORA', contentRenderer: renderBitacora },
     { name: 'INFO', contentRenderer: renderInfo },
@@ -509,8 +534,7 @@ function switchToPage(pageIndex: number) {
     const activePanel = document.getElementById(`page-${pageIndex}`) as HTMLElement;
     if (activePanel) {
         activePanel.classList.add('active');
-        const needsRefresh = APP_PAGES[pageIndex].name === 'BITÁCORA';
-        if (!activePanel.innerHTML.trim() || needsRefresh) {
+        if (!activePanel.innerHTML.trim()) {
             APP_PAGES[pageIndex].contentRenderer(activePanel);
         }
     }
@@ -551,7 +575,7 @@ function renderApp(container: HTMLElement) {
 }
 
 // --- LOGGING ---
-function logSosgenEvent(type: string, content: object) {
+function logSosgenEvent(type: string, content: object): object | null {
     try {
         const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
         const newEntry = {
@@ -562,13 +586,43 @@ function logSosgenEvent(type: string, content: object) {
         };
         logbook.push(newEntry);
         localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
+        return newEntry;
     } catch (e) {
         console.error("Failed to write to logbook:", e);
+        return null;
     }
 }
 
+function updateBitacoraView(newEntry: any) {
+    const bitacoraPanel = document.getElementById('page-5'); // BITÁCORA is index 5
+    // Only update if the panel has already been rendered
+    if (bitacoraPanel && bitacoraPanel.innerHTML.trim()) {
+        let logbookList = bitacoraPanel.querySelector('#logbook-list');
+        
+        // If the list doesn't exist, it means the logbook was empty.
+        if (!logbookList) {
+            // Re-render the whole panel content, which is simpler and handles placeholder removal.
+            renderBitacora(bitacoraPanel);
+        } else {
+            // List exists, so just prepend the new item.
+            const newEntryHTML = createLogEntryHTML(newEntry);
+            logbookList.insertAdjacentHTML('afterbegin', newEntryHTML);
+        }
+    }
+}
 
 // --- EVENT HANDLERS & LOGIC ---
+/**
+ * Debounce function to limit the rate at which a function gets called.
+ */
+function debounce(func: Function, delay: number) {
+    let timeoutId: number;
+    return function(this: any, ...args: any[]) {
+        clearTimeout(timeoutId);
+        timeoutId = window.setTimeout(() => func.apply(this, args), delay);
+    };
+}
+
 async function handleCopy(button: HTMLButtonElement, textToCopy: string) {
     if (textToCopy) {
         try {
@@ -581,30 +635,60 @@ async function handleCopy(button: HTMLButtonElement, textToCopy: string) {
     }
 }
 
-// --- LIGHTHOUSE SIMULATOR LOGIC ---
+// --- MARITIME SIGNALS SIMULATOR LOGIC ---
 let simulationTimeoutId: number | null = null;
 interface LightConfig { rhythm: string; group: number[]; color: string; period: number; }
-const LIGHT_CHARACTERISTIC_TERMS = { 'F': { es: 'Fija', en: 'Fixed' }, 'FL': { es: 'Destellos', en: 'Flashing' }, 'GP FL': { es: 'Grupo de Destellos', en: 'Group Flashing' }, 'LFL': { es: 'Destello Largo', en: 'Long-Flashing' }, 'OC': { es: 'Ocultaciones', en: 'Occulting' }, 'GP OC': { es: 'Grupo de Ocultaciones', en: 'Group Occulting' }, 'ISO': { es: 'Isofase', en: 'Isophase' }, 'W': { es: 'Blanca', en: 'White' }, 'R': { es: 'Roja', en: 'Red' }, 'G': { es: 'Verde', en: 'Green' }, 'Y': { es: 'Amarilla', en: 'Yellow' }, 'BU': { es: 'Azul', en: 'Blue' }, };
+const LIGHT_CHARACTERISTIC_TERMS: { [key: string]: { es: string; en: string } } = {
+    'F': { es: 'Fija', en: 'Fixed' },
+    'FL': { es: 'Destellos', en: 'Flashing' },
+    'GP FL': { es: 'Grupo de Destellos', en: 'Group Flashing' },
+    'LFL': { es: 'Destello Largo', en: 'Long-Flashing' },
+    'OC': { es: 'Ocultaciones', en: 'Occulting' },
+    'GP OC': { es: 'Grupo de Ocultaciones', en: 'Group Occulting' },
+    'ISO': { es: 'Isofase', en: 'Isophase' },
+    'Q': { es: 'Destellos Rápidos', en: 'Quick' },
+    'VQ': { es: 'Destellos Muy Rápidos', en: 'Very Quick' },
+    'IQ': { es: 'Destellos Rápidos Interrumpidos', en: 'Interrupted Quick' },
+    'W': { es: 'Blanca', en: 'White' }, 'R': { es: 'Roja', en: 'Red' },
+    'G': { es: 'Verde', en: 'Green' }, 'Y': { es: 'Amarilla', en: 'Yellow' },
+    'BU': { es: 'Azul', en: 'Blue' },
+};
+
 
 function generateCharacteristicDescription(config: LightConfig): string {
     const rhythmTerm = LIGHT_CHARACTERISTIC_TERMS[config.rhythm as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
     const colorTerm = LIGHT_CHARACTERISTIC_TERMS[config.color as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
     if (!rhythmTerm || !colorTerm) return '';
-    let groupText = config.group.length > 1 || config.group[0] > 1 ? ` (${config.group.join('+')})` : '';
-    const es = `Luz de ${rhythmTerm.es}${groupText}, color ${colorTerm.es.toLowerCase()}, con un período de ${config.period} segundos.`;
-    const en = `${rhythmTerm.en}${groupText} light, ${colorTerm.en} color, with a period of ${config.period} seconds.`;
+    let groupText = config.group.length > 1 || (config.group.length > 0 && config.group[0] > 1) ? ` (${config.group.join('+')})` : '';
+    const periodText = config.period > 0 ? `, con un período de ${config.period} segundos` : '';
+    const es = `Luz de ${rhythmTerm.es}${groupText}, color ${colorTerm.es.toLowerCase()}${periodText}.`;
+    const en = `${rhythmTerm.en}${groupText} light, ${colorTerm.en} color${config.period > 0 ? `, with a period of ${config.period} seconds` : ''}.`;
     return `<p class="desc-lang"><strong>ES:</strong> ${es}</p><p class="desc-lang"><strong>EN:</strong> ${en}</p><hr class="info-divider">`;
 }
 
 function parseLightCharacteristic(input: string): LightConfig | null {
     const cleanInput = input.trim().toUpperCase();
-    const rhythmMatch = cleanInput.match(/^(LFL|GP FL|FL|GP OC|OC|ISO|F)\s*(?:\(([\d\+]+)\))?/);
+    const rhythmMatch = cleanInput.match(/^(LFL|GP FL|FL|GP OC|OC|ISO|F|VQ|Q|IQ)\s*(?:\(([\d\+]+)\))?/);
     const colorMatch = cleanInput.match(/\b(W|R|G|Y|BU)\b/);
     const periodMatch = cleanInput.match(/(\d+(?:\.\d+)?)\s*S/);
-    if (!rhythmMatch || !colorMatch || !periodMatch) return null;
+
+    if (!rhythmMatch || !colorMatch) return null;
+
     let group: number[] = [1];
-    if (rhythmMatch[2]) { group = rhythmMatch[2].includes('+') ? rhythmMatch[2].split('+').map(Number) : [parseInt(rhythmMatch[2], 10)]; }
-    return { rhythm: rhythmMatch[1], group, color: colorMatch[1], period: parseFloat(periodMatch[1]) };
+    if (rhythmMatch[2]) { group = rhythmMatch[2].split('+').map(Number); }
+    
+    // For quick flashes, period is often omitted and derived from rhythm.
+    // If period is not specified for Q/VQ/IQ, we use a default of 0, which the simulation handles.
+    const period = periodMatch ? parseFloat(periodMatch[1]) : 0;
+    
+    // If no group is specified for Q/VQ, but a number follows, it becomes the group.
+    // Example: Q(9) 15s -> group [9], period 15. VQ(3) 5s -> group [3], period 5.
+    const quickGroupMatch = cleanInput.match(/(?:VQ|Q|IQ)\s*\((\d+)\)/);
+    if(quickGroupMatch && quickGroupMatch[1]) {
+        group = [parseInt(quickGroupMatch[1], 10)];
+    }
+
+    return { rhythm: rhythmMatch[1], group, color: colorMatch[1], period };
 }
 
 function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightConfig) {
@@ -612,14 +696,33 @@ function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightC
     lightEl.className = `lighthouse-light ${config.color.toLowerCase()}`;
     let sequence: { state: 'on' | 'off'; duration: number; }[] = [];
     let desc = `<strong>Secuencia:</strong> `;
+    
     const flash = 0.5, longFlash = 2.0, intraEclipse = 1.0, interEclipse = 3.0;
+    const qFlash = 0.5, qEclipse = 0.5; // 60 per minute
+    const vqFlash = 0.25, vqEclipse = 0.25; // 120 per minute
     let time = 0;
+
     switch (config.rhythm) {
         case 'F': sequence = [{ state: 'on', duration: config.period * 1000 }]; desc += `${config.period}s Luz.`; break;
         case 'LFL': const lflE = (config.period - longFlash) * 1000; sequence = [{ state: 'on', duration: longFlash * 1000 }]; desc += `${longFlash}s Luz`; if (lflE > 0) { sequence.push({ state: 'off', duration: lflE }); desc += `, ${lflE / 1000}s Osc.`; } break;
         case 'ISO': const isoP = (config.period / 2) * 1000; sequence = [{ state: 'on', duration: isoP }, { state: 'off', duration: isoP }]; desc += `${config.period / 2}s Luz, ${config.period / 2}s Osc.`; break;
         case 'OC': case 'GP OC': const totalOcc = config.group.reduce((a, b) => a + b, 0); const occDur = (config.period * 0.4) / totalOcc; const lightDur = (config.period * 0.6) / totalOcc; for (let i = 0; i < totalOcc; i++) { sequence.push({ state: 'on', duration: lightDur * 1000 }, { state: 'off', duration: occDur * 1000 }); desc += `${lightDur.toFixed(1)}s Luz, ${occDur.toFixed(1)}s Osc.` + (i < totalOcc - 1 ? ", " : ""); } break;
         case 'FL': case 'GP FL': config.group.forEach((count, i) => { for (let j = 0; j < count; j++) { sequence.push({ state: 'on', duration: flash * 1000 }); time += flash; desc += `${flash}s Luz`; if (j < count - 1) { sequence.push({ state: 'off', duration: intraEclipse * 1000 }); time += intraEclipse; desc += `, ${intraEclipse}s Osc.`; } } if (i < config.group.length - 1) { sequence.push({ state: 'off', duration: interEclipse * 1000 }); time += interEclipse; desc += `, ${interEclipse}s Osc.`; } }); const finalE = (config.period - time) * 1000; if (finalE > 0) { sequence.push({ state: 'off', duration: finalE }); desc += `, ${finalE / 1000}s Osc.`; } break;
+        case 'Q': case 'VQ': case 'IQ':
+            const isVQ = config.rhythm.startsWith('V');
+            const f = isVQ ? vqFlash : qFlash;
+            const e = isVQ ? vqEclipse : qEclipse;
+            const numFlashes = config.group.length > 0 ? config.group[0] : 1;
+            for (let i = 0; i < numFlashes; i++) {
+                sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 });
+                time += f + e;
+            }
+            if (config.rhythm === 'IQ' || (config.period > 0 && config.period > time)) {
+                const darkPeriod = (config.period > time ? config.period : 5) - time; // Default dark period for IQ if none given
+                sequence.pop(); // remove last eclipse
+                sequence.push({state: 'off', duration: (darkPeriod + e) * 1000})
+            }
+            break;
         default: desc = 'Característica no reconocida.';
     }
     infoEl.innerHTML = generateCharacteristicDescription(config) + `<p>${desc}</p>`;
@@ -629,13 +732,23 @@ function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightC
 }
 
 function initializeLighthouseSimulator() {
-    const form = document.getElementById('simulator-form') as HTMLFormElement | null;
-    const input = document.getElementById('light-char-input') as HTMLInputElement | null;
+    const form = document.getElementById('lighthouse-simulator-form') as HTMLFormElement | null;
+    const input = document.getElementById('lighthouse-char-input') as HTMLInputElement | null;
     const lightEl = document.getElementById('lighthouse-light');
-    const infoEl = document.getElementById('simulation-info');
+    const infoEl = document.getElementById('lighthouse-simulation-info');
     if (!form || !input || !lightEl || !infoEl) return;
     form.addEventListener('submit', (e) => { e.preventDefault(); const config = parseLightCharacteristic(input.value); if (config) { runSimulation(lightEl, infoEl, config); } else { if (simulationTimeoutId) clearTimeout(simulationTimeoutId); lightEl.classList.remove('on'); infoEl.innerHTML = '<p class="error">Formato no válido.</p>'; } });
 }
+
+function initializeBuoySimulator() {
+    const form = document.getElementById('buoy-simulator-form') as HTMLFormElement | null;
+    const input = document.getElementById('buoy-char-input') as HTMLInputElement | null;
+    const lightEl = document.getElementById('buoy-light');
+    const infoEl = document.getElementById('buoy-simulation-info');
+    if (!form || !input || !lightEl || !infoEl) return;
+    form.addEventListener('submit', (e) => { e.preventDefault(); const config = parseLightCharacteristic(input.value); if (config) { runSimulation(lightEl, infoEl, config); } else { if (simulationTimeoutId) clearTimeout(simulationTimeoutId); lightEl.classList.remove('on'); infoEl.innerHTML = '<p class="error">Formato no válido.</p>'; } });
+}
+
 
 // --- SOSGEN LOGIC ---
 async function initializeSosgen() {
@@ -731,7 +844,10 @@ async function initializeSosgen() {
                 });
             });
 
-            logSosgenEvent('SOSGEN', { spanish: esMsg, english: enMsg });
+            const newEntry = logSosgenEvent('SOSGEN', { spanish: esMsg, english: enMsg });
+            if (newEntry) {
+                updateBitacoraView(newEntry);
+            }
             localStorage.removeItem('sosgen_draft');
 
         } catch (error) {
@@ -947,7 +1063,7 @@ function initializeRegistroOceano(container: HTMLElement) {
 
 function initializeInfoTabs(container: HTMLElement) {
     const tabsContainer = container.querySelector('.info-nav-tabs');
-    const contentContainer = container.querySelector('.info-content');
+    const contentContainer = container.querySelector('.content-card, .info-content'); // Adjusted selector
     if (!tabsContainer || !contentContainer) return;
 
     tabsContainer.addEventListener('click', (event) => {
@@ -967,6 +1083,44 @@ function initializeInfoTabs(container: HTMLElement) {
         }
     });
 }
+
+function initializePhoneDirectory() {
+    const searchInput = document.getElementById('phone-search-input') as HTMLInputElement | null;
+    const listContainer = document.getElementById('phone-directory-list') as HTMLDivElement | null;
+    
+    if (!searchInput || !listContainer) return;
+
+    const renderList = (filter = '') => {
+        const searchTerm = filter.toLowerCase().trim();
+        const filteredData = searchTerm === '' ? PHONE_DIRECTORY_DATA : PHONE_DIRECTORY_DATA.filter(entry => 
+            entry.name.toLowerCase().includes(searchTerm) ||
+            entry.location.toLowerCase().includes(searchTerm) ||
+            entry.number.includes(searchTerm) ||
+            entry.keywords.some(k => k.toLowerCase().includes(searchTerm))
+        );
+
+        if (filteredData.length === 0) {
+            listContainer.innerHTML = `<p class="drill-placeholder">No se encontraron resultados.</p>`;
+            return;
+        }
+
+        listContainer.innerHTML = filteredData.map(entry => `
+            <div class="phone-entry-card">
+                <div class="phone-entry-info">
+                    <div class="name">${entry.name}</div>
+                    <div class="location">${entry.location}</div>
+                </div>
+                <div class="phone-entry-number">${entry.number}</div>
+            </div>
+        `).join('');
+    };
+
+    searchInput.addEventListener('input', debounce(() => renderList(searchInput.value), 300));
+    
+    // Initial render
+    renderList();
+}
+
 
 function initializeGmdssWizard() {
     const wizard = document.getElementById('gmdss-wizard');
@@ -1120,6 +1274,31 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
             resultsEl.appendChild(detailsEl);
         }
     }
+}
+
+function createLogEntryHTML(entry: any): string {
+    return `
+    <div class="log-entry" data-id="${entry.id}">
+        <div class="log-entry-header">
+            <span class="log-entry-type">${entry.type}</span>
+            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
+        </div>
+        <div class="log-entry-content">
+             <div>
+                 <h4>Español</h4>
+                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
+             </div>
+             <div>
+                 <h4>Inglés</h4>
+                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
+             </div>
+        </div>
+        <div class="log-entry-actions">
+            <button class="log-edit-btn secondary-btn">Editar</button>
+            <button class="log-delete-btn tertiary-btn">Eliminar</button>
+        </div>
+    </div>
+    `;
 }
 
 function initializeBitacora(container: HTMLElement) {

@@ -314,7 +314,24 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .translation-result .error { color: var(--danger-color); }
 .translation-result .loader-container { padding: 0 !important; min-height: 50px; }
 
-/* --- Lighthouse Simulator --- */
+/* Phone Directory */
+.phone-directory-search {
+    width: 100%; padding: 0.75rem 1rem; font-size: 1rem;
+    border: 1px solid var(--border-color); border-radius: 8px;
+    background-color: var(--bg-main); color: var(--text-primary); margin-bottom: 1.5rem;
+}
+.phone-directory-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.phone-entry-card {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem; border-radius: 6px; background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+}
+.phone-entry-info .name { font-weight: 500; color: var(--text-primary); }
+.phone-entry-info .location { font-size: 0.9rem; color: var(--text-secondary); }
+.phone-entry-number { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent-color-dark); font-weight: 700; }
+
+
+/* --- Maritime Signals Simulator --- */
 .simulator-form { display: flex; gap: 1rem; margin-bottom: 2rem; }
 .simulator-input {
   flex-grow: 1; padding: 0.75rem; font-family: var(--font-mono); border: 1px solid var(--border-color);
@@ -325,20 +342,30 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
   font-weight: 500; color: var(--text-inverted); background-color: var(--accent-color);
   border: none; border-radius: 8px; padding: 0.75rem 1.5rem; cursor: pointer;
 }
-.simulator-display { display: flex; flex-direction: column; align-items: center; gap: 2rem; }
+.simulator-display { display: flex; flex-direction: column; align-items: center; gap: 2rem; padding-top: 1rem; }
 .lighthouse-tower { background-color: #DDE2E7; } body.dark-theme .lighthouse-tower { background-color: #444; }
 .lighthouse-top { background-color: #B0B8C1; } body.dark-theme .lighthouse-top { background-color: #555; }
 .lighthouse-light { background-color: #798691; } body.dark-theme .lighthouse-light { background-color: #333; }
 .lighthouse-schematic { position: relative; width: 80px; height: 180px; display: flex; flex-direction: column; align-items: center; }
 .lighthouse-tower { width: 100%; height: 140px; clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%); position: absolute; bottom: 0; border: 1px solid #c8ced5; }
 .lighthouse-top { width: 90px; height: 40px; position: absolute; top: 0; border-radius: 5px 5px 0 0; display: flex; justify-content: center; align-items: center; }
-.lighthouse-light { width: 30px; height: 30px; border-radius: 50%; transition: background-color 0.1s ease-in-out, box-shadow 0.3s ease-in-out; }
-.lighthouse-light.on { box-shadow: 0 0 15px, 0 0 30px, 0 0 45px; }
-.lighthouse-light.w.on { background-color: #ffffff; box-shadow: 0 0 15px #ffffff, 0 0 30px #ffffff; }
-.lighthouse-light.r.on { background-color: #E53935; box-shadow: 0 0 15px #E53935, 0 0 30px #E53935; }
-.lighthouse-light.g.on { background-color: #43A047; box-shadow: 0 0 15px #43A047, 0 0 30px #43A047; }
-.lighthouse-light.y.on { background-color: #FDD835; box-shadow: 0 0 15px #FDD835, 0 0 30px #FDD835; }
-.lighthouse-light.bu.on { background-color: #1E88E5; box-shadow: 0 0 15px #1E88E5, 0 0 30px #1E88E5; }
+.lighthouse-light, .buoy-light { width: 30px; height: 30px; border-radius: 50%; transition: background-color 0.1s ease-in-out, box-shadow 0.3s ease-in-out; }
+.lighthouse-light.on, .buoy-light.on { box-shadow: 0 0 15px, 0 0 30px, 0 0 45px; }
+.lighthouse-light.w.on, .buoy-light.w.on { background-color: #ffffff; box-shadow: 0 0 15px #ffffff, 0 0 30px #ffffff; }
+.lighthouse-light.r.on, .buoy-light.r.on { background-color: #E53935; box-shadow: 0 0 15px #E53935, 0 0 30px #E53935; }
+.lighthouse-light.g.on, .buoy-light.g.on { background-color: #43A047; box-shadow: 0 0 15px #43A047, 0 0 30px #43A047; }
+.lighthouse-light.y.on, .buoy-light.y.on { background-color: #FDD835; box-shadow: 0 0 15px #FDD835, 0 0 30px #FDD835; }
+.lighthouse-light.bu.on, .buoy-light.bu.on { background-color: #1E88E5; box-shadow: 0 0 15px #1E88E5, 0 0 30px #1E88E5; }
+
+.buoy-schematic { position: relative; width: 100px; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;}
+.buoy-body { width: 100%; height: 100px; background-color: #E53935; border-radius: 50% 50% 20px 20px / 80% 80% 20% 20%; border: 3px solid #b71c1c; position: relative; }
+body.dark-theme .buoy-body { background-color: #b71c1c; border-color: #7f0000; }
+.buoy-body::before { content: ''; position: absolute; bottom: -10px; left: 25%; width: 50%; height: 10px; background: #c8ced5; border-radius: 0 0 5px 5px; }
+.buoy-top { position: absolute; top: 0; width: 20px; height: 80px; background-color: #798691; display: flex; flex-direction: column; align-items: center; }
+body.dark-theme .buoy-top { background-color: #444; }
+.buoy-top::before { content: ''; width: 40px; height: 10px; background-color: inherit; position: absolute; top: 30px; border-radius: 2px; }
+.buoy-light { position: absolute; top: 5px; }
+
 .simulation-info {
     background-color: var(--bg-main); padding: 1.5rem; border: 1px solid var(--border-color);
     border-radius: 8px; width: 100%; max-width: 600px; font-family: var(--font-mono);
