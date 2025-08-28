@@ -13,6 +13,7 @@ export default async function handler(
 
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const EeccList = `'La Guardia Radio', 'Vigo Radio', 'Finisterre Radio', 'Coruña Radio', 'Ortegal Radio', 'Navia Radio', 'Cabo Peñas Radio', 'Santander Radio', 'Bilbao Radio', 'Pasajes Radio', 'Melilla Radio', 'Cabo de Gata Radio', 'Cartagena Radio', 'Cabo de la Nao Radio', 'Castellón Radio', 'Ibiza Radio', 'Menorca Radio', 'Palma Radio', 'Tarragona Radio', 'Barcelona Radio', 'Begur Radio', 'Cadaqués Radio', 'Huelva Radio', 'Cádiz Radio', 'Tarifa Radio', 'Málaga Radio', 'Motril Radio', 'La Palma Radio', 'Hierro Radio', 'Gomera Radio', 'Tenerife Radio', 'Las Palmas Radio', 'Fuerteventura Radio', 'Yaiza Radio', 'Arrecife Radio', 'La Restinga Radio', 'Garafía Radio'`;
 
     if (type === 'dsc') {
         const prompt = `
@@ -38,7 +39,7 @@ export default async function handler(
         **Tu Tarea:**
         1.  **Selecciona aleatoriamente UNO de los 6 CASOS.**
         2.  **Crea un escenario simple y realista** que se ajuste perfectamente al caso. El escenario debe contener únicamente la información que una alerta DSC real podría incluir.
-        3.  **AUMENTA LA VARIEDAD:** Utiliza diferentes nombres de Estaciones Costeras españolas (ej: Coruña Radio, Valencia Radio, Las Palmas Radio, etc.), diferentes nombres de buques y diferentes naturalezas de socorro (ej: vía de agua, colisión, hombre al agua, etc.). NO uses siempre 'Tarifa Radio' o 'incendio'.
+        3.  **AUMENTA LA VARIEDAD:** Utiliza diferentes nombres de buques y diferentes naturalezas de socorro (ej: vía de agua, colisión, hombre al agua, etc.). Para la Estación Costera (CCR), DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España: ${EeccList}. NO inventes ningún otro nombre de estación y varía el que usas.
         4.  **Genera 2 preguntas de opción múltiple (3 opciones)** que evalúen los pasos exactos del protocolo para el caso seleccionado. Las preguntas y respuestas deben ser directas y sin ambigüedades.
 
         **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.
@@ -86,7 +87,7 @@ export default async function handler(
 
         **REGLAS INQUEBRANTABLES:**
         1.  **Selecciona aleatoriamente UNO de los 5 casos.**
-        2.  **Crea un escenario completo pero oculto:** Define: nombre del buque, POB, posición (o falta de ella), naturaleza del socorro. Opcionalmente, el escenario puede incluir que el buque está informando que abandona la nave.
+        2.  **Crea un escenario completo pero oculto:** Define: nombre del buque, POB, posición (o falta de ella), naturaleza del socorro. Para el nombre de la estación costera (CCR), DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España: ${EeccList}. NO inventes ningún otro nombre de estación y varía el que usas. Opcionalmente, el escenario puede incluir que el buque está informando que abandona la nave.
         3.  **Genera una llamada inicial (scenario):** Redacta la primera transmisión que la CCR recibiría. Debe ser realista y, si el caso lo requiere, incompleta. La llamada puede ser en español o inglés (50% de probabilidad).
         4.  **Regla de Información Faltante (CRÍTICA):**
             *   **Analiza la llamada inicial (scenario).**
