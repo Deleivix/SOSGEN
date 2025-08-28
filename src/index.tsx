@@ -713,7 +713,7 @@ function initializeCoordinateConverter() {
     const convertBtn = document.getElementById('coord-convert-btn') as HTMLButtonElement;
     const inputEl = document.getElementById('coord-input') as HTMLTextAreaElement;
     const resultEl = document.getElementById('coord-result') as HTMLDivElement;
-    
+
     if (!convertBtn || !inputEl || !resultEl) return;
 
     const parseToDD = (input: string): number => {
@@ -722,11 +722,11 @@ function initializeCoordinateConverter() {
         str = str.replace(/[°'"]/g, ' ');
 
         const parts = str.split(/[\s]+/).filter(p => p.length > 0);
-        
+
         const hemisphere = parts.find(p => /^[NSEW]$/.test(p));
         const numbers = parts
-          .filter(p => !/^[NSEW]$/.test(p))
-          .map(p => parseFloat(p));
+            .filter(p => !/^[NSEW]$/.test(p))
+            .map(p => parseFloat(p));
 
         if (numbers.some(isNaN) || numbers.length === 0 || numbers.length > 3) {
             return NaN;
@@ -740,7 +740,7 @@ function initializeCoordinateConverter() {
         } else { // DD
             dd = numbers[0];
         }
-        
+
         if (hemisphere && /[SW]/.test(hemisphere)) {
             dd = -Math.abs(dd);
         } else if (hemisphere && /[NE]/.test(hemisphere)) {
@@ -777,33 +777,33 @@ function initializeCoordinateConverter() {
                 return { lat: null, lon: null };
             }
         }
-        
+
         const lat = parseToDD(latStr.trim());
         const lon = parseToDD(lonStr.trim());
-        
+
         return { lat: isNaN(lat) ? null : lat, lon: isNaN(lon) ? null : lon };
     };
 
     const formatToDDM = (dd: number, isLon: boolean): { text: string, error: boolean } => {
         if (isNaN(dd)) return { text: 'Formato inválido.', error: true };
-    
+
         if (isLon && (dd < -180 || dd > 180)) {
             return { text: 'Longitud fuera de rango (-180 a 180).', error: true };
         }
         if (!isLon && (dd < -90 || dd > 90)) {
             return { text: 'Latitud fuera de rango (-90 a 90).', error: true };
         }
-    
+
         const hemisphere = isLon ? (dd >= 0 ? 'E' : 'W') : (dd >= 0 ? 'N' : 'S');
         const absDd = Math.abs(dd);
         const degrees = Math.floor(absDd);
         const minutes = (absDd - degrees) * 60;
-        
+
         const degStr = isLon ? String(degrees).padStart(3, '0') : String(degrees).padStart(2, '0');
         const minutesWithDecimal = minutes.toFixed(3);
         const [intMin, decMin] = minutesWithDecimal.split('.');
         const formattedMinutes = intMin.padStart(2, '0');
-        
+
         return { text: `${degStr}° ${formattedMinutes},${decMin}' ${hemisphere}`, error: false };
     };
 
@@ -823,24 +823,23 @@ function initializeCoordinateConverter() {
 
         const latResult = formatToDDM(coords.lat, false);
         const lonResult = formatToDDM(coords.lon, true);
-        
+
         let htmlResult = '';
-        if(latResult.error) {
+        if (latResult.error) {
             htmlResult += `<p class="error"><strong>Latitud:</strong> ${latResult.text}</p>`;
         } else {
             htmlResult += `<p><strong>Latitud:</strong> ${latResult.text}</p>`;
         }
-        
-        if(lonResult.error) {
+
+        if (lonResult.error) {
             htmlResult += `<p class="error"><strong>Longitud:</strong> ${lonResult.text}</p>`;
         } else {
             htmlResult += `<p><strong>Longitud:</strong> ${lonResult.text}</p>`;
         }
-        
+
         resultEl.innerHTML = htmlResult;
     });
 }
-
 
 async function initializeNauticalTranslator() {
     const translateBtn = document.getElementById('translator-btn') as HTMLButtonElement;
