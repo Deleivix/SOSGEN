@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Type } from '@google/ai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 export default async function handler(
   request: VercelRequest,
