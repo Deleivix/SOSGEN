@@ -66,7 +66,7 @@ export default async function handler(
 
         const genAIResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash', contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 1.0 }
+            config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 0.3 }
         });
         
         const resultText = genAIResponse.text.trim() || '{}';
