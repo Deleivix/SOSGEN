@@ -16,6 +16,8 @@ const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12"cy="12" r="4"></circle><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line></svg>`,
     // Registro Océano: Clipboard
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
+    // HISTORIAL: Book
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
     // PROTOCOLO: Network/Flowchart
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>`,
     // FAROS: Lighthouse
@@ -445,9 +447,56 @@ function renderSosgen(container: HTMLElement) {
     initializeSosgen();
 }
 
+function renderHistorial(container: HTMLElement) {
+    const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+    
+    if (logbook.length === 0) {
+        container.innerHTML = `
+            <div class="content-card">
+                <h2 class="content-card-title">Historial de Sucesos</h2>
+                <p class="drill-placeholder">No hay eventos registrados en el historial.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="content-card" style="max-width: 1200px;">
+            <h2 class="content-card-title">Historial de Sucesos</h2>
+            <div id="logbook-list" class="logbook-list">
+                ${logbook.slice().reverse().map((entry: any) => `
+                    <div class="log-entry" data-id="${entry.id}">
+                        <div class="log-entry-header">
+                            <span class="log-entry-type">${entry.type}</span>
+                            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
+                        </div>
+                        <div class="log-entry-content">
+                             <div class="log-entry-spanish">
+                                 <h4>Español</h4>
+                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.spanish}</textarea>
+                             </div>
+                             <div class="log-entry-english">
+                                 <h4>Inglés</h4>
+                                 <textarea class="styled-textarea" rows="10" readonly>${entry.content.english}</textarea>
+                             </div>
+                        </div>
+                        <div class="log-entry-actions">
+                            <button class="log-edit-btn secondary-btn">Editar</button>
+                            <button class="log-delete-btn tertiary-btn">Eliminar</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    initializeHistorialActions(container);
+}
+
+
 const APP_PAGES: Page[] = [
     { name: 'SOSGEN', contentRenderer: renderSosgen },
     { name: 'Registro Océano', contentRenderer: renderRegistroOceano },
+    { name: 'HISTORIAL', contentRenderer: renderHistorial },
     { name: 'PROTOCOLO', contentRenderer: renderProtocolo },
     { name: 'FAROS', contentRenderer: renderLighthouseSimulator },
     { name: 'SIMULACRO', contentRenderer: renderSimulacro },
@@ -582,6 +631,17 @@ async function initializeSosgen() {
     const resultsEl = document.getElementById('sosgen-results') as HTMLDivElement;
     if (!generateBtn || !inputEl || !resultsEl) return;
 
+    // Load draft from localStorage
+    const savedDraft = localStorage.getItem('sosgen_draft');
+    if (savedDraft) {
+        inputEl.value = savedDraft;
+    }
+
+    // Save draft to localStorage on input
+    inputEl.addEventListener('input', () => {
+        localStorage.setItem('sosgen_draft', inputEl.value);
+    });
+
     generateBtn.addEventListener('click', async () => {
         const naturalInput = inputEl.value.trim();
         if (!naturalInput) {
@@ -633,6 +693,22 @@ async function initializeSosgen() {
             resultsEl.innerHTML = `
                 <div class="sosgen-result-box"><div class="sosgen-result-header"><h3>Mensaje en Español</h3><button class="copy-btn" data-template="${escEs}"><span>Copiar</span></button></div><pre>${highlightPlaceholders(esMsg)}</pre></div>
                 <div class="sosgen-result-box"><div class="sosgen-result-header"><h3>Mensaje en Inglés</h3><button class="copy-btn" data-template="${escEn}"><span>Copiar</span></button></div><pre>${highlightPlaceholders(enMsg)}</pre></div>`;
+
+
+            // Save to logbook
+            const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+            const newEntry = {
+                id: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                type: 'SOSGEN',
+                content: {
+                    spanish: esMsg,
+                    english: enMsg
+                }
+            };
+            logbook.push(newEntry);
+            localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
+            localStorage.removeItem('sosgen_draft'); // Clear draft after successful generation
 
         } catch (error) {
             console.error("Error generating message:", error);
@@ -806,7 +882,6 @@ async function initializeSimulacro() {
     drillContent.addEventListener('click', (event) => {
         const target = event.target as HTMLElement;
         if (target.id === 'drill-check-btn' && drillData) {
-            // Fix: Cast target to HTMLButtonElement to access the disabled property.
             if (target instanceof HTMLButtonElement) {
                 target.disabled = true;
             }
@@ -844,6 +919,7 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
         const selectedOption = container.querySelector<HTMLInputElement>(`input[name="question-${index}"]:checked`);
         
         const options = questionBlock.querySelectorAll('.answer-option');
+        options.forEach(opt => opt.querySelector('input')?.setAttribute('disabled', 'true'));
         options[correctAnswerIndex].classList.add('correct');
 
         if (selectedOption) {
@@ -861,6 +937,72 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
     const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
     resultsEl.innerHTML = `<h3>Resultado: ${score} de ${data.questions.length} correctas</h3>`;
 }
+
+function initializeHistorialActions(container: HTMLElement) {
+    const list = container.querySelector('#logbook-list');
+    if (!list) return;
+
+    list.addEventListener('click', e => {
+        const target = e.target as HTMLElement;
+        const entryEl = target.closest<HTMLElement>('.log-entry');
+        if (!entryEl) return;
+        const entryId = entryEl.dataset.id;
+        if (!entryId) return;
+
+        // Edit/Save logic
+        if (target.classList.contains('log-edit-btn')) {
+            const textareas = entryEl.querySelectorAll('textarea');
+            textareas.forEach(ta => ta.readOnly = false);
+            target.textContent = 'Guardar';
+            target.classList.remove('log-edit-btn');
+            target.classList.add('log-save-btn');
+            target.classList.remove('secondary-btn');
+            target.classList.add('primary-btn-small');
+            entryEl.classList.add('editing');
+            (textareas[0] as HTMLTextAreaElement)?.focus();
+        } else if (target.classList.contains('log-save-btn')) {
+            const spanishText = (entryEl.querySelector('.log-entry-spanish textarea') as HTMLTextAreaElement)?.value;
+            const englishText = (entryEl.querySelector('.log-entry-english textarea') as HTMLTextAreaElement)?.value;
+            
+            let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+            const entryIndex = logbook.findIndex((entry: any) => entry.id === entryId);
+            if (entryIndex > -1) {
+                logbook[entryIndex].content.spanish = spanishText;
+                logbook[entryIndex].content.english = englishText;
+                localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
+            }
+
+            const textareas = entryEl.querySelectorAll('textarea');
+            textareas.forEach(ta => ta.readOnly = true);
+            target.textContent = 'Editar';
+            target.classList.add('log-edit-btn');
+            target.classList.remove('log-save-btn');
+            target.classList.add('secondary-btn');
+            target.classList.remove('primary-btn-small');
+            entryEl.classList.remove('editing');
+        }
+
+        // Delete logic
+        if (target.classList.contains('log-delete-btn')) {
+            if (confirm('¿Está seguro de que desea eliminar esta entrada del historial?')) {
+                let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+                const updatedLogbook = logbook.filter((entry: any) => entry.id !== entryId);
+                localStorage.setItem('sosgen_logbook', JSON.stringify(updatedLogbook));
+                entryEl.style.animation = 'fadeOut 0.5s ease forwards';
+                entryEl.addEventListener('animationend', () => {
+                    entryEl.remove();
+                     if (updatedLogbook.length === 0) {
+                         const logbookList = document.getElementById('logbook-list');
+                         if(logbookList) {
+                            logbookList.innerHTML = `<p class="drill-placeholder">No hay eventos registrados en el historial.</p>`;
+                         }
+                    }
+                });
+            }
+        }
+    });
+}
+
 
 function addEventListeners(appContainer: HTMLElement) {
     appContainer.addEventListener('click', (event) => {
