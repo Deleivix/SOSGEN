@@ -9,85 +9,126 @@ export default async function handler(
     return response.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  const { type } = request.body;
+
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-    
-    const prompt = `
-    Eres un instructor GMDSS. Tu única tarea es generar un caso práctico para un operador de Estación Radio Costera (CCR) española, basándote ESTRICTAMENTE en el siguiente flujograma. NO seas creativo.
 
-    **Flujograma de Protocolo GMDSS:**
+    if (type === 'dsc') {
+        const prompt = `
+        Eres un instructor GMDSS. Tu única tarea es generar un caso práctico de ALERTA DSC para un operador de Estación Radio Costera (CCR) española, basándote ESTRICTAMENTE en el siguiente flujograma.
 
-    1.  **Inicio:** Se recibe una alerta (VHF, MF, o HF).
-    2.  **Decisión 1: ¿VÁLIDA o NO VÁLIDA?** (Válida = MMSI correcto. No Válida = MMSI inválido, ej: 123456789, 000000000).
+        **Flujograma de Protocolo GMDSS (Alertas DSC):**
+        1.  **Inicio:** Se recibe una alerta (VHF, MF, o HF).
+        2.  **Decisión 1: ¿VÁLIDA o NO VÁLIDA?** (Válida = MMSI correcto. No Válida = MMSI inválido).
+        3.  **RUTA: ALERTA VÁLIDA**
+            *   **Decisión 2: ¿Tiene POSICIÓN?**
+            *   **3a. CON POSICIÓN:**
+                *   **Decisión 3: ¿Dentro o Fuera de ZONA SAR?**
+                *   **CASO 1 (Válida, con Pos., EN ZONA SAR):** 1. ACK. 2. Retransmite Alerta. 3. Escucha.
+                *   **CASO 2 (Válida, con Pos., FUERA ZONA SAR, VHF):** 1. NO ACK. 2. Escucha.
+                *   **CASO 3 (Válida, con Pos., FUERA ZONA SAR, MF/HF):** 1. NO ACK. 2. Escucha.
+            *   **3b. SIN POSICIÓN:**
+                *   **Decisión 4: ¿Banda?**
+                *   **CASO 4 (Válida, sin Pos., VHF):** 1. ACK. 2. Intenta conseguir posición y retransmite.
+                *   **CASO 5 (Válida, sin Pos., MF/HF):** 1. NO ACK. 2. Escucha.
+        4.  **RUTA: ALERTA NO VÁLIDA**
+            *   **CASO 6 (No Válida):** 1. SÓLO ACK SI ESTÁ EN ZONA SAR. 2. Escucha e intenta conseguir más información.
 
-    3.  **RUTA: ALERTA VÁLIDA**
-        *   **Decisión 2: ¿Tiene POSICIÓN?**
-        *   **3a. CON POSICIÓN:**
-            *   **Decisión 3: ¿Dentro o Fuera de ZONA SAR?**
-            *   **CASO 1 (Válida, con Pos., EN ZONA SAR, VHF/MF/HF):** 1. ACK. 2. Retransmite Alerta. 3. Escucha y espera instrucciones.
-            *   **CASO 2 (Válida, con Pos., FUERA ZONA SAR, VHF):** 1. NO ACK. 2. Escucha y espera instrucciones.
-            *   **CASO 3 (Válida, con Pos., FUERA ZONA SAR, MF/HF):** 1. NO ACK. 2. Escucha y espera instrucciones.
-        *   **3b. SIN POSICIÓN:**
-            *   **Decisión 4: ¿Banda de recepción?**
-            *   **CASO 4 (Válida, sin Pos., VHF):** 1. ACK. 2. Intenta conseguir posición y retransmite. 3. Escucha y espera instrucciones.
-            *   **CASO 5 (Válida, sin Pos., MF/HF):** 1. NO ACK. 2. Escucha y espera instrucciones.
+        **Tu Tarea:**
+        1.  **Selecciona aleatoriamente UNO de los 6 CASOS.**
+        2.  **Crea un escenario simple y realista** que se ajuste al caso. El escenario debe contener únicamente la información que una alerta DSC real podría incluir: Banda (VHF, MF, o HF), MMSI (válido/inválido), Posición (presente/ausente), y opcionalmente una naturaleza de socorro. **Recuerda que solo el MMSI y la banda son obligatorios en una alerta DSC real.**
+        3.  **Genera 2-3 preguntas de opción múltiple (3 opciones)** que evalúen los pasos exactos del protocolo para el caso seleccionado (ej: "¿Debe la CCR acusar recibo (ACK)?").
 
-    4.  **RUTA: ALERTA NO VÁLIDA**
-        *   **CASO 6 (No Válida):** 1. SÓLO ACK SI ESTÁ EN ZONA SAR. 2. Escucha e intenta conseguir más información. 3. Si se confirma, tratar como VÁLIDA.
-
-    **Tu Tarea:**
-
-    1.  **Selecciona aleatoriamente UNO de los 6 CASOS** descritos arriba.
-    2.  **Crea un escenario extremadamente simple** que se ajuste perfectamente al caso seleccionado. El escenario debe contener únicamente la información necesaria: Banda (VHF, MF, o HF), MMSI (válido/inválido), Posición (presente/ausente, y si está dentro/fuera de SAR), y una naturaleza de socorro corta (ej: "vía de agua").
-    3.  **REGLA CRÍTICA:** Si el MMSI es inválido, NO incluyas nombre de buque.
-    4.  **Genera 2-3 preguntas de opción múltiple (3 opciones)** que evalúen los pasos exactos del protocolo para el caso seleccionado. Las preguntas deben ser directas y sin ambigüedad sobre la acción a tomar (ej: "¿Debe la CCR acusar recibo (ACK)?", "¿Cuál es el siguiente paso correcto?").
-
-    **Formato de Salida:**
-    Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema proporcionado. Asegúrate de que los campos 'isSar', 'band', 'hasPosition' y 'isMmsiValid' en 'details' reflejen con precisión el escenario que has creado.
-    `;
-    
-    const schema = {
-        type: Type.OBJECT,
-        properties: {
-            scenario: { type: Type.STRING, description: "Descripción narrativa del escenario de socorro." },
-            details: {
-                type: Type.OBJECT,
-                properties: {
-                    isSar: { type: Type.BOOLEAN, description: "True si la posición está dentro de la zona SAR española, false si está fuera." },
-                    band: { type: Type.STRING, description: "Banda de comunicación (VHF, MF, HF)." },
-                    hasPosition: { type: Type.BOOLEAN, description: "True si se proporciona una posición clara." },
-                    isMmsiValid: { type: Type.BOOLEAN, description: "True si el MMSI es válido." }
-                },
-                required: ["isSar", "band", "hasPosition", "isMmsiValid"]
-            },
-            questions: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        questionText: { type: Type.STRING, description: "El texto de la pregunta." },
-                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        correctAnswerIndex: { type: Type.INTEGER, description: "El índice (0, 1, o 2) de la respuesta correcta en el array de opciones." }
-                    },
-                    required: ["questionText", "options", "correctAnswerIndex"]
+        **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.
+        `;
+        
+        const dscSchema = {
+            type: Type.OBJECT,
+            properties: {
+                type: { type: Type.STRING, description: "Siempre será 'dsc'."},
+                scenario: { type: Type.STRING, description: "Descripción narrativa del escenario de socorro." },
+                questions: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            questionText: { type: Type.STRING },
+                            options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            correctAnswerIndex: { type: Type.INTEGER }
+                        },
+                        required: ["questionText", "options", "correctAnswerIndex"]
+                    }
                 }
-            }
-        },
-        required: ["scenario", "details", "questions"]
-    };
+            },
+            required: ["type", "scenario", "questions"]
+        };
 
-    const genAIResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: schema,
-            temperature: 1.0,
-        }
-    });
+        const genAIResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash', contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 1.0 }
+        });
+        
+        const resultText = genAIResponse.text.trim() || '{}';
+        return response.status(200).json(JSON.parse(resultText));
+
+    } else if (type === 'radiotelephony') {
+        const prompt = `
+        Eres un instructor GMDSS experto. Tu tarea es generar un simulacro interactivo de una LLAMADA DE SOCORRO POR RADIOTELEFONÍA para un operador de CCR.
+
+        **Casuística de Radiotelefonía:**
+        1.  Con posición, DENTRO de zona SAR.
+        2.  Con posición, FUERA de zona SAR (VHF).
+        3.  Con posición, FUERA de zona SAR (MF/HF).
+        4.  Sin posición (VHF).
+        5.  Sin posición (MF/HF).
+
+        **Tu Tarea:**
+        1.  **Selecciona aleatoriamente UNO de los 5 casos.**
+        2.  **Crea un escenario completo pero oculto:** Define todos los detalles: nombre del buque, POB, posición exacta (o descripción si no la tiene), naturaleza del socorro (ej: "incendio"), y si la situación requiere abandonar el buque.
+        3.  **Genera una llamada inicial:** Redacta la primera transmisión que la CCR recibiría del buque. Debe ser realista e incompleta (ej: "MAYDAY, MAYDAY... tenemos un problema grave a bordo...").
+        4.  **Crea una secuencia de preguntas INTERACTIVAS (3 a 5):** Cada pregunta debe simular la conversación y poner a prueba la habilidad del operador para priorizar información.
+            *   **Prioridad:** Las primeras preguntas deben centrarse en obtener: 1º POSICIÓN, 2º POB, 3º NATURALEZA DEL PELIGRO. Las opciones de respuesta deben incluir la pregunta correcta y otras incorrectas.
+            *   **Caso de Abandono:** Si el escenario lo requiere, incluye una pregunta sobre qué consejo dar (chalecos, radiobaliza, VHF portátil).
+            *   **Protocolo Final:** La última pregunta SIEMPRE debe ser sobre la acción de protocolo final correcta (ej: Acusar recibo y retransmitir), basándose en el caso.
+        5.  **Proporciona feedback claro** para cada pregunta explicando por qué la respuesta es correcta.
+
+        **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.`;
+
+        const radioSchema = {
+            type: Type.OBJECT,
+            properties: {
+                type: { type: Type.STRING, description: "Siempre será 'radiotelephony'."},
+                scenario: { type: Type.STRING, description: "La llamada de socorro inicial que escucha el operador." },
+                fullDetails: { type: Type.STRING, description: "Un resumen completo de la situación (posición, POB, peligro, etc.) para mostrar al final." },
+                questions: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            questionText: { type: Type.STRING, description: "La pregunta para el operador (ej: '¿Qué es lo primero que debes preguntar?')." },
+                            options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            correctAnswerIndex: { type: Type.INTEGER },
+                            feedback: { type: Type.STRING, description: "Explicación de la respuesta correcta." }
+                        },
+                        required: ["questionText", "options", "correctAnswerIndex", "feedback"]
+                    }
+                }
+            },
+            required: ["type", "scenario", "fullDetails", "questions"]
+        };
+
+        const genAIResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash', contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: radioSchema, temperature: 0.8 }
+        });
+        
+        const resultText = genAIResponse.text.trim() || '{}';
+        return response.status(200).json(JSON.parse(resultText));
     
-    const resultText = genAIResponse.text.trim() || '{}';
-    return response.status(200).json(JSON.parse(resultText));
+    } else {
+        return response.status(400).json({ error: 'Invalid or missing drill type specified.' });
+    }
 
   } catch (error) {
     console.error(error);

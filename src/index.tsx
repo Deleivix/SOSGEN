@@ -395,11 +395,16 @@ function renderSimulacro(container: HTMLElement) {
         <div class="content-card">
              <h2 class="content-card-title">Simulador de Casos Prácticos GMDSS</h2>
              <div class="drill-container">
-                <button id="drill-generate-btn" class="primary-btn">Generar Nuevo Simulacro</button>
-                <div id="drill-loader" class="loader-container" style="display: none;"><div class="loader"></div></div>
-                <div id="drill-content" class="drill-content">
-                    <p class="drill-placeholder">Pulse el botón para generar un nuevo escenario de emergencia y poner a prueba sus conocimientos.</p>
+                <div id="drill-type-selection">
+                    <p>Seleccione el tipo de simulacro que desea realizar:</p>
+                    <div class="drill-type-options">
+                        <button class="secondary-btn" id="drill-dsc-btn" style="width: auto;">Alerta DSC</button>
+                        <button class="secondary-btn" id="drill-radio-btn" style="width: auto;">Llamada Radiotelefonía</button>
+                    </div>
                 </div>
+                <div id="drill-loader" class="loader-container" style="display: none;"><div class="loader"></div></div>
+                <div id="drill-content" class="drill-content" style="margin-top: 2rem;"></div>
+                <button id="drill-restart-btn" class="primary-btn" style="display: none; margin-top: 2rem;">Realizar otro Simulacro</button>
              </div>
         </div>
     `;
@@ -974,53 +979,67 @@ function initializeGmdssWizard() {
     }
 }
 
-async function initializeSimulacro() {
-    const generateBtn = document.getElementById('drill-generate-btn') as HTMLButtonElement;
+async function startDrill(drillType: 'dsc' | 'radiotelephony') {
     const drillContent = document.getElementById('drill-content') as HTMLDivElement;
     const loader = document.getElementById('drill-loader') as HTMLDivElement;
-    if (!generateBtn || !drillContent || !loader) return;
+    const typeSelection = document.getElementById('drill-type-selection') as HTMLDivElement;
+    const restartBtn = document.getElementById('drill-restart-btn') as HTMLButtonElement;
 
-    let drillData: any = null;
-
-    generateBtn.addEventListener('click', async () => {
-        drillContent.innerHTML = '';
-        loader.style.display = 'flex';
-        generateBtn.disabled = true;
-        drillData = null;
-
-        try {
-            const apiResponse = await fetch('/api/simulacro', {
-                method: 'POST',
-            });
-            if (!apiResponse.ok) {
-                const errorData = await apiResponse.json();
-                throw new Error(errorData.details || 'La API devolvió un error.');
-            }
-            
-            drillData = await apiResponse.json();
-            displayDrill(drillData, drillContent);
-
-        } catch (error) {
-            console.error("Drill Generation Error:", error);
-            drillContent.innerHTML = `<p class="error">No se pudo generar el simulacro. Inténtelo de nuevo.</p>`;
-        } finally {
-            loader.style.display = 'none';
-            generateBtn.disabled = false;
-        }
-    });
+    if (!drillContent || !loader || !typeSelection || !restartBtn) return;
     
-    drillContent.addEventListener('click', (event) => {
-        const target = event.target as HTMLElement;
-        if (target.id === 'drill-check-btn' && drillData) {
-            if (target instanceof HTMLButtonElement) {
-                target.disabled = true;
-            }
-            checkDrillAnswers(drillData, drillContent);
+    drillContent.innerHTML = '';
+    loader.style.display = 'flex';
+    typeSelection.style.display = 'none';
+    restartBtn.style.display = 'none';
+
+    try {
+        const apiResponse = await fetch('/api/simulacro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: drillType }),
+        });
+        if (!apiResponse.ok) {
+            const errorData = await apiResponse.json();
+            throw new Error(errorData.details || 'La API devolvió un error.');
         }
+        
+        const drillData = await apiResponse.json();
+        if (drillData.type === 'dsc') {
+            displayDscDrill(drillData, drillContent);
+        } else if (drillData.type === 'radiotelephony') {
+            displayInteractiveDrill(drillData, drillContent);
+        }
+        restartBtn.style.display = 'block';
+
+    } catch (error) {
+        console.error("Drill Generation Error:", error);
+        drillContent.innerHTML = `<p class="error">No se pudo generar el simulacro. Inténtelo de nuevo.</p>`;
+        restartBtn.style.display = 'block';
+    } finally {
+        loader.style.display = 'none';
+    }
+}
+
+function initializeSimulacro() {
+    const dscBtn = document.getElementById('drill-dsc-btn') as HTMLButtonElement;
+    const radioBtn = document.getElementById('drill-radio-btn') as HTMLButtonElement;
+    const restartBtn = document.getElementById('drill-restart-btn') as HTMLButtonElement;
+    const drillContent = document.getElementById('drill-content') as HTMLDivElement;
+    const typeSelection = document.getElementById('drill-type-selection') as HTMLDivElement;
+
+    if (!dscBtn || !radioBtn || !restartBtn || !typeSelection) return;
+
+    dscBtn.addEventListener('click', () => startDrill('dsc'));
+    radioBtn.addEventListener('click', () => startDrill('radiotelephony'));
+    restartBtn.addEventListener('click', () => {
+        typeSelection.style.display = 'block';
+        drillContent.innerHTML = '';
+        restartBtn.style.display = 'none';
     });
 }
 
-function displayDrill(data: any, container: HTMLDivElement) {
+
+function displayDscDrill(data: any, container: HTMLDivElement) {
     let html = `<div class="drill-scenario">${data.scenario}</div><div class="drill-questions">`;
     data.questions.forEach((q: any, index: number) => {
         html += `
@@ -1039,9 +1058,15 @@ function displayDrill(data: any, container: HTMLDivElement) {
     });
     html += `</div><button id="drill-check-btn" class="primary-btn">Verificar Respuestas</button><div id="drill-results" class="drill-results-summary"></div>`;
     container.innerHTML = html;
+
+    const checkBtn = container.querySelector('#drill-check-btn');
+    checkBtn?.addEventListener('click', () => {
+        checkDscDrillAnswers(data, container);
+        if (checkBtn instanceof HTMLButtonElement) checkBtn.disabled = true;
+    }, { once: true });
 }
 
-function checkDrillAnswers(data: any, container: HTMLDivElement) {
+function checkDscDrillAnswers(data: any, container: HTMLDivElement) {
     let score = 0;
     data.questions.forEach((q: any, index: number) => {
         const questionBlock = container.querySelector(`#question-${index}`) as HTMLElement;
@@ -1049,7 +1074,10 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
         const selectedOption = container.querySelector<HTMLInputElement>(`input[name="question-${index}"]:checked`);
         
         const options = questionBlock.querySelectorAll('.answer-option');
-        options.forEach(opt => opt.querySelector('input')?.setAttribute('disabled', 'true'));
+        options.forEach(opt => {
+            opt.classList.add('disabled');
+            opt.querySelector('input')?.setAttribute('disabled', 'true');
+        });
         options[correctAnswerIndex].classList.add('correct');
 
         if (selectedOption) {
@@ -1067,6 +1095,86 @@ function checkDrillAnswers(data: any, container: HTMLDivElement) {
     const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
     resultsEl.innerHTML = `<h3>Resultado: ${score} de ${data.questions.length} correctas</h3>`;
 }
+
+function displayInteractiveDrill(data: any, container: HTMLDivElement) {
+    let currentQuestionIndex = 0;
+    let score = 0;
+
+    function renderQuestion(index: number) {
+        const q = data.questions[index];
+        const questionHtml = `
+            <div class="question-block" data-question-index="${index}">
+                <p class="question-text">${index + 1}. ${q.questionText}</p>
+                <div class="answer-options">
+                     ${q.options.map((opt: string, optIndex: number) => `
+                        <label class="answer-option" for="q${index}-opt${optIndex}">
+                            <input type="radio" name="question-${index}" id="q${index}-opt${optIndex}" value="${optIndex}">
+                            <span>${opt}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div class="drill-feedback"></div>
+            </div>
+        `;
+        const questionContainer = container.querySelector('.drill-questions') as HTMLDivElement;
+        questionContainer.innerHTML += questionHtml;
+    }
+
+    container.innerHTML = `
+        <div class="drill-scenario">${data.scenario}</div>
+        <div class="drill-questions"></div>
+        <div id="drill-results" class="drill-results-summary"></div>
+    `;
+
+    renderQuestion(currentQuestionIndex);
+
+    container.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement;
+        if (target.type === 'radio') {
+            const questionBlock = target.closest('.question-block') as HTMLElement;
+            if (!questionBlock || questionBlock.dataset.answered) return;
+            questionBlock.dataset.answered = 'true';
+
+            const qIndex = parseInt(questionBlock.dataset.questionIndex || '0', 10);
+            const questionData = data.questions[qIndex];
+            const correctAnswerIndex = questionData.correctAnswerIndex;
+            const selectedAnswerIndex = parseInt(target.value, 10);
+
+            const options = questionBlock.querySelectorAll('.answer-option');
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                opt.querySelector('input')?.setAttribute('disabled', 'true');
+            });
+
+            const feedbackEl = questionBlock.querySelector('.drill-feedback') as HTMLDivElement;
+            
+            if (selectedAnswerIndex === correctAnswerIndex) {
+                score++;
+                options[selectedAnswerIndex].classList.add('correct');
+                feedbackEl.classList.add('correct');
+                feedbackEl.innerHTML = `<strong>Correcto.</strong> ${questionData.feedback}`;
+            } else {
+                options[selectedAnswerIndex].classList.add('incorrect');
+                options[correctAnswerIndex].classList.add('correct');
+                feedbackEl.classList.add('incorrect');
+                feedbackEl.innerHTML = `<strong>Incorrecto.</strong> ${questionData.feedback}`;
+            }
+
+            currentQuestionIndex++;
+            if (currentQuestionIndex < data.questions.length) {
+                setTimeout(() => renderQuestion(currentQuestionIndex), 1000);
+            } else {
+                const resultsEl = container.querySelector('#drill-results') as HTMLDivElement;
+                resultsEl.innerHTML = `
+                    <h3>Resultado Final: ${score} de ${data.questions.length} correctas</h3>
+                    <h4>Resumen del Escenario Completo:</h4>
+                    <p class="drill-full-details">${data.fullDetails}</p>
+                `;
+            }
+        }
+    });
+}
+
 
 function renderAndInitializeHistory(container: HTMLElement) {
     const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');

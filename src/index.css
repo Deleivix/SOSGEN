@@ -243,6 +243,8 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 .copy-btn:hover:not(:disabled) { background-color: var(--bg-main); border-color: var(--accent-color); color: var(--accent-color); }
 .copy-btn:hover:not(:disabled) svg { fill: var(--accent-color); }
 .copy-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.placeholder { color: var(--accent-color-dark); font-weight: 700; background-color: rgba(139, 195, 74, 0.1); padding: 0.1em 0.3em; border-radius: 4px;}
+[contenteditable="true"]:focus .placeholder { background-color: transparent; }
 
 /* --- Registro Oceano --- */
 .registro-oceano-layout { display: flex; gap: 2rem; }
@@ -259,15 +261,15 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
   border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem;
   overflow: hidden; background-color: var(--bg-card); transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.template-card:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3); }
+.template-card:has(.template-card-body:focus) { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3); }
 .template-card-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 1rem 1.5rem; background-color: transparent; border-bottom: 1px solid var(--border-color);
 }
 .template-card-title { font-weight: 500; color: var(--text-primary); }
 .template-card-body {
-  padding: 1.5rem; line-height: 1.6; color: var(--text-secondary);
-  min-height: 120px;
+  padding: 1.5rem; font-family: var(--font-mono); background-color: var(--bg-card);
+  white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; color: var(--text-secondary);
 }
 .template-card-body:focus { outline: none; }
 .sub-tab-panel { display: none; } .sub-tab-panel.active { display: block; }
@@ -300,10 +302,10 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 }
 .sub-tab-panel > h3:first-child { margin-top: 0; }
 
-/* Nautical Translator & Coord Converter */
-.nautical-translator, .coord-converter { margin-top: 2rem; }
+/* Nautical Translator */
+.nautical-translator { margin-top: 2rem; }
 .translator-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem; }
-.nautical-translator .primary-btn, .coord-converter .primary-btn { margin-top: 1rem; margin-bottom: 1rem; }
+.nautical-translator .primary-btn { margin-top: 1rem; margin-bottom: 1rem; }
 .translation-result {
     background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px;
     padding: 1rem; min-height: 50px; font-family: var(--font-sans);
@@ -311,9 +313,6 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 }
 .translation-result .error { color: var(--danger-color); }
 .translation-result .loader-container { padding: 0 !important; min-height: 50px; }
-.coord-converter .styled-textarea { min-height: auto; }
-.converter-form { display: flex; flex-direction: column; gap: 1rem; }
-.coord-converter .primary-btn { margin-top: 0; }
 
 /* --- Lighthouse Simulator --- */
 .simulator-form { display: flex; gap: 1rem; margin-bottom: 2rem; }
@@ -349,22 +348,43 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .simulation-info .info-divider { border: none; height: 1px; background-color: var(--border-color); margin: 1rem 0; }
 
 /* --- Simulacro (Drill) Page --- */
+.drill-type-selection { text-align: center; margin-bottom: 2rem; }
+.drill-type-selection p { margin-bottom: 1rem; color: var(--text-secondary); }
+.drill-type-options { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+.drill-type-options .primary-btn { width: auto; margin-top: 0; }
+
 .drill-container .primary-btn { margin-bottom: 2rem; }
 .drill-content .error { color: var(--danger-color); text-align: center; }
 .drill-placeholder { color: var(--text-secondary); text-align: center; font-style: italic; padding: 2rem 0; }
 .drill-scenario { background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; font-family: var(--font-mono); line-height: 1.6; }
 .drill-questions { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem; }
 .question-block { border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; }
+.question-block.hidden { display: none; }
 .question-text { font-weight: 500; margin-bottom: 1rem; color: var(--text-primary); }
 .answer-options { display: flex; flex-direction: column; gap: 0.75rem; }
 .answer-option { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-card); cursor: pointer; transition: all 0.2s ease; }
-.answer-option:hover { border-color: var(--accent-color); background-color: var(--bg-main); }
+.answer-option:hover:not(.disabled) { border-color: var(--accent-color); background-color: var(--bg-main); }
 .answer-option input[type="radio"] { accent-color: var(--accent-color); }
 .answer-option.correct { border-color: #2E7D32; background-color: #E8F5E9; color: #2E7D32; font-weight: 500; }
 .answer-option.incorrect { border-color: #C62828; background-color: #FFEBEE; color: #C62828; }
+.answer-option.disabled { cursor: not-allowed; opacity: 0.7; }
 body.dark-theme .answer-option.correct { background-color: #1A331C; color: #A5D6A7; }
 body.dark-theme .answer-option.incorrect { background-color: var(--danger-color-dark-bg); color: var(--danger-color-dark); }
+
+.drill-feedback {
+    margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem;
+    border-left-width: 4px; border-left-style: solid;
+}
+.drill-feedback.correct { background-color: #E8F5E9; border-color: #2E7D32; color: #1B5E20; }
+.drill-feedback.incorrect { background-color: #FFEBEE; border-color: #C62828; color: #B71C1C; }
+body.dark-theme .drill-feedback.correct { background-color: #1A331C; border-color: #A5D6A7; color: #C8E6C9; }
+body.dark-theme .drill-feedback.incorrect { background-color: var(--danger-color-dark-bg); border-color: var(--danger-color-dark); color: #FFCDD2; }
+
 .drill-results-summary { text-align: center; font-size: 1.25rem; font-weight: 500; margin-top: 2rem; }
+.drill-full-details {
+    background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px;
+    padding: 1.5rem; margin-top: 1rem; font-family: var(--font-mono); line-height: 1.6;
+}
 
 /* --- GMDSS Procedure Wizard --- */
 .wizard-step { display: none; }
