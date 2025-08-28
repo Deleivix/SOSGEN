@@ -16,29 +16,30 @@ export default async function handler(
 
     if (type === 'dsc') {
         const prompt = `
-        Eres un instructor GMDSS. Tu única tarea es generar un caso práctico de ALERTA DSC para un operador de Estación Radio Costera (CCR) española, basándote ESTRICTAMENTE en el siguiente flujograma.
+        Eres un instructor GMDSS experto y estricto. Tu única tarea es generar un caso práctico de ALERTA DSC para un operador de Estación Radio Costera (CCR) española, basándote INFLEXIBLEMENTE en el siguiente flujograma y reglas.
 
-        **Flujograma de Protocolo GMDSS (Alertas DSC):**
+        **Flujograma de Protocolo GMDSS (Alertas DSC) - Reglas Inquebrantables:**
         1.  **Inicio:** Se recibe una alerta (VHF, MF, o HF).
         2.  **Decisión 1: ¿VÁLIDA o NO VÁLIDA?** (Válida = MMSI correcto. No Válida = MMSI inválido).
         3.  **RUTA: ALERTA VÁLIDA**
             *   **Decisión 2: ¿Tiene POSICIÓN?**
             *   **3a. CON POSICIÓN:**
                 *   **Decisión 3: ¿Dentro o Fuera de ZONA SAR?**
-                *   **CASO 1 (Válida, con Pos., EN ZONA SAR):** 1. ACK. 2. Retransmite Alerta. 3. Escucha.
-                *   **CASO 2 (Válida, con Pos., FUERA ZONA SAR, VHF):** 1. NO ACK. 2. Escucha.
-                *   **CASO 3 (Válida, con Pos., FUERA ZONA SAR, MF/HF):** 1. NO ACK. 2. Escucha.
+                *   **CASO 1 (Válida, con Pos., EN ZONA SAR):** Procedimiento: 1. ACK. 2. Retransmite Alerta. 3. Escucha.
+                *   **CASO 2 (Válida, con Pos., FUERA ZONA SAR, VHF):** Procedimiento: 1. NO ACK. 2. Escucha.
+                *   **CASO 3 (Válida, con Pos., FUERA ZONA SAR, MF/HF):** Procedimiento: 1. NO ACK. 2. Escucha.
             *   **3b. SIN POSICIÓN:**
                 *   **Decisión 4: ¿Banda?**
-                *   **CASO 4 (Válida, sin Pos., VHF):** 1. ACK. 2. Intenta conseguir posición y retransmite.
-                *   **CASO 5 (Válida, sin Pos., MF/HF):** 1. NO ACK. 2. Escucha.
+                *   **CASO 4 (Válida, sin Pos., VHF):** Procedimiento: 1. ACK. 2. Intenta conseguir posición y retransmite. La acción inmediata tras el ACK es intentar establecer comunicación para obtener la posición.
+                *   **CASO 5 (Válida, sin Pos., MF/HF):** Procedimiento: 1. NO ACK. 2. Escucha.
         4.  **RUTA: ALERTA NO VÁLIDA**
-            *   **CASO 6 (No Válida):** 1. SÓLO ACK SI ESTÁ EN ZONA SAR. 2. Escucha e intenta conseguir más información.
+            *   **CASO 6 (No Válida):** Procedimiento: 1. SÓLO ACK SI ESTÁ EN ZONA SAR. 2. Escucha e intenta conseguir más información.
 
         **Tu Tarea:**
         1.  **Selecciona aleatoriamente UNO de los 6 CASOS.**
-        2.  **Crea un escenario simple y realista** que se ajuste al caso. El escenario debe contener únicamente la información que una alerta DSC real podría incluir: Banda (VHF, MF, o HF), MMSI (válido/inválido), Posición (presente/ausente), y opcionalmente una naturaleza de socorro. **Recuerda que solo el MMSI y la banda son obligatorios en una alerta DSC real.**
-        3.  **Genera 2-3 preguntas de opción múltiple (3 opciones)** que evalúen los pasos exactos del protocolo para el caso seleccionado (ej: "¿Debe la CCR acusar recibo (ACK)?").
+        2.  **Crea un escenario simple y realista** que se ajuste perfectamente al caso. El escenario debe contener únicamente la información que una alerta DSC real podría incluir.
+        3.  **AUMENTA LA VARIEDAD:** Utiliza diferentes nombres de Estaciones Costeras españolas (ej: Coruña Radio, Valencia Radio, Las Palmas Radio, etc.), diferentes nombres de buques y diferentes naturalezas de socorro (ej: vía de agua, colisión, hombre al agua, etc.). NO uses siempre 'Tarifa Radio' o 'incendio'.
+        4.  **Genera 2 preguntas de opción múltiple (3 opciones)** que evalúen los pasos exactos del protocolo para el caso seleccionado. Las preguntas y respuestas deben ser directas y sin ambigüedades.
 
         **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.
         `;
@@ -66,7 +67,7 @@ export default async function handler(
 
         const genAIResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash', contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 0.3 }
+            config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 0.1 }
         });
         
         const resultText = genAIResponse.text.trim() || '{}';
@@ -74,7 +75,7 @@ export default async function handler(
 
     } else if (type === 'radiotelephony') {
         const prompt = `
-        Eres un instructor GMDSS experto. Tu tarea es generar un simulacro interactivo de una LLAMADA DE SOCORRO POR RADIOTELEFONÍA para un operador de CCR.
+        Eres un instructor GMDSS experto y extremadamente estricto. Tu tarea es generar un simulacro interactivo de una LLAMADA DE SOCORRO POR RADIOTELEFONÍA para un operador de CCR. El simulacro debe seguir el protocolo de forma inflexible, sin creatividad.
 
         **Casuística de Radiotelefonía:**
         1.  Con posición, DENTRO de zona SAR.
@@ -83,15 +84,20 @@ export default async function handler(
         4.  Sin posición (VHF).
         5.  Sin posición (MF/HF).
 
-        **Tu Tarea:**
+        **REGLAS INQUEBRANTABLES:**
         1.  **Selecciona aleatoriamente UNO de los 5 casos.**
-        2.  **Crea un escenario completo pero oculto:** Define todos los detalles: nombre del buque, POB, posición exacta (o descripción si no la tiene), naturaleza del socorro (ej: "incendio"), y si la situación requiere abandonar el buque.
-        3.  **Genera una llamada inicial:** Redacta la primera transmisión que la CCR recibiría del buque. Debe ser realista y, si el caso lo requiere, incompleta (ej: sin posición). La llamada puede ser en español o inglés (50% de probabilidad).
-        4.  **Crea una secuencia de preguntas INTERACTIVAS (3 a 5):** Cada pregunta debe simular la conversación y poner a prueba la habilidad del operador para priorizar información.
-            *   **Regla de Prioridad CRÍTICA:** La primera pregunta que formules SIEMPRE debe ser para obtener la **POSICIÓN**, a menos que la posición ya se haya dado claramente en la llamada inicial. Las siguientes preguntas deben seguir el orden: **POB** y luego **Naturaleza del Peligro**. Las opciones de respuesta deben incluir la pregunta correcta y otras incorrectas.
-            *   **Caso de Abandono:** Si el escenario lo requiere, incluye una pregunta sobre qué consejo dar (chalecos, radiobaliza, VHF portátil).
-            *   **Protocolo Final:** La última pregunta SIEMPRE debe ser sobre la acción de protocolo final correcta (ej: Acusar recibo y retransmitir), basándose en el caso.
-        5.  **Proporciona feedback claro y conciso** para cada pregunta explicando por qué la respuesta es correcta.
+        2.  **Crea un escenario completo pero oculto:** Define: nombre del buque, POB, posición (o falta de ella), naturaleza del socorro. Opcionalmente, el escenario puede incluir que el buque está informando que abandona la nave.
+        3.  **Genera una llamada inicial:** Redacta la primera transmisión que la CCR recibiría. Debe ser realista y, si el caso lo requiere, incompleta. La llamada puede ser en español o inglés (50% de probabilidad).
+        4.  **Crea una secuencia de 3 a 4 preguntas INTERACTIVAS que sigan este orden ESTRICTO:**
+            *   **Pregunta 1 (PRIORIDAD MÁXIMA):** Obtener la **POSICIÓN**, a menos que ya se haya dado. Las opciones deben ser sobre cómo preguntar la posición.
+            *   **Pregunta 2:** Obtener el **POB (Personas a Bordo)**, a menos que ya se haya dado.
+            *   **Pregunta 3:** Obtener la **NATURALEZA DEL PELIGRO**, a menos que ya se haya dado.
+            *   **PROHIBIDO:** No hagas preguntas sobre otra información. El objetivo es obtener los datos críticos para retransmitir la alerta lo antes posible.
+        5.  **Regla de Abandono de Buque:**
+            *   **PROHIBIDO:** NUNCA generes una pregunta donde el operador de la CCR pregunte si van a abandonar el buque.
+            *   **SÓLO SI** el escenario que creaste incluye que el buque informa de su abandono, la siguiente pregunta (después de obtener los datos críticos) debe ser sobre las recomendaciones de seguridad. Las opciones de respuesta deben incluir la fraseología correcta para recomendar: **"chalecos salvavidas, radiobaliza (EPIRB) y VHF portátil"**.
+        6.  **Protocolo Final:** La última pregunta SIEMPRE debe ser sobre la acción de protocolo final correcta (ej: Acusar recibo y retransmitir MAYDAY RELAY), basándose en el caso.
+        7.  **Proporciona feedback claro y conciso** para cada pregunta explicando por qué la respuesta es correcta según el protocolo.
         
         **Regla de Idioma:** Si la llamada inicial (scenario) está en inglés, TODAS las opciones de respuesta ('options') deben estar en inglés. El resto del JSON (questionText, feedback) debe estar en español.
 
