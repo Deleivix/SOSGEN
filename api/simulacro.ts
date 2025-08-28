@@ -76,33 +76,44 @@ export default async function handler(
 
     } else if (type === 'radiotelephony') {
         const prompt = `
-        Eres un instructor GMDSS experto y extremadamente estricto. Tu tarea es generar un simulacro interactivo de una LLAMADA DE SOCORRO POR RADIOTELEFONÍA para un operador de CCR. El simulacro debe seguir el protocolo de forma inflexible, sin creatividad.
+        Eres un instructor GMDSS experto y extremadamente estricto. Tu tarea es generar un simulacro interactivo de una LLAMADA DE SOCORRO POR RADIOTELEFONÍA para un operador de CCR. El simulacro debe seguir el protocolo de forma inflexible.
 
-        **Casuística de Radiotelefonía:**
-        1.  Con posición, DENTRO de zona SAR.
-        2.  Con posición, FUERA de zona SAR (VHF).
-        3.  Con posición, FUERA de zona SAR (MF/HF).
-        4.  Sin posición (VHF).
-        5.  Sin posición (MF/HF).
+        **Casuística de Radiotelefonía (selecciona uno aleatoriamente):**
+        1. Con posición, DENTRO de zona SAR.
+        2. Con posición, FUERA de zona SAR (VHF).
+        3. Con posición, FUERA de zona SAR (MF/HF).
+        4. Sin posición (VHF).
+        5. Sin posición (MF/HF).
 
-        **REGLAS INQUEBRANTABLES:**
-        1.  **Selecciona aleatoriamente UNO de los 5 casos.**
-        2.  **Crea un escenario completo pero oculto:** Define: nombre del buque, POB, posición (o falta de ella), naturaleza del socorro. Para el nombre de la estación costera (CCR), DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España: ${EeccList}. NO inventes ningún otro nombre de estación y varía el que usas. Opcionalmente, el escenario puede incluir que el buque está informando que abandona la nave.
-        3.  **Genera una llamada inicial (scenario):** Redacta la primera transmisión que la CCR recibiría. Debe ser realista y, si el caso lo requiere, incompleta. La llamada puede ser en español o inglés (50% de probabilidad).
-        4.  **Regla de Información Faltante (CRÍTICA):**
-            *   **Analiza la llamada inicial (scenario).**
-            *   **Identifica qué datos críticos (POSICIÓN, POB, NATURALEZA DEL PELIGRO) ya han sido proporcionados.**
-            *   **Crea una secuencia de preguntas INTERACTIVAS ÚNICAMENTE para la información que FALTA**, siguiendo el estricto orden de prioridad: 1º POSICIÓN, 2º POB, 3º NATURALEZA DEL PELIGRO.
-            *   **PROHIBIDO:** No generes preguntas sobre información que ya se ha dado. Si el buque da su nombre, no preguntes el nombre. Si da el POB, no preguntes el POB. El objetivo es obtener los datos críticos para retransmitir la alerta lo antes posible.
-        5.  **Regla de Abandono de Buque:**
-            *   **PROHIBIDO:** NUNCA generes una pregunta donde el operador de la CCR pregunte si van a abandonar el buque.
-            *   **SÓLO SI** el escenario que creaste incluye que el buque informa de su abandono, la siguiente pregunta (después de obtener los datos críticos) debe ser sobre las recomendaciones de seguridad. Las opciones de respuesta deben incluir la fraseología correcta para recomendar: **"chalecos salvavidas, radiobaliza (EPIRB) y VHF portátil"**.
-        6.  **Protocolo Final:** La última pregunta SIEMPRE debe ser sobre la acción de protocolo final correcta (ej: Acusar recibo y retransmitir MAYDAY RELAY), basándose en el caso.
-        7.  **Proporciona feedback claro y conciso** para cada pregunta explicando por qué la respuesta es correcta según el protocolo. **Para la pregunta final, tu feedback debe explicar que, aunque la comunicación previa para obtener datos ya actúa como un acuse de recibo implícito, el procedimiento formal exige confirmar explícitamente el socorro ("RECEIVED MAYDAY") antes de retransmitir la alerta (MAYDAY RELAY) para asegurar al buque en peligro que la ayuda está en camino.**
+        **REGLAS INQUEBRANTABLES DE GENERACIÓN:**
+
+        1.  **Crea un escenario completo pero oculto:** Define: nombre del buque, POB, posición (o falta de ella), naturaleza del socorro. Para el nombre de la estación costera (CCR), DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España: ${EeccList}. NO inventes ningún otro nombre de estación y varía el que usas. Opcionalmente, el escenario puede incluir que el buque está informando que abandona la nave.
+        2.  **Genera una llamada inicial (scenario):** Redacta la primera transmisión que la CCR recibiría. Debe ser realista y, si el caso lo requiere, incompleta. La llamada puede ser en español o inglés (50% de probabilidad).
+
+        3.  **SECUENCIA DE PREGUNTAS (CRÍTICO):** La secuencia de preguntas DEBE seguir este orden estricto:
+
+            *   **PREGUNTA 1: ACUSE DE RECIBO INICIAL.**
+                *   La PRIMERA pregunta SIEMPRE debe ser sobre cuál es la respuesta verbal inmediata y correcta.
+                *   La opción correcta DEBE incluir la fraseología "MAYDAY [Nombre del buque] this is [Nombre de la CCR] RECEIVED MAYDAY".
+                *   El feedback debe explicar que "RECEIVED MAYDAY" es el acuse de recibo oficial y el primer paso crucial para tomar control de las comunicaciones y asegurar al buque que ha sido escuchado.
+
+            *   **PREGUNTAS INTERMEDIAS: OBTENER INFORMACIÓN FALTANTE.**
+                *   Analiza la llamada inicial (scenario) para identificar qué datos críticos (POSICIÓN, POB, NATURALEZA DEL PELIGRO) ya han sido proporcionados.
+                *   Crea preguntas INTERACTIVAS ÚNICAMENTE para la información que FALTA, siguiendo el estricto orden de prioridad: 1º POSICIÓN, 2º POB, 3º NATURALEZA DEL PELIGRO.
+                *   **PROHIBIDO:** No generes preguntas sobre información que ya se ha dado. El objetivo es ser eficiente.
+
+            *   **PREGUNTA OPCIONAL: ABANDONO DE BUQUE.**
+                *   **PROHIBIDO:** NUNCA generes una pregunta donde la CCR pregunte si van a abandonar el buque.
+                *   **SÓLO SI** el escenario que creaste incluye que el buque informa de su abandono, la siguiente pregunta (después de obtener los datos críticos) debe ser sobre las recomendaciones de seguridad. La opción correcta debe incluir recomendar: **"chalecos salvavidas, radiobaliza (EPIRB) y VHF portátil"**.
+
+            *   **PREGUNTA FINAL: ACCIÓN DE PROTOCOLO.**
+                *   La ÚLTIMA pregunta SIEMPRE debe ser sobre la acción de protocolo a realizar DESPUÉS de haber acusado recibo y obtenido toda la información crítica.
+                *   La respuesta correcta será casi siempre transmitir un "MAYDAY RELAY" (a menos que el caso específico lo impida, como estar en puerto).
+                *   El feedback debe explicar que, una vez recopilada la información esencial, la retransmisión de la alerta es vital para coordinar la respuesta SAR.
         
-        **Regla de Idioma:** Si la llamada inicial (scenario) está en inglés, TODAS las opciones de respuesta ('options') deben estar en inglés. El resto del JSON (questionText, feedback) debe estar en español.
+        4.  **Regla de Idioma:** Si la llamada inicial (scenario) está en inglés, TODAS las opciones de respuesta ('options') deben estar en inglés. El resto del JSON (questionText, feedback) debe estar en español.
 
-        **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.`;
+        5.  **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.`;
 
         const radioSchema = {
             type: Type.OBJECT,
