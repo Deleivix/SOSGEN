@@ -86,12 +86,14 @@ export default async function handler(
         **Tu Tarea:**
         1.  **Selecciona aleatoriamente UNO de los 5 casos.**
         2.  **Crea un escenario completo pero oculto:** Define todos los detalles: nombre del buque, POB, posición exacta (o descripción si no la tiene), naturaleza del socorro (ej: "incendio"), y si la situación requiere abandonar el buque.
-        3.  **Genera una llamada inicial:** Redacta la primera transmisión que la CCR recibiría del buque. Debe ser realista e incompleta (ej: "MAYDAY, MAYDAY... tenemos un problema grave a bordo...").
+        3.  **Genera una llamada inicial:** Redacta la primera transmisión que la CCR recibiría del buque. Debe ser realista y, si el caso lo requiere, incompleta (ej: sin posición). La llamada puede ser en español o inglés (50% de probabilidad).
         4.  **Crea una secuencia de preguntas INTERACTIVAS (3 a 5):** Cada pregunta debe simular la conversación y poner a prueba la habilidad del operador para priorizar información.
-            *   **Prioridad:** Las primeras preguntas deben centrarse en obtener: 1º POSICIÓN, 2º POB, 3º NATURALEZA DEL PELIGRO. Las opciones de respuesta deben incluir la pregunta correcta y otras incorrectas.
+            *   **Regla de Prioridad CRÍTICA:** La primera pregunta que formules SIEMPRE debe ser para obtener la **POSICIÓN**, a menos que la posición ya se haya dado claramente en la llamada inicial. Las siguientes preguntas deben seguir el orden: **POB** y luego **Naturaleza del Peligro**. Las opciones de respuesta deben incluir la pregunta correcta y otras incorrectas.
             *   **Caso de Abandono:** Si el escenario lo requiere, incluye una pregunta sobre qué consejo dar (chalecos, radiobaliza, VHF portátil).
             *   **Protocolo Final:** La última pregunta SIEMPRE debe ser sobre la acción de protocolo final correcta (ej: Acusar recibo y retransmitir), basándose en el caso.
-        5.  **Proporciona feedback claro** para cada pregunta explicando por qué la respuesta es correcta.
+        5.  **Proporciona feedback claro y conciso** para cada pregunta explicando por qué la respuesta es correcta.
+        
+        **Regla de Idioma:** Si la llamada inicial (scenario) está en inglés, TODAS las opciones de respuesta ('options') deben estar en inglés. El resto del JSON (questionText, feedback) debe estar en español.
 
         **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.`;
 
@@ -120,7 +122,7 @@ export default async function handler(
 
         const genAIResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash', contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: radioSchema, temperature: 0.8 }
+            config: { responseMimeType: "application/json", responseSchema: radioSchema, temperature: 0.2 }
         });
         
         const resultText = genAIResponse.text.trim() || '{}';
