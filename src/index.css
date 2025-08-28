@@ -313,8 +313,6 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .translation-result .loader-container { padding: 0 !important; min-height: 50px; }
 .coord-converter .styled-textarea { min-height: auto; }
 .converter-form { display: flex; flex-direction: column; gap: 1rem; }
-.coord-type-selector { display: flex; gap: 1.5rem; align-items: center; }
-.coord-type-selector label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-secondary); }
 .coord-converter .primary-btn { margin-top: 0; }
 
 /* --- Lighthouse Simulator --- */

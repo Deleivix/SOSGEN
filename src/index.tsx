@@ -222,13 +222,9 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
     { category: 'Calculadora', content: `
         <div class="coord-converter">
             <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
-            <p class="translator-desc">Introduzca una coordenada (Lat o Lon) para convertirla al formato estándar <strong>ggg° mm,ddd'</strong>. Use espacios como separadores.</p>
+            <p class="translator-desc">Introduzca un par de coordenadas (Latitud y Longitud) para convertirlas al formato estándar <strong>gg° mm,ddd' N/S ggg° mm,ddd' E/W</strong>. Use espacios como separadores.</p>
             <div class="converter-form">
-                <textarea id="coord-input" class="styled-textarea" rows="2" placeholder="Ej: 43 21 30.5 N (GMS)\nEj: 43 21.5 N (GMD)\nEj: 43.35833 (GD)"></textarea>
-                <div class="coord-type-selector">
-                    <label><input type="radio" name="coord-type" value="lat" checked> Latitud</label>
-                    <label><input type="radio" name="coord-type" value="lon"> Longitud</label>
-                </div>
+                <textarea id="coord-input" class="styled-textarea" rows="2" placeholder="Ej: 43 21 30.5 N 008 25 15 W\nEj: 43 21.5 N 008 25.2 W\nEj: 43.358 -8.420"></textarea>
                 <button id="coord-convert-btn" class="primary-btn">Convertir</button>
             </div>
             <div id="coord-result" class="translation-result" aria-live="polite"></div>
@@ -722,8 +718,8 @@ function initializeCoordinateConverter() {
 
     const parseToDD = (input: string): number => {
         let str = input.trim().toUpperCase();
-        str = str.replace(/,/g, '.'); // Standardize decimal point
-        str = str.replace(/[°'"]/g, ' '); // Replace symbols with spaces
+        str = str.replace(/,/g, '.');
+        str = str.replace(/[°'"]/g, ' ');
 
         const parts = str.split(/[\s]+/).filter(p => p.length > 0);
         
@@ -750,43 +746,98 @@ function initializeCoordinateConverter() {
         } else if (hemisphere && /[NE]/.test(hemisphere)) {
             dd = Math.abs(dd);
         } else if (numbers.length === 1 && numbers[0] < 0) {
-            dd = numbers[0]; // Sign is already correct for DD
+            dd = numbers[0];
         }
 
         return dd;
     };
 
-    const formatToDDM = (dd: number, isLon: boolean): string => {
-        if (isNaN(dd)) return '<p class="error">Entrada inválida. Asegúrese de que el formato es correcto.</p>';
+    const parseCoordinatePair = (input: string): { lat: number | null, lon: number | null } => {
+        let latStr = '';
+        let lonStr = '';
+        const upperInput = input.trim().toUpperCase();
 
+        const nsIndex = upperInput.search(/[NS]/);
+        const ewIndex = upperInput.search(/[EW]/);
+
+        if (nsIndex > -1 && ewIndex > -1) {
+            if (nsIndex < ewIndex) { // Lat Lon order e.g. "40N 70W"
+                latStr = upperInput.substring(0, nsIndex + 1);
+                lonStr = upperInput.substring(nsIndex + 1);
+            } else { // Lon Lat order e.g. "70W 40N"
+                lonStr = upperInput.substring(0, ewIndex + 1);
+                latStr = upperInput.substring(ewIndex + 1);
+            }
+        } else {
+            const parts = input.trim().replace(/,/g, '.').split(/[\s,;]+/).filter(p => p.length > 0);
+            if (parts.length >= 2) {
+                latStr = parts[0];
+                lonStr = parts[1];
+            } else {
+                return { lat: null, lon: null };
+            }
+        }
+        
+        const lat = parseToDD(latStr.trim());
+        const lon = parseToDD(lonStr.trim());
+        
+        return { lat: isNaN(lat) ? null : lat, lon: isNaN(lon) ? null : lon };
+    };
+
+    const formatToDDM = (dd: number, isLon: boolean): { text: string, error: boolean } => {
+        if (isNaN(dd)) return { text: 'Formato inválido.', error: true };
+    
         if (isLon && (dd < -180 || dd > 180)) {
-            return `<p class="error">Longitud inválida. Debe estar entre -180 y 180.</p>`;
+            return { text: 'Longitud fuera de rango (-180 a 180).', error: true };
         }
         if (!isLon && (dd < -90 || dd > 90)) {
-            return `<p class="error">Latitud inválida. Debe estar entre -90 y 90.</p>`;
+            return { text: 'Latitud fuera de rango (-90 a 90).', error: true };
         }
-
+    
         const hemisphere = isLon ? (dd >= 0 ? 'E' : 'W') : (dd >= 0 ? 'N' : 'S');
         const absDd = Math.abs(dd);
         const degrees = Math.floor(absDd);
         const minutes = (absDd - degrees) * 60;
         
-        const degStr = isLon ? String(degrees).padStart(3, '0') : String(degrees);
+        const degStr = isLon ? String(degrees).padStart(3, '0') : String(degrees).padStart(2, '0');
         const minutesWithDecimal = minutes.toFixed(3);
         const [intMin, decMin] = minutesWithDecimal.split('.');
         const formattedMinutes = intMin.padStart(2, '0');
         
-        return `<p><strong>${degStr}° ${formattedMinutes},${decMin}' ${hemisphere}</strong></p>`;
+        return { text: `${degStr}° ${formattedMinutes},${decMin}' ${hemisphere}`, error: false };
     };
 
     convertBtn.addEventListener('click', () => {
         const input = inputEl.value;
-        const coordTypeRadio = document.querySelector<HTMLInputElement>('input[name="coord-type"]:checked');
-        if (!input || !coordTypeRadio) return;
+        if (!input.trim()) {
+            resultEl.innerHTML = '';
+            return;
+        }
 
-        const isLon = coordTypeRadio.value === 'lon';
-        const dd = parseToDD(input);
-        resultEl.innerHTML = formatToDDM(dd, isLon);
+        const coords = parseCoordinatePair(input);
+
+        if (coords.lat === null || coords.lon === null) {
+            resultEl.innerHTML = `<p class="error">Formato no reconocido. Por favor, introduzca latitud y longitud. Ejemplo: 43 21.5 N 008 25.2 W</p>`;
+            return;
+        }
+
+        const latResult = formatToDDM(coords.lat, false);
+        const lonResult = formatToDDM(coords.lon, true);
+        
+        let htmlResult = '';
+        if(latResult.error) {
+            htmlResult += `<p class="error"><strong>Latitud:</strong> ${latResult.text}</p>`;
+        } else {
+            htmlResult += `<p><strong>Latitud:</strong> ${latResult.text}</p>`;
+        }
+        
+        if(lonResult.error) {
+            htmlResult += `<p class="error"><strong>Longitud:</strong> ${lonResult.text}</p>`;
+        } else {
+            htmlResult += `<p><strong>Longitud:</strong> ${lonResult.text}</p>`;
+        }
+        
+        resultEl.innerHTML = htmlResult;
     });
 }
 
