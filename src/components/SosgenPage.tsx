@@ -1,6 +1,63 @@
-import { handleCopy, logSosgenEvent, updateBitacoraView } from "../utils/helpers";
+import { handleCopy, logSosgenEvent } from "../utils/helpers";
 
 const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
+
+function renderSosgenHistory() {
+    const historyContainer = document.getElementById('sosgen-history-container');
+    if (!historyContainer) return;
+
+    const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+    if (logbook.length === 0) {
+        historyContainer.innerHTML = '';
+        return;
+    }
+
+    historyContainer.innerHTML = `
+        <h3 class="sosgen-history-title">Historial de Mensajes Recientes</h3>
+        <div class="history-list">
+            ${logbook.slice().reverse().map((entry: any) => `
+                <div class="history-entry" data-id="${entry.id}">
+                    <div class="history-entry-header">
+                        <span class="history-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
+                    </div>
+                    <div class="history-entry-content">
+                        <div>
+                            <div class="history-entry-lang-header">
+                                <h4>Español</h4>
+                                <button class="copy-btn" data-lang="spanish">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+                                    <span>Copiar</span>
+                                </button>
+                            </div>
+                            <textarea class="styled-textarea" readonly>${entry.content.spanish}</textarea>
+                        </div>
+                        <div>
+                            <div class="history-entry-lang-header">
+                                <h4>Inglés</h4>
+                                <button class="copy-btn" data-lang="english">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+                                    <span>Copiar</span>
+                                </button>
+                            </div>
+                            <textarea class="styled-textarea" readonly>${entry.content.english}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    historyContainer.querySelectorAll('.copy-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const btn = e.currentTarget as HTMLButtonElement;
+            const entryDiv = btn.closest('.history-entry-content > div');
+            const textarea = entryDiv?.querySelector('textarea');
+            if (textarea) {
+                handleCopy(btn, textarea.value);
+            }
+        });
+    });
+}
 
 export function renderSosgen(container: HTMLElement) {
     container.innerHTML = `
@@ -16,6 +73,7 @@ export function renderSosgen(container: HTMLElement) {
             <textarea id="sosgen-input" class="styled-textarea" rows="6" placeholder="Ej: Desde Coruña Radio, coordinado por MRCC Finisterre: Buque 'Aurora' (MMSI 224123456) con 5 POB tiene una vía de agua en 43°21'N 008°25'W."></textarea>
             <button id="sosgen-generate-btn" class="primary-btn">Generar Mensaje</button>
             <div id="sosgen-results" class="sosgen-results"></div>
+            <div id="sosgen-history-container" class="sosgen-history"></div>
         </div>
     `;
     initializeSosgen();
@@ -114,10 +172,8 @@ async function initializeSosgen() {
                 });
             });
 
-            const newEntry = logSosgenEvent('SOSGEN', { spanish: esMsg, english: enMsg });
-            if (newEntry) {
-                updateBitacoraView(newEntry);
-            }
+            logSosgenEvent('SOSGEN', { spanish: esMsg, english: enMsg });
+            renderSosgenHistory();
             localStorage.removeItem('sosgen_draft');
 
         } catch (error) {
@@ -128,4 +184,6 @@ async function initializeSosgen() {
             generateBtn.disabled = false;
         }
     });
+
+    renderSosgenHistory();
 }

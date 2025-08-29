@@ -262,6 +262,20 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 .placeholder { color: var(--accent-color-dark); font-weight: 700; background-color: rgba(139, 195, 74, 0.1); padding: 0.1em 0.3em; border-radius: 4px;}
 [contenteditable="true"]:focus .placeholder { background-color: transparent; }
 
+/* --- SOSGEN History --- */
+.sosgen-history { margin-top: 3rem; }
+.sosgen-history-title { font-size: 1.25rem; font-weight: 500; margin-bottom: 1.5rem; color: var(--text-primary); padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+.history-list { display: flex; flex-direction: column; gap: 1.5rem; }
+.history-entry { border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-main); overflow: hidden; }
+.history-entry-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); }
+.history-entry-ts { font-size: 0.9rem; color: var(--text-secondary); font-family: var(--font-mono); }
+.history-entry-content { padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.history-entry-content .styled-textarea { min-height: 180px; }
+.history-entry-lang-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.history-entry-lang-header h4 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0; }
+.history-entry-lang-header .copy-btn { padding: 0.25rem 0.75rem; font-size: 0.8rem; }
+
+
 /* --- Registro Oceano --- */
 .registro-oceano-layout { display: flex; gap: 2rem; }
 .ro-sidebar { flex: 0 0 220px; background-color: #2D8B8B; border-radius: 8px; padding: 1rem; }
@@ -530,17 +544,6 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
 }
 .wizard-restart-btn:hover { background-color: var(--text-primary); transform: translateY(-2px); }
 
-/* --- Historial (Logbook) --- */
-.logbook-list { display: flex; flex-direction: column; gap: 1.5rem; }
-.log-entry { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; transition: all 0.2s ease; }
-.log-entry.editing { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3); }
-.log-entry-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background-color: var(--bg-main); border-bottom: 1px solid var(--border-color); }
-.log-entry-type { font-weight: 500; color: var(--text-primary); }
-.log-entry-ts { font-size: 0.9rem; color: var(--text-secondary); }
-.log-entry-content { padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.log-entry-content h4 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.5rem; }
-.log-entry-actions { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem; background-color: var(--bg-main); }
-
 /* Loader */
 .loader-container { display: flex; justify-content: center; align-items: center; padding: 3rem; min-height: 200px; }
 .loader { border: 4px solid var(--border-color); border-top: 4px solid var(--accent-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
@@ -593,7 +596,7 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
   .page-banner { padding: 2rem 1rem; } .banner-title { font-size: 2rem; }
   .content-card { padding: 1.5rem; }
   .registro-oceano-layout { flex-direction: column; } .ro-sidebar { flex: 0 0 auto; }
-  .log-entry-content { grid-template-columns: 1fr; }
   .phone-entry-contact-grid { grid-template-columns: 1fr; }
   .buoy-visuals-container { flex-direction: column; gap: 1rem; }
+  .history-entry-content { grid-template-columns: 1fr; }
 }

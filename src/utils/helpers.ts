@@ -1,10 +1,9 @@
-import { renderBitacora } from "../components/BitacoraPage";
 import { DAILY_TIPS } from "../data";
 
 // --- LOGGING ---
 export function logSosgenEvent(type: string, content: object): object | null {
     try {
-        const logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
+        let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
         const newEntry = {
             id: Date.now().toString(),
             timestamp: new Date().toISOString(),
@@ -12,6 +11,11 @@ export function logSosgenEvent(type: string, content: object): object | null {
             content
         };
         logbook.push(newEntry);
+
+        if (logbook.length > 5) {
+            logbook = logbook.slice(-5);
+        }
+
         localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
         return newEntry;
     } catch (e) {
@@ -19,46 +23,6 @@ export function logSosgenEvent(type: string, content: object): object | null {
         return null;
     }
 }
-
-export function updateBitacoraView(newEntry: any) {
-    const bitacoraPanel = document.getElementById('page-5'); // BITÁCORA is index 5
-    if (bitacoraPanel?.classList.contains('active')) { // Check if the page has been rendered
-        let logbookList = bitacoraPanel.querySelector('#logbook-list');
-        
-        if (!logbookList) {
-            renderBitacora(bitacoraPanel);
-        } else {
-            const newEntryHTML = createLogEntryHTML(newEntry);
-            logbookList.insertAdjacentHTML('afterbegin', newEntryHTML);
-        }
-    }
-}
-
-function createLogEntryHTML(entry: any): string {
-    return `
-    <div class="log-entry" data-id="${entry.id}">
-        <div class="log-entry-header">
-            <span class="log-entry-type">${entry.type}</span>
-            <span class="log-entry-ts">${new Date(entry.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
-        </div>
-        <div class="log-entry-content">
-             <div>
-                 <h4>Español</h4>
-                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.spanish}</textarea>
-             </div>
-             <div>
-                 <h4>Inglés</h4>
-                 <textarea class="styled-textarea" rows="8" readonly>${entry.content.english}</textarea>
-             </div>
-        </div>
-        <div class="log-entry-actions">
-            <button class="log-edit-btn secondary-btn">Editar</button>
-            <button class="log-delete-btn tertiary-btn">Eliminar</button>
-        </div>
-    </div>
-    `;
-}
-
 
 // --- EVENT HANDLERS & LOGIC ---
 /**
