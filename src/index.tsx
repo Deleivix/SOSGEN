@@ -452,7 +452,7 @@ function renderMaritimeSignalsSimulator(container: HTMLElement) {
             <div id="simulator-tab-lighthouse" class="sub-tab-panel active">
                 <div class="simulator-display">
                     <form id="lighthouse-simulator-form" class="simulator-form" aria-label="Simulador de faros">
-                        <input type="text" id="lighthouse-char-input" class="simulator-input" placeholder="Ej: Gp Fl(2+1) W 15s" required aria-label="Característica de la luz">
+                        <input type="text" id="lighthouse-char-input" class="simulator-input" placeholder="Ej: Gp Oc(2+1) W 15s" required aria-label="Característica de la luz">
                         <button type="submit" class="simulator-btn">Simular</button>
                     </form>
                     <div class="lighthouse-schematic" aria-hidden="true">
@@ -478,7 +478,13 @@ function renderMaritimeSignalsSimulator(container: HTMLElement) {
                     <div id="buoy-type-selector" class="buoy-selector-group"></div>
                 </div>
                 <div class="simulator-display">
-                    <div id="buoy-schematic-container"></div>
+                    <div class="buoy-visuals-container">
+                        <div id="buoy-schematic-container"></div>
+                        <div id="buoy-light-container">
+                            <div id="buoy-light" class="buoy-light-el"></div>
+                            <p>Luz / Light</p>
+                        </div>
+                    </div>
                     <div id="buoy-info-panel" class="simulation-info" aria-live="polite">
                         <p>Seleccione un tipo de señal para comenzar la simulación.</p>
                     </div>
@@ -654,102 +660,133 @@ async function handleCopy(button: HTMLButtonElement, textToCopy: string) {
 
 // --- MARITIME SIGNALS SIMULATOR LOGIC ---
 let simulationTimeoutId: number | null = null;
-interface LightConfig { rhythm: string; group: number[]; color: string; period: number; altColor?: string; }
+interface LightConfig { rhythm: string; group: (string | number)[]; color: string; period: number; altColor?: string; }
+
 const LIGHT_CHARACTERISTIC_TERMS: { [key: string]: { es: string; en: string } } = {
+    // Rhythms
     'F': { es: 'Fija', en: 'Fixed' },
-    'FL': { es: 'Destellos', en: 'Flashing' },
-    'GP FL': { es: 'Grupo de Destellos', en: 'Group Flashing' },
-    'LFL': { es: 'Destello Largo', en: 'Long-Flashing' },
-    'OC': { es: 'Ocultaciones', en: 'Occulting' },
-    'GP OC': { es: 'Grupo de Ocultaciones', en: 'Group Occulting' },
+    'FL': { es: 'de Destellos', en: 'Flashing' },
+    'LFL': { es: 'de Destello Largo', en: 'Long-Flashing' },
+    'OC': { es: 'de Ocultaciones', en: 'Occulting' },
     'ISO': { es: 'Isofase', en: 'Isophase' },
-    'Q': { es: 'Destellos Rápidos', en: 'Quick' },
-    'VQ': { es: 'Destellos Muy Rápidos', en: 'Very Quick' },
-    'IQ': { es: 'Destellos Rápidos Interrumpidos', en: 'Interrupted Quick' },
-    'W': { es: 'Blanca', en: 'White' }, 'R': { es: 'Roja', en: 'Red' },
-    'G': { es: 'Verde', en: 'Green' }, 'Y': { es: 'Amarilla', en: 'Yellow' },
-    'BU': { es: 'Azul', en: 'Blue' }, 'AL': { es: 'Alternativa', en: 'Alternating' }
+    'Q': { es: 'de Centelleos', en: 'Quick' },
+    'VQ': { es: 'de Centelleos Muy Rápidos', en: 'Very Quick' },
+    'UQ': { es: 'de Centelleos Ultrarrápidos', en: 'Ultra Quick' },
+    'IQ': { es: 'de Centelleos Interrumpidos', en: 'Interrupted Quick' },
+    'IVQ': { es: 'de Centelleos Muy Rápidos Interrumpidos', en: 'Interrupted Very Quick' },
+    'IUQ': { es: 'de Centelleos Ultrarrápidos Interrumpidos', en: 'Interrupted Ultra Quick' },
+    'MO': { es: 'de Código Morse', en: 'Morse Code' },
+    'F FL': { es: 'Fija y de Destellos', en: 'Fixed and Flashing' },
+    'AL': { es: 'Alternativa', en: 'Alternating' },
+    // Groupings
+    'GROUP': { es: 'de Grupo', en: 'Group' },
+    'COMPOSITE': { es: 'de Grupo Compuesto', en: 'Composite Group' },
+    // Colors
+    'W': { es: 'Blanca', en: 'White' },
+    'R': { es: 'Roja', en: 'Red' },
+    'G': { es: 'Verde', en: 'Green' },
+    'Y': { es: 'Amarilla', en: 'Yellow' },
+    'BU': { es: 'Azul', en: 'Blue' },
 };
 
-
 function generateCharacteristicDescription(config: LightConfig): string {
-    const rhythmTerm = LIGHT_CHARACTERISTIC_TERMS[config.rhythm as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
-    const colorTerm = LIGHT_CHARACTERISTIC_TERMS[config.color as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
-    if (!rhythmTerm || !colorTerm) return '';
+    const { rhythm, group, color, period, altColor } = config;
+
+    if (!LIGHT_CHARACTERISTIC_TERMS[rhythm]) return '<p class="error">Característica no reconocida.</p>';
     
-    let colorDesc;
-    if (config.rhythm === 'AL') {
-        const altColorTerm = LIGHT_CHARACTERISTIC_TERMS[config.altColor as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
-        colorDesc = { es: `${colorTerm.es}/${altColorTerm.es}`, en: `${colorTerm.en}/${altColorTerm.en}` };
-    } else {
-        colorDesc = { es: colorTerm.es.toLowerCase(), en: colorTerm.en };
+    let esDesc = "Luz ";
+    let enDesc = "";
+    
+    if (group.length > 0) {
+        if (rhythm === 'MO') {
+            esDesc += `${LIGHT_CHARACTERISTIC_TERMS['MO'].es} (${group[0]})`;
+            enDesc += `${LIGHT_CHARACTERISTIC_TERMS['MO'].en} (${group[0]}) Light`;
+        } else if (group.includes('LFL')) { // South Cardinal
+            esDesc += `${LIGHT_CHARACTERISTIC_TERMS[rhythm].es} (${group[0]}) + 1 destello largo`;
+            enDesc += `${LIGHT_CHARACTERISTIC_TERMS[rhythm].en} (${group[0]}) + 1 long flash`;
+        } else if (group.length > 1) { // Composite group
+            esDesc += `${LIGHT_CHARACTERISTIC_TERMS['COMPOSITE'].es} ${LIGHT_CHARACTERISTIC_TERMS[rhythm].es} (${group.join('+')})`;
+            enDesc += `${LIGHT_CHARACTERISTIC_TERMS['COMPOSITE'].en} ${LIGHT_CHARACTERISTIC_TERMS[rhythm].en} Light (${group.join('+')})`;
+        } else { // Simple group
+             esDesc += `${LIGHT_CHARACTERISTIC_TERMS['GROUP'].es} ${LIGHT_CHARACTERISTIC_TERMS[rhythm].es} (${group[0]})`;
+             enDesc += `${LIGHT_CHARACTERISTIC_TERMS['GROUP'].en} ${LIGHT_CHARACTERISTIC_TERMS[rhythm].en} Light (${group[0]})`;
+        }
+    } else { // No group
+        esDesc += LIGHT_CHARACTERISTIC_TERMS[rhythm].es;
+        enDesc += `${LIGHT_CHARACTERISTIC_TERMS[rhythm].en} Light`;
     }
 
-    let groupText = config.group.length > 1 || (config.group.length > 0 && config.group[0] > 1) ? ` (${config.group.join('+')})` : '';
-    if (config.rhythm.includes('Q') && config.group.length > 0) {
-        if (config.group.length > 1) { // For South Cardinal Q(6)+LFl
-            groupText = `(${config.group[0]}) + LFl`;
-        } else {
-            groupText = `(${config.group[0]})`;
+    if (rhythm === 'AL') {
+        esDesc += `, colores ${LIGHT_CHARACTERISTIC_TERMS[color].es.toLowerCase()} y ${LIGHT_CHARACTERISTIC_TERMS[altColor!].es.toLowerCase()}`;
+        enDesc += `, colors ${LIGHT_CHARACTERISTIC_TERMS[color].en} and ${LIGHT_CHARACTERISTIC_TERMS[altColor!].en}`;
+    } else {
+        const colorTerm = LIGHT_CHARACTERISTIC_TERMS[color];
+        if (colorTerm) {
+            esDesc += `, color ${colorTerm.es.toLowerCase()}`;
+            enDesc += `, ${colorTerm.en} color`;
         }
     }
+    
+    if (period > 0) {
+        esDesc += `, con un período de ${period} segundos.`;
+        enDesc += `, with a period of ${period} seconds.`;
+    } else {
+        esDesc += '.';
+        enDesc += '.';
+    }
 
-
-    const periodText = config.period > 0 ? `, con un período de ${config.period} segundos` : '';
-    const es = `Luz de ${rhythmTerm.es}${groupText}, color ${colorDesc.es}${periodText}.`;
-    const en = `${rhythmTerm.en}${groupText} light, ${colorDesc.en} color${config.period > 0 ? `, with a period of ${config.period} seconds` : ''}.`;
-    return `<p class="desc-lang"><strong>ES:</strong> ${es}</p><p class="desc-lang"><strong>EN:</strong> ${en}</p><hr class="info-divider">`;
+    return `<p class="desc-lang"><strong>ES:</strong> ${esDesc}</p><p class="desc-lang"><strong>EN:</strong> ${enDesc}</p><hr class="info-divider">`;
 }
 
 function parseLightCharacteristic(input: string): LightConfig | null {
     const cleanInput = input.trim().toUpperCase();
-    // Special case for alternating lights
-    if (cleanInput.startsWith('AL')) {
-        const altMatch = cleanInput.match(/AL\.\s*([A-Z]{1,2})\.\s*([A-Z]{1,2})/);
+
+    // Special cases first
+    const alMatch = cleanInput.match(/^AL[.\s]+([A-Z]{1,2})[.\s]+([A-Z]{1,2})/);
+    if (alMatch) {
         const periodMatch = cleanInput.match(/(\d+(?:\.\d+)?)\s*S/);
-        if (altMatch) {
-            return {
-                rhythm: 'AL',
-                group: [],
-                color: altMatch[1],
-                altColor: altMatch[2],
-                period: periodMatch ? parseFloat(periodMatch[1]) : 3
-            };
+        return { rhythm: 'AL', group: [], color: alMatch[1], altColor: alMatch[2], period: periodMatch ? parseFloat(periodMatch[1]) : 3 };
+    }
+    
+    const southCardinalMatch = cleanInput.match(/^(Q|VQ)\s*\(6\)\s*\+\s*LFL/);
+    if(southCardinalMatch) {
+        const colorMatch = cleanInput.match(/\b(W|R|G|Y|BU)\b/);
+        const periodMatch = cleanInput.match(/(\d+(?:\.\d+)?)\s*S/);
+        return { rhythm: southCardinalMatch[1], group: [6, 'LFL'], color: colorMatch ? colorMatch[1] : 'W', period: periodMatch ? parseFloat(periodMatch[1]) : 15 };
+    }
+    
+    const generalRegex = /^((?:F\s+)?LFL|FL|OC|ISO|F|IVQ|IUQ|IQ|VQ|UQ|Q|MO)\s*(?:\(([^)]+)\))?/;
+    const rhythmMatch = cleanInput.match(generalRegex);
+    if (!rhythmMatch) return null;
+
+    const rhythm = rhythmMatch[1].replace(/\s+/, ' ');
+    const groupStr = rhythmMatch[2];
+
+    const remaining = cleanInput.substring(rhythmMatch[0].length);
+    const colorMatch = remaining.match(/\b(W|R|G|Y|BU)\b/);
+    const periodMatch = remaining.match(/(\d+(?:\.\d+)?)\s*S/);
+
+    if (!colorMatch && rhythm !== 'AL') return null;
+
+    let group: (string|number)[] = [];
+    if (groupStr) {
+        if (rhythm === 'MO') {
+            group = [groupStr];
+        } else if (groupStr.includes('+')) {
+            group = groupStr.split('+').map(s => s.trim()).map(Number);
+        } else {
+            group = [Number(groupStr)];
         }
     }
-    const rhythmMatch = cleanInput.match(/^(LFL|GP FL|FL|GP OC|OC|ISO|F|VQ|Q|IQ)\s*(?:\(([\d\+]+)\))?/);
-    const colorMatch = cleanInput.match(/\b(W|R|G|Y|BU)\b/);
-    const periodMatch = cleanInput.match(/(\d+(?:\.\d+)?)\s*S/);
-    // Special case for South Cardinal: Q(6) + LFl 15s
-    const southCardinalMatch = cleanInput.match(/^(Q|VQ)\s*\(6\)\s*\+\s*LFL\s*(\d+)/);
-    if(southCardinalMatch) {
-        return {
-            rhythm: southCardinalMatch[1], // Q or VQ
-            group: [6, 1], // 6 quick, 1 long
-            color: 'W',
-            period: parseInt(southCardinalMatch[2], 10)
-        };
-    }
-    if (!rhythmMatch || !colorMatch) return null;
-
-    let group: number[] = [1];
-    if (rhythmMatch[2]) { group = rhythmMatch[2].split('+').map(Number); }
     
-    const period = periodMatch ? parseFloat(periodMatch[1]) : 0;
-    
-    const quickGroupMatch = cleanInput.match(/(?:VQ|Q|IQ)\s*\((\d+)\)/);
-    if(quickGroupMatch && quickGroupMatch[1]) {
-        group = [parseInt(quickGroupMatch[1], 10)];
-    }
-
-    return { rhythm: rhythmMatch[1], group, color: colorMatch[1], period };
+    return { rhythm, group, color: colorMatch ? colorMatch[1] : '', period: periodMatch ? parseFloat(periodMatch[1]) : 0 };
 }
+
 
 function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightConfig) {
     if (simulationTimeoutId) clearTimeout(simulationTimeoutId);
     
     let baseClassName = 'buoy-light-el';
-    // If the light is inside a lighthouse schematic, use that class instead.
     if (lightEl.classList.contains('lighthouse-light')) {
         baseClassName = 'lighthouse-light';
     }
@@ -759,63 +796,71 @@ function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightC
     let sequence: { state: 'on' | 'off'; duration: number; color?: string }[] = [];
     let desc = `<strong>Secuencia:</strong> `;
     
-    const flash = 0.5, longFlash = 2.0, intraEclipse = 1.0, interEclipse = 3.0;
+    const flash = 0.8, longFlash = 2.0, occultation = 0.8, intraEclipse = 1.0, interEclipse = 3.0;
     const qFlash = 0.5, qEclipse = 0.5; // 60 per minute
     const vqFlash = 0.25, vqEclipse = 0.25; // 120 per minute
     let time = 0;
 
     switch (config.rhythm) {
-        case 'F': sequence = [{ state: 'on', duration: config.period * 1000 }]; desc += `${config.period}s Luz.`; break;
-        case 'LFL': const lflE = (config.period - longFlash) * 1000; sequence = [{ state: 'on', duration: longFlash * 1000 }]; desc += `${longFlash}s Luz`; if (lflE > 0) { sequence.push({ state: 'off', duration: lflE }); desc += `, ${lflE / 1000}s Osc.`; } break;
-        case 'ISO': const isoP = (config.period / 2) * 1000; sequence = [{ state: 'on', duration: isoP }, { state: 'off', duration: isoP }]; desc += `${config.period / 2}s Luz, ${config.period / 2}s Osc.`; break;
-        case 'OC': case 'GP OC': const totalOcc = config.group.reduce((a, b) => a + b, 0); const occDur = (config.period * 0.4) / totalOcc; const lightDur = (config.period * 0.6) / totalOcc; for (let i = 0; i < totalOcc; i++) { sequence.push({ state: 'on', duration: lightDur * 1000 }, { state: 'off', duration: occDur * 1000 }); desc += `${lightDur.toFixed(1)}s Luz, ${occDur.toFixed(1)}s Osc.` + (i < totalOcc - 1 ? ", " : ""); } break;
-        case 'FL': case 'GP FL': config.group.forEach((count, i) => { for (let j = 0; j < count; j++) { sequence.push({ state: 'on', duration: flash * 1000 }); time += flash; desc += `${flash}s Luz`; if (j < count - 1) { sequence.push({ state: 'off', duration: intraEclipse * 1000 }); time += intraEclipse; desc += `, ${intraEclipse}s Osc.`; } } if (i < config.group.length - 1) { sequence.push({ state: 'off', duration: interEclipse * 1000 }); time += interEclipse; desc += `, ${interEclipse}s Osc.`; } }); const finalE = (config.period - time) * 1000; if (finalE > 0) { sequence.push({ state: 'off', duration: finalE }); desc += `, ${finalE / 1000}s Osc.`; } break;
-        case 'Q': case 'VQ': case 'IQ':
-            const isVQ = config.rhythm.startsWith('V');
-            const f = isVQ ? vqFlash : qFlash;
-            const e = isVQ ? vqEclipse : qEclipse;
+        case 'F': sequence.push({ state: 'on', duration: 5000 }); desc += `Luz contínua.`; break;
+        case 'LFL': const lflE = (config.period - longFlash) * 1000; sequence.push({ state: 'on', duration: longFlash * 1000 }); desc += `${longFlash}s Luz`; if (lflE > 0) { sequence.push({ state: 'off', duration: lflE }); desc += `, ${lflE / 1000}s Osc.`; } break;
+        case 'ISO': const isoP = (config.period / 2) * 1000; sequence.push({ state: 'on', duration: isoP }, { state: 'off', duration: isoP }); desc += `${config.period / 2}s Luz, ${config.period / 2}s Osc.`; break;
+        case 'OC':
+            // FIX: Add type assertion to handle `string | number` array type in reduce.
+            const totalOcc = config.group.length > 0 ? config.group.reduce((a, b) => a + (b as number), 0) : 1;
+            config.group = config.group.length > 0 ? config.group : [1]; // default to one occultation if no group
+            config.group.forEach((count, i) => {
+                const lightDuration = (config.period * 0.7) / totalOcc;
+                for (let j = 0; j < (count as number); j++) {
+                    sequence.push({ state: 'on', duration: lightDuration * 1000 }, { state: 'off', duration: occultation * 1000 });
+                    time += lightDuration + occultation;
+                }
+                if (i < config.group.length - 1) {
+                    sequence.push({ state: 'off', duration: interEclipse * 1000 });
+                    time += interEclipse;
+                }
+            });
+            const finalOccEclipse = config.period - time;
+            if (finalOccEclipse > 0) sequence.push({ state: 'off', duration: finalOccEclipse * 1000 });
+            desc = 'Ver simulación para secuencia.';
+            break;
+        case 'FL':
+            config.group = config.group.length > 0 ? config.group : [1];
+            config.group.forEach((count, i) => { for (let j = 0; j < (count as number); j++) { sequence.push({ state: 'on', duration: flash * 1000 }); time += flash; if (j < (count as number) - 1) { sequence.push({ state: 'off', duration: intraEclipse * 1000 }); time += intraEclipse; } } if (i < config.group.length - 1) { sequence.push({ state: 'off', duration: interEclipse * 1000 }); time += interEclipse; } }); const finalE = (config.period - time) * 1000; if (finalE > 0) { sequence.push({ state: 'off', duration: finalE }); }
+            desc = 'Ver simulación para secuencia.';
+            break;
+        case 'Q': case 'VQ': case 'UQ': case 'IQ': case 'IVQ': case 'IUQ':
+            const isVQ = config.rhythm.includes('V');
+            const isUQ = config.rhythm.includes('U');
+            const f = isUQ ? 0.15 : (isVQ ? vqFlash : qFlash);
+            const e = isUQ ? 0.15 : (isVQ ? vqEclipse : qEclipse);
             
-            // South Cardinal Q(6)+LFl
-            if (config.group.length === 2 && config.group[1] === 1) { 
-                for (let i = 0; i < config.group[0]; i++) {
-                    sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 });
-                    time += f + e;
-                }
-                sequence.push({ state: 'on', duration: longFlash * 1000 }, { state: 'off', duration: e * 1000 });
-                time += longFlash + e;
-            } else { // Standard Quick flashes
-                const numFlashes = config.group.length > 0 ? config.group[0] : 1;
-                for (let i = 0; i < numFlashes; i++) {
-                    sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 });
-                    time += f + e;
-                }
+            if (config.group[1] === 'LFL') { // South Cardinal
+                const numFlashes = config.group[0] as number;
+                for (let i = 0; i < numFlashes; i++) { sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 }); time += f + e; }
+                sequence.push({ state: 'off', duration: (1.5 - e) * 1000 }); time += (1.5-e);
+                sequence.push({ state: 'on', duration: longFlash * 1000 }); time += longFlash;
+            } else {
+                const numFlashes = config.group.length > 0 ? (config.group[0] as number) : 100; // Continuous if no group
+                for (let i = 0; i < numFlashes; i++) { sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 }); time += f + e; if (config.period > 0 && time >= config.period) break; }
             }
 
-            if (config.period > time) {
-                 const darkPeriod = config.period - time;
-                 sequence[sequence.length -1].duration = (darkPeriod + e) * 1000;
-            } else if (config.rhythm === 'IQ') {
-                 const darkPeriod = 5 - time;
-                 sequence[sequence.length -1].duration = (darkPeriod + e) * 1000;
+            const totalCycleTime = config.period > 0 ? config.period : (config.rhythm.startsWith('I') ? 10 : 5); // Default periods for interrupted
+            if (totalCycleTime > time) {
+                 const darkPeriod = totalCycleTime - time;
+                 sequence.push({ state: 'off', duration: darkPeriod * 1000 });
             }
+            desc = 'Ver simulación para secuencia.';
             break;
         case 'AL':
-            sequence.push(
-                { state: 'on', duration: 1000, color: config.color.toLowerCase() },
-                { state: 'off', duration: 500 },
-                { state: 'on', duration: 1000, color: (config.altColor || '').toLowerCase() },
-                { state: 'off', duration: 500 }
-            );
-            desc = `1s Luz ${config.color}, 0.5s Osc, 1s Luz ${config.altColor}, 0.5s Osc.`;
+            sequence.push({ state: 'on', duration: (config.period/2) * 1000, color: config.color.toLowerCase() });
+            sequence.push({ state: 'on', duration: (config.period/2) * 1000, color: (config.altColor || '').toLowerCase() });
+            desc = `Luz ${config.color} y ${config.altColor} alternante.`;
             break;
-        default: desc = 'Característica no reconocida.';
+        default: desc = 'Característica no implementada en simulador.';
     }
 
-    if (!infoEl.innerHTML.includes('<hr')) {
-        infoEl.innerHTML = generateCharacteristicDescription(config) + `<p>${desc}</p>`;
-    } else {
-        infoEl.innerHTML = infoEl.innerHTML.split('<hr')[0] + `<hr class="info-divider"><p>${desc}</p>`;
-    }
+    infoEl.innerHTML = generateCharacteristicDescription(config) + `<p>${desc}</p>`;
 
     let idx = 0;
     function next() { 
@@ -838,7 +883,17 @@ function initializeLighthouseSimulator() {
     const lightEl = document.getElementById('lighthouse-light');
     const infoEl = document.getElementById('lighthouse-simulation-info');
     if (!form || !input || !lightEl || !infoEl) return;
-    form.addEventListener('submit', (e) => { e.preventDefault(); const config = parseLightCharacteristic(input.value); if (config) { runSimulation(lightEl, infoEl, config); } else { if (simulationTimeoutId) clearTimeout(simulationTimeoutId); lightEl.classList.remove('on'); infoEl.innerHTML = '<p class="error">Formato no válido.</p>'; } });
+    form.addEventListener('submit', (e) => { 
+        e.preventDefault(); 
+        const config = parseLightCharacteristic(input.value); 
+        if (config) { 
+            runSimulation(lightEl, infoEl, config); 
+        } else { 
+            if (simulationTimeoutId) clearTimeout(simulationTimeoutId); 
+            lightEl.className = 'lighthouse-light';
+            infoEl.innerHTML = '<p class="error">Formato no válido. Revise la abreviatura IALA.</p>'; 
+        } 
+    });
 }
 
 // --- BUOY & MARKS SIMULATOR LOGIC (NEW) ---
@@ -851,10 +906,10 @@ const IALA_BUOY_DATA = [
     { category: 'Laterales', type: 'Estribor', region: 'B', daymark: { shape: 'conical', colors: ['red'], topmark: { shape: 'cone', arrangement: 'up', color: 'red' } }, light: { characteristic: 'Fl R', color: 'R' }, purpose: 'Región B: Señal de estribor. Debe dejarse por estribor (derecha) al entrar a puerto.' },
     
     // Preferred Channel Marks
-    { category: 'Canal Preferido', type: 'Estribor', region: 'A', daymark: { shape: 'can', colors: ['red', 'green', 'red'], topmark: { shape: 'can', color: 'red' } }, light: { characteristic: 'Gp Fl(2+1) R 10s', color: 'R' }, purpose: 'Región A: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
-    { category: 'Canal Preferido', type: 'Babor', region: 'A', daymark: { shape: 'conical', colors: ['green', 'red', 'green'], topmark: { shape: 'cone', arrangement: 'up', color: 'green' } }, light: { characteristic: 'Gp Fl(2+1) G 10s', color: 'G' }, purpose: 'Región A: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
-    { category: 'Canal Preferido', type: 'Estribor', region: 'B', daymark: { shape: 'can', colors: ['green', 'red', 'green'], topmark: { shape: 'can', color: 'green' } }, light: { characteristic: 'Gp Fl(2+1) G 10s', color: 'G' }, purpose: 'Región B: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
-    { category: 'Canal Preferido', type: 'Babor', region: 'B', daymark: { shape: 'conical', colors: ['red', 'green', 'red'], topmark: { shape: 'cone', arrangement: 'up', color: 'red' } }, light: { characteristic: 'Gp Fl(2+1) R 10s', color: 'R' }, purpose: 'Región B: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
+    { category: 'Canal Preferido', type: 'Estribor', region: 'A', daymark: { shape: 'can', colors: ['red', 'green', 'red'], topmark: { shape: 'can', color: 'red' } }, light: { characteristic: 'Fl(2+1) R 10s', color: 'R' }, purpose: 'Región A: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
+    { category: 'Canal Preferido', type: 'Babor', region: 'A', daymark: { shape: 'conical', colors: ['green', 'red', 'green'], topmark: { shape: 'cone', arrangement: 'up', color: 'green' } }, light: { characteristic: 'Fl(2+1) G 10s', color: 'G' }, purpose: 'Región A: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
+    { category: 'Canal Preferido', type: 'Estribor', region: 'B', daymark: { shape: 'can', colors: ['green', 'red', 'green'], topmark: { shape: 'can', color: 'green' } }, light: { characteristic: 'Fl(2+1) G 10s', color: 'G' }, purpose: 'Región B: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
+    { category: 'Canal Preferido', type: 'Babor', region: 'B', daymark: { shape: 'conical', colors: ['red', 'green', 'red'], topmark: { shape: 'cone', arrangement: 'up', color: 'red' } }, light: { characteristic: 'Fl(2+1) R 10s', color: 'R' }, purpose: 'Región B: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
 
     // Cardinal Marks
     { category: 'Cardinales', type: 'Norte', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'yellow'], topmark: { shape: 'double_cone', arrangement: 'up', color: 'black' } }, light: { characteristic: 'VQ W', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Norte de la marca. Se debe pasar al Norte de ella.' },
@@ -863,77 +918,92 @@ const IALA_BUOY_DATA = [
     { category: 'Cardinales', type: 'Oeste', region: 'Both', daymark: { shape: 'pillar', colors: ['yellow', 'black', 'yellow'], topmark: { shape: 'double_cone', arrangement: 'point_to_point', color: 'black' } }, light: { characteristic: 'VQ(9) W 10s', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Oeste de la marca. Se debe pasar al Oeste de ella.' },
 
     // Other Marks
-    { category: 'Otras', type: 'Peligro Aislado', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'red', 'black'], topmark: { shape: 'double_sphere', color: 'black' } }, light: { characteristic: 'Gp Fl(2) W 5s', color: 'W' }, purpose: 'Se erige sobre un peligro de extensión reducida rodeado de aguas navegables. Se puede pasar por cualquier lado.' },
+    { category: 'Otras', type: 'Peligro Aislado', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'red', 'black'], topmark: { shape: 'double_sphere', color: 'black' } }, light: { characteristic: 'Fl(2) W 5s', color: 'W' }, purpose: 'Se erige sobre un peligro de extensión reducida rodeado de aguas navegables. Se puede pasar por cualquier lado.' },
     { category: 'Otras', type: 'Aguas Seguras', region: 'Both', daymark: { shape: 'spherical', colors: ['red', 'white'], vertical: true, topmark: { shape: 'sphere', color: 'red' } }, light: { characteristic: 'Iso W 6s', color: 'W' }, purpose: 'Indica que hay aguas navegables en todas sus bandas. Usada como marca de centro de canal o de recalada.' },
-    { category: 'Otras', type: 'Marca Especial', region: 'Both', daymark: { shape: 'optional', colors: ['yellow'], topmark: { shape: 'cross', color: 'yellow' } }, light: { characteristic: 'Fl Y 5s', color: 'Y' }, purpose: 'Indica una zona o configuración especial (zona de ejercicios, cables submarinos, ODAS, etc.).' },
+    { category: 'Otras', type: 'Marca Especial', region: 'Both', daymark: { shape: 'optional', colors: ['yellow'], topmark: { shape: 'cross_upright', color: 'yellow' } }, light: { characteristic: 'Fl Y 5s', color: 'Y' }, purpose: 'Indica una zona o configuración especial (zona de ejercicios, cables submarinos, ODAS, etc.).' },
     { category: 'Otras', type: 'Nuevo Peligro', region: 'Both', daymark: { shape: 'pillar', colors: ['blue', 'yellow'], vertical: true, topmark: { shape: 'cross_upright', color: 'yellow' } }, light: { characteristic: 'Al.Bu.Y 3s', color: 'Bu' }, purpose: 'Se usa para señalar peligros descubiertos recientemente que no figuran en las cartas náuticas.' },
 ];
 
 
-function renderBuoySchematic(data: any) {
+function renderBuoySchematic(data: any): string {
     const { shape, colors, vertical } = data.daymark;
     const { shape: tmShape, color: tmColor, arrangement: tmArr } = data.daymark.topmark || {};
+    
+    const palette = {
+        red: 'var(--buoy-red)', green: 'var(--buoy-green)', yellow: 'var(--buoy-yellow)',
+        black: 'var(--buoy-black)', white: 'var(--buoy-white)', blue: 'var(--buoy-blue)',
+        stroke: 'var(--buoy-stroke)', water: 'var(--buoy-water)'
+    };
+
+    const viewBox = "0 0 120 220";
     let body = '';
     let topmark = '';
+    let bandDefs: string[] = [];
+    
+    const water = `<path d="M 0 190 Q 60 180, 120 190 V 220 H 0 Z" fill="${palette.water}" fill-opacity="0.7" />`;
 
-    const bodyHeight = 120;
-    const bodyWidth = 80;
-    const cx = 60; // Center X
-    const bodyTopY = 220 - bodyHeight;
+    const cx = 60;
+    const bodyWidth = 60;
+    const bodyHeight = 100;
+    const bodyTopY = 190 - bodyHeight;
 
-    // Body Color Bands
-    if (vertical) { // Vertical stripes
+    let bodyShapePath = '';
+    switch (shape) {
+        case 'conical': bodyShapePath = `M ${cx},${bodyTopY} L ${cx + bodyWidth/2.5},${bodyTopY + bodyHeight} L ${cx - bodyWidth/2.5},${bodyTopY + bodyHeight} Z`; break;
+        case 'can': bodyShapePath = `M ${cx - bodyWidth/2},${bodyTopY} C ${cx - bodyWidth/2},${bodyTopY-5} ${cx + bodyWidth/2},${bodyTopY-5} ${cx + bodyWidth/2},${bodyTopY} V ${bodyTopY + bodyHeight} H ${cx - bodyWidth/2} Z`; break;
+        case 'spherical': bodyShapePath = `M ${cx - bodyWidth/2},${bodyTopY + bodyHeight/2} A ${bodyWidth/2} ${bodyHeight/2} 0 1 0 ${cx + bodyWidth/2} ${bodyTopY + bodyHeight/2} A ${bodyWidth/2} ${bodyHeight/2} 0 1 0 ${cx - bodyWidth/2} ${bodyTopY + bodyHeight/2}`; break;
+        default: bodyShapePath = `M ${cx - bodyWidth/2.2},${bodyTopY} L ${cx - bodyWidth/2.5},${bodyTopY + bodyHeight} H ${cx + bodyWidth/2.5} L ${cx + bodyWidth/2.2},${bodyTopY} Z`; break;
+    }
+
+    if (vertical) {
         const stripeWidth = bodyWidth / colors.length;
         colors.forEach((c: string, i: number) => {
-            body += `<rect x="${cx - bodyWidth/2 + i*stripeWidth}" y="${bodyTopY}" width="${stripeWidth}" height="${bodyHeight}" class="buoy-${c.toLowerCase()}" />`;
+            body += `<rect x="${cx - bodyWidth/2 + i*stripeWidth}" y="${bodyTopY}" width="${stripeWidth}" height="${bodyHeight}" fill="var(--buoy-${c.toLowerCase()})" />`;
         });
-    } else { // Horizontal bands
+    } else {
         const bandHeight = bodyHeight / colors.length;
         colors.forEach((c: string, i: number) => {
-            body += `<rect x="${cx - bodyWidth/2}" y="${bodyTopY + i*bandHeight}" width="${bodyWidth}" height="${bandHeight}" class="buoy-${c.toLowerCase()}" />`;
+            body += `<rect x="${cx - bodyWidth/2}" y="${bodyTopY + i*bandHeight}" width="${bodyWidth}" height="${bandHeight}" fill="var(--buoy-${c.toLowerCase()})" />`;
         });
     }
-    
-    // Body Shape
-    let bodyClipPath = '';
-    switch (shape) {
-        case 'conical': bodyClipPath = `polygon(${cx} ${bodyTopY}, ${cx + bodyWidth/2} ${bodyTopY + bodyHeight}, ${cx - bodyWidth/2} ${bodyTopY + bodyHeight})`; break;
-        case 'can': bodyClipPath = `rect(${cx - bodyWidth/2}, ${bodyTopY}, ${bodyWidth}, ${bodyHeight})`; break;
-        case 'spherical': bodyClipPath = `circle(${cx}, ${bodyTopY + bodyHeight/2}, ${bodyWidth/2})`; break;
-        default: bodyClipPath = `rect(${cx - bodyWidth/2 + 15}, ${bodyTopY}, ${bodyWidth - 30}, ${bodyHeight})`; break; // Pillar
-    }
-    
-    // Topmark
+
     if (tmShape) {
-        const tmBaseY = bodyTopY - 10;
-        const tmColorClass = `buoy-${tmColor.toLowerCase()}`;
+        const tmBaseY = bodyTopY - 5;
+        const tmColorFill = `fill="var(--buoy-${tmColor?.toLowerCase()})"`;
+        const tmStroke = `stroke="${palette.stroke}" stroke-width="1"`;
+        let tmPaths = '';
+
+        const conePath = (x: number, y: number, up: boolean) => 
+            up ? `M ${x},${y-30} L ${x+15},${y} L ${x-15},${y} Z` 
+               : `M ${x},${y} L ${x+15},${y-30} L ${x-15},${y-30} Z`;
+
         switch(tmShape) {
-            case 'cone': topmark = `<polygon points="${cx},${tmBaseY-30} ${cx+15},${tmBaseY} ${cx-15},${tmBaseY}" class="${tmColorClass}" />`; break;
-            case 'can': topmark = `<rect x="${cx-12}" y="${tmBaseY-25}" width="24" height="25" class="${tmColorClass}" />`; break;
-            case 'sphere': topmark = `<circle cx="${cx}" cy="${tmBaseY-15}" r="15" class="${tmColorClass}" />`; break;
-            case 'cross': topmark = `<path d="M ${cx-15},${tmBaseY-15} L ${cx+15},${tmBaseY-15} M ${cx},${tmBaseY-30} L ${cx},${tmBaseY}" stroke="${tmColor}" stroke-width="5" />`; break;
-            case 'cross_upright': topmark = `<path d="M ${cx-20},${tmBaseY-15} L ${cx+20},${tmBaseY-15} M ${cx},${tmBaseY-35} L ${cx},${tmBaseY+5}" stroke="${tmColor}" stroke-width="6" />`; break;
-            case 'double_sphere': topmark = `<circle cx="${cx}" cy="${tmBaseY-15}" r="12" class="${tmColorClass}" /><circle cx="${cx}" cy="${tmBaseY-45}" r="12" class="${tmColorClass}" />`; break;
+            case 'cone': tmPaths = conePath(cx, tmBaseY, tmArr === 'up'); break;
+            case 'can': tmPaths = `<rect x="${cx-12}" y="${tmBaseY-25}" width="24" height="25" rx="2" />`; break;
+            case 'sphere': tmPaths = `<circle cx="${cx}" cy="${tmBaseY-15}" r="15" />`; break;
+            case 'cross_upright': tmPaths = `<path d="M ${cx-20},${tmBaseY-20} H ${cx+20} M ${cx},${tmBaseY-40} V ${tmBaseY}" stroke="var(--buoy-${tmColor?.toLowerCase()})" stroke-width="6" stroke-linecap="round" />`; break;
+            case 'double_sphere': tmPaths = `<circle cx="${cx}" cy="${tmBaseY-15}" r="12" /><circle cx="${cx}" cy="${tmBaseY-45}" r="12" />`; break;
             case 'double_cone':
-                const cone1Up = `M ${cx},${tmBaseY-30} L ${cx+15},${tmBaseY} L ${cx-15},${tmBaseY} Z`;
-                const cone1Down = `M ${cx},${tmBaseY} L ${cx+15},${tmBaseY-30} L ${cx-15},${tmBaseY-30} Z`;
-                const cone2Up = `M ${cx},${tmBaseY-65} L ${cx+15},${tmBaseY-35} L ${cx-15},${tmBaseY-35} Z`;
-                const cone2Down = `M ${cx},${tmBaseY-35} L ${cx+15},${tmBaseY-65} L ${cx-15},${tmBaseY-65} Z`;
-                if(tmArr === 'up') topmark = `<path d="${cone1Up}" class="${tmColorClass}" /><path d="${cone2Up}" class="${tmColorClass}" />`;
-                if(tmArr === 'down') topmark = `<path d="${cone1Down}" class="${tmColorClass}" /><path d="${cone2Down}" class="${tmColorClass}" />`;
-                if(tmArr === 'base_to_base') topmark = `<path d="${cone1Up}" class="${tmColorClass}" /><path d="${cone2Down.replace(/-35/g, '-32').replace(/-65/g, '-62')}" class="${tmColorClass}" />`;
-                if(tmArr === 'point_to_point') topmark = `<path d="${cone1Down}" class="${tmColorClass}" /><path d="${cone2Up.replace(/-35/g, '-32').replace(/-65/g, '-62')}" class="${tmColorClass}" />`;
+                const gap = 4;
+                if(tmArr === 'up') tmPaths = `<path d="${conePath(cx, tmBaseY, true)}" /><path d="${conePath(cx, tmBaseY - 30 - gap, true)}" />`;
+                if(tmArr === 'down') tmPaths = `<path d="${conePath(cx, tmBaseY, false)}" /><path d="${conePath(cx, tmBaseY + 30 + gap, false)}" />`;
+                if(tmArr === 'base_to_base') tmPaths = `<path d="${conePath(cx, tmBaseY, true)}" /><path d="${conePath(cx, tmBaseY - gap, false)}" />`;
+                if(tmArr === 'point_to_point') tmPaths = `<path d="${conePath(cx, tmBaseY, false)}" /><path d="${conePath(cx, tmBaseY + gap, true)}" />`;
                 break;
         }
+        topmark = `<g ${tmColorFill} ${tmStroke}>${tmPaths}</g>`;
     }
-    
+
     return `
-        <svg class="buoy-schematic-svg" viewBox="0 0 120 220">
-            <defs><clipPath id="bodyClip"><path d="${bodyClipPath}" /></clipPath></defs>
+        <svg class="buoy-schematic-svg" viewBox="${viewBox}">
+            <defs>
+                <clipPath id="bodyClip"><path d="${bodyShapePath}" /></clipPath>
+                ${bandDefs.join('')}
+            </defs>
             <g clip-path="url(#bodyClip)">${body}</g>
-            <path d="${bodyClipPath}" fill="none" class="buoy-stroke" />
-            <g>${topmark}</g>
-            <circle cx="60" cy="50" r="15" class="buoy-light-el" id="buoy-light" />
+            <path d="${bodyShapePath}" fill="none" stroke="${palette.stroke}" stroke-width="1.5" />
+            ${topmark}
+            ${water}
         </svg>
     `;
 }
@@ -966,6 +1036,9 @@ function initializeBuoySimulator() {
         const config = parseLightCharacteristic(buoyData.light.characteristic);
         if (lightEl && config) {
             runSimulation(lightEl, infoPanel, config);
+        } else if (lightEl) {
+             if (simulationTimeoutId) clearTimeout(simulationTimeoutId);
+             lightEl.className = 'buoy-light-el';
         }
     }
 
@@ -1081,7 +1154,7 @@ async function initializeSosgen() {
             const utcTime = '____________________';
             const infoNumber = '1';
 
-            const esMsg = `MAYDAY RELAY (x3)\nAQUI ${fullStationName} (x3)\nMAYDAY\nINFORMACION Nº ${infoNumber} A ${utcTime} UTC.\n\n${extractedData.spanishDescription}\n\nSE REQUIERE A TODOS LOS BARCOS EN LA ZONA, EXTREMAR LA VIGILANCIA, ASISTIR SI ES NECESARIO, E INFORMAR A SALVAMENTO MARITIMO ${mrcc} O ESTACION RADIO COSTERA MAS PROXIMA.\nAQUI ${fullStationName} A ${utcTime} UTC.`;
+            const esMsg = `MAYDAY RELAY (x3)\nAQUI ${fullStationName} (x3)\nMAYDAY\nINFORMACION Nº ${infoNumber} A ${utcTime} UTC.\n\n${extractedData.spanishDescription}\n\nSE REQUIERE A TODOS LOS BARCOS EN LA ZONA, EXTREMAR LA VIGILANCIA, ASISTIR SI ES NECESSARIO, E INFORMAR A SALVAMENTO MARITIMO ${mrcc} O ESTACION RADIO COSTERA MAS PROXIMA.\nAQUI ${fullStationName} A ${utcTime} UTC.`;
             const enMsg = `MAYDAY RELAY (x3)\nTHIS IS ${fullStationName} (x3)\nMAYDAY\nINFORMATION Nº ${infoNumber} AT ${utcTime} UTC.\n\n${extractedData.englishDescription}\n\nALL VESSELS IN THE AREA, ARE REQUESTED TO KEEP A SHARP LOOK OUT, ASSIST IF NECESSARY AND MAKE FURTHER REPORTS TO MRCC ${mrcc} OR NEAREST COASTAL RADIO STATION.\nTHIS IS ${fullStationName} AT ${utcTime} UTC.`;
             
             resultsEl.innerHTML = `
