@@ -39,7 +39,11 @@ export default async function handler(
         **Tu Tarea:**
         1.  **Selecciona aleatoriamente UNO de los 6 CASOS.**
         2.  **Crea un escenario simple y realista** que se ajuste perfectamente al caso. El escenario debe contener únicamente la información que una alerta DSC real podría incluir.
-        3.  **AUMENTA LA VARIEDAD:** Utiliza diferentes nombres de buques y diferentes naturalezas de socorro (ej: vía de agua, colisión, hombre al agua, etc.). Para la Estación Costera (CCR), DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España: ${EeccList}. NO inventes ningún otro nombre de estación y varía el que usas.
+        3.  **MÁXIMA VARIEDAD Y CREATIVIDAD:** Cada vez que generes un caso, DEBES inventar datos completamente nuevos para evitar la repetición. Sé creativo.
+            *   **Nombres de Buques:** Usa nombres únicos y variados (pesqueros, mercantes, veleros, etc.). Ejemplos: "MAR DE ONS", "GLORIA B", "CARINA", "PUNTA SALINAS". Evita nombres comunes como "Barco 1".
+            *   **Naturalezas de Socorro:** Varía la causa del peligro. Ejemplos: "incendio en sala de máquinas", "fallo de gobierno", "emergencia médica grave", "colisión con objeto semi-sumergido", "vía de agua incontrolable", "hombre al agua".
+            *   **Estación Costera (CCR):** DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España, y ROTA el que usas en cada generación: ${EeccList}.
+            *   **MMSI y Posiciones:** Genera siempre números de MMSI y coordenadas geográficas realistas pero diferentes.
         4.  **Genera 2 preguntas de opción múltiple (3 opciones)** que evalúen los pasos exactos del protocolo para el caso seleccionado. Las preguntas y respuestas deben ser directas y sin ambigüedades.
 
         **Formato de Salida:** Devuelve el resultado exclusivamente en formato JSON, siguiendo el esquema.
@@ -68,7 +72,7 @@ export default async function handler(
 
         const genAIResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash', contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 0.1 }
+            config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 0.8 }
         });
         
         const resultText = genAIResponse.text.trim() || '{}';
@@ -87,7 +91,12 @@ export default async function handler(
 
         **REGLAS INQUEBRANTABLES DE GENERACIÓN:**
 
-        1.  **Crea un escenario completo pero oculto:** Define: nombre del buque, POB, posición (o falta de ella), naturaleza del socorro. Para el nombre de la estación costera (CCR), DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España: ${EeccList}. NO inventes ningún otro nombre de estación y varía el que usas. Opcionalmente, el escenario puede incluir que el buque está informando que abandona la nave.
+        1.  **Crea un escenario completo pero oculto (CON MÁXIMA VARIEDAD):** Cada vez que generes un caso, DEBES inventar datos completamente nuevos para evitar la repetición. Sé creativo.
+            *   **Nombre del Buque:** Usa nombres únicos y variados (pesqueros, mercantes, veleros, yates, etc.). Ejemplos: "NUEVO ANITA", "MONTE GALIÑEIRO", "VEGA", "STELLA MARIS". No repitas nombres entre simulacros.
+            *   **POB (Personas a Bordo):** Usa un número realista y variado de personas.
+            *   **Posición:** Inventa coordenadas geográficas realistas y diferentes en cada caso.
+            *   **Naturaleza del Socorro:** Varía ampliamente la causa del peligro. Ejemplos: "incendio en sala de máquinas", "fallo de gobierno", "emergencia médica grave", "colisión con objeto semi-sumergido", "vía de agua incontrolable", "hombre al agua", "a la deriva sin propulsión".
+            *   **Estación Costera (CCR):** DEBES usar EXCLUSIVAMENTE un nombre de la siguiente lista oficial de España, y ROTA el que usas en cada generación: ${EeccList}.
         2.  **Genera una llamada inicial (scenario):** Redacta la primera transmisión que la CCR recibiría. Debe ser realista y, si el caso lo requiere, incompleta. La llamada puede ser en español o inglés (50% de probabilidad).
 
         3.  **SECUENCIA DE PREGUNTAS (CRÍTICO):** La secuencia de preguntas DEBE seguir este orden estricto:
@@ -140,7 +149,7 @@ export default async function handler(
 
         const genAIResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash', contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: radioSchema, temperature: 0.2 }
+            config: { responseMimeType: "application/json", responseSchema: radioSchema, temperature: 0.8 }
         });
         
         const resultText = genAIResponse.text.trim() || '{}';

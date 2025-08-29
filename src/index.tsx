@@ -806,7 +806,8 @@ function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightC
         case 'LFL': const lflE = (config.period - longFlash) * 1000; sequence.push({ state: 'on', duration: longFlash * 1000 }); desc += `${longFlash}s Luz`; if (lflE > 0) { sequence.push({ state: 'off', duration: lflE }); desc += `, ${lflE / 1000}s Osc.`; } break;
         case 'ISO': const isoP = (config.period / 2) * 1000; sequence.push({ state: 'on', duration: isoP }, { state: 'off', duration: isoP }); desc += `${config.period / 2}s Luz, ${config.period / 2}s Osc.`; break;
         case 'OC':
-            // FIX: Add type assertion to handle `string | number` array type in reduce.
+            // FIX: The original reduce function was missing an initial value, causing a type error.
+            // An initial value of 0 is provided, and the iterated item is cast to a number.
             const totalOcc = config.group.length > 0 ? config.group.reduce((a, b) => a + (b as number), 0) : 1;
             config.group = config.group.length > 0 ? config.group : [1]; // default to one occultation if no group
             config.group.forEach((count, i) => {
