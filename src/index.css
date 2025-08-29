@@ -594,38 +594,6 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
     padding: 0.75rem 2rem;
 }
 
-/* --- Dashboard --- */
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 2rem;
-}
-.dashboard-card {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 12px var(--shadow-color);
-}
-.dashboard-card-title {
-    font-size: 1.1rem;
-    font-weight: 500;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-.dashboard-card-title svg { width: 20px; height: 20px; color: var(--text-secondary); }
-.dashboard-card .stat-item { margin-bottom: 1rem; }
-.dashboard-card .stat-item:last-child { margin-bottom: 0; }
-.dashboard-card .history-list { gap: 1rem; }
-.dashboard-card .history-entry { background-color: var(--bg-main); }
-.dashboard-card .history-entry-ts { font-size: 0.8rem; }
-.dashboard-card .history-entry-content { padding: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); }
-.dashboard-card .quick-links { display: flex; flex-direction: column; gap: 0.75rem; }
-
 /* --- Toast Notifications --- */
 #toast-container {
     position: fixed;
@@ -707,5 +675,4 @@ body.dark-theme .skeleton {
   .phone-entry-contact-grid { grid-template-columns: 1fr; }
   .buoy-visuals-container { flex-direction: column; gap: 1rem; }
   .history-entry-content { grid-template-columns: 1fr; }
-  .dashboard-grid { grid-template-columns: 1fr; }
 }
