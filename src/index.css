@@ -468,6 +468,39 @@ body.dark-theme .answer-option.incorrect { background-color: var(--danger-color-
     line-height: 1.6;
 }
 
+/* Drill Floating Panels */
+.floating-panel {
+  position: fixed;
+  top: 100px;
+  width: 280px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  padding: 1.5rem;
+  z-index: 900;
+  transition: all 0.3s ease;
+  animation: fadeIn 0.5s ease;
+}
+.drill-dashboard { left: 2rem; }
+.drill-calendar { right: 2rem; }
+.floating-panel-title { font-size: 1.1rem; font-weight: 500; color: var(--text-primary); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); }
+.stat-item { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.75rem; }
+.stat-item span:first-child { color: var(--text-secondary); }
+.stat-item span:last-child { font-weight: 500; color: var(--text-primary); }
+.progress-bar-container { background-color: var(--bg-main); border-radius: 4px; height: 8px; overflow: hidden; margin-top: 0.25rem; }
+.progress-bar { background-color: var(--accent-color); height: 100%; transition: width 0.5s ease-in-out; }
+.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.calendar-day, .calendar-day-name { text-align: center; font-size: 0.8rem; padding: 0.4rem; border-radius: 4px; }
+.calendar-day-name { color: var(--text-secondary); font-weight: 500; }
+.calendar-day.has-drill { background-color: var(--accent-color); color: white; font-weight: bold; }
+.calendar-day.empty { visibility: hidden; }
+.calendar-day.today { border: 1px solid var(--accent-color-dark); }
+.reminder-box { margin-top: 1.5rem; padding: 1rem; background-color: var(--bg-main); border-radius: 8px; font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); }
+.reminder-box.warning { background-color: var(--danger-color-bg); color: var(--danger-color); }
+body.dark-theme .reminder-box.warning { background-color: var(--danger-color-dark-bg); color: var(--danger-color-dark); }
+
 /* --- GMDSS Procedure Wizard --- */
 .wizard-step { display: none; }
 .wizard-step.active { display: block; animation: fadeIn 0.4s ease; }
@@ -513,7 +546,37 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
 .loader { border: 4px solid var(--border-color); border-top: 4px solid var(--accent-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+/* Tip of the Day Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+.modal-content {
+    background: var(--bg-card);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+}
+.modal-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem; }
+.modal-text { color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.6; }
+.modal-close-btn { 
+    margin-top: 0; /* Override primary-btn margin */
+    width: auto;
+    padding: 0.75rem 2rem;
+}
+
 /* --- Responsive --- */
+@media (max-width: 1400px) {
+    .floating-panel { display: none; }
+}
+
 @media (max-width: 1200px) {
     .nav-links-container { gap: 0.5rem; }
     .nav-link { padding: 0.75rem; gap: 0; }
