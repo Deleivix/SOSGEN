@@ -1,5 +1,5 @@
 import { QUICK_REFERENCE_DATA, PHONE_DIRECTORY_DATA } from "../data";
-import { debounce, initializeInfoTabs } from "../utils/helpers";
+import { debounce, initializeInfoTabs, showToast } from "../utils/helpers";
 
 export function renderInfo(container: HTMLElement) {
     const fullQuickRefData = [...QUICK_REFERENCE_DATA];
@@ -401,13 +401,16 @@ async function initializeNauticalTranslator() {
     const resultEl = document.getElementById('translator-result') as HTMLDivElement;
     if (!translateBtn || !inputEl || !resultEl) return;
 
+    const skeletonHtml = `<div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div>`;
+
     translateBtn.addEventListener('click', async () => {
         const textToTranslate = inputEl.value.trim();
         if (!textToTranslate) {
-            resultEl.innerHTML = `<p class="error">El texto no puede estar vacío.</p>`;
+            showToast("El texto no puede estar vacío.", "error");
             return;
         }
-        resultEl.innerHTML = `<div class="loader-container" style="padding:1rem 0;"><div class="loader"></div></div>`;
+        resultEl.innerHTML = skeletonHtml;
+        resultEl.classList.add('loading');
         translateBtn.disabled = true;
 
         try {
@@ -426,10 +429,12 @@ async function initializeNauticalTranslator() {
             resultEl.innerHTML = `<p>${data.translation}</p>`;
 
         } catch (error) {
-            console.error("Translation Error:", error);
-            resultEl.innerHTML = `<p class="error">${error instanceof Error ? error.message : "Error al traducir"}</p>`;
+            const errorMessage = error instanceof Error ? error.message : "Error al traducir";
+            resultEl.innerHTML = `<p class="error">${errorMessage}</p>`;
+            showToast(errorMessage, 'error');
         } finally {
             translateBtn.disabled = false;
+            resultEl.classList.remove('loading');
         }
     });
 }

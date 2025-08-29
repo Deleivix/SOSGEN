@@ -5,6 +5,11 @@
   --danger-color-bg: #FFEBEE;
   --danger-color-dark-bg: #3C1A1A;
   --danger-color-dark: #EF9A9A;
+  --info-color: #1E88E5;
+  --info-color-bg: #E3F2FD;
+  --info-color-dark-bg: #1A2C3C;
+  --info-color-dark: #90CAF9;
+
 
   /* Light Theme */
   --bg-main-light: #F7F9FA;
@@ -158,7 +163,7 @@ nav {
     stroke-width: 1.5;
     flex-shrink: 0;
 }
-.nav-link:hover { color: var(--text-inverted); }
+.nav-link:hover { color: var(--text-inverted); transform: translateY(-2px); }
 .nav-link.active { background-color: var(--accent-color); color: var(--text-inverted); }
 
 /* Theme Switcher */
@@ -208,15 +213,17 @@ main { padding: 2rem; }
   font-size: 1.25rem; font-weight: 500; margin-bottom: 1.5rem;
   color: var(--text-primary);
 }
-.styled-textarea {
+.styled-textarea, .editable-message {
   width: 100%; padding: 1rem; font-family: var(--font-mono); font-size: 1rem;
   border: 1px solid var(--border-color); border-radius: 8px; resize: vertical; min-height: 150px;
   background-color: var(--bg-main); color: var(--text-primary);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+  line-height: 1.6;
 }
+.editable-message { white-space: pre-wrap; word-wrap: break-word; }
 .styled-textarea[readonly] { background-color: var(--bg-card); color: var(--text-secondary); }
 .styled-textarea::placeholder { color: var(--text-secondary); }
-.styled-textarea:focus {
+.styled-textarea:focus, .editable-message:focus {
   outline: none; border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3);
 }
@@ -224,9 +231,10 @@ main { padding: 2rem; }
   font-family: var(--font-sans); font-size: 1rem; font-weight: 500;
   color: var(--text-inverted); background-color: var(--accent-color);
   border: none; border-radius: 8px; padding: 0.875rem 1.5rem;
-  cursor: pointer; transition: background-color 0.2s ease; width: 100%; margin-top: 1.5rem;
+  cursor: pointer; transition: all 0.2s ease; width: 100%; margin-top: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-.primary-btn:hover:not(:disabled) { background-color: var(--accent-color-dark); }
+.primary-btn:hover:not(:disabled) { background-color: var(--accent-color-dark); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
 .primary-btn:disabled { background-color: #E9ECEF; color: #ADB5BD; cursor: not-allowed; }
 body.dark-theme .primary-btn:disabled { background-color: #333; color: #777; }
 
@@ -236,7 +244,7 @@ body.dark-theme .primary-btn:disabled { background-color: #333; color: #777; }
   transition: all 0.2s ease-in-out;
 }
 .secondary-btn { color: var(--text-primary); background-color: transparent; border: 1px solid var(--border-color); }
-.secondary-btn:hover { background-color: var(--bg-main); border-color: var(--text-primary); }
+.secondary-btn:hover { background-color: var(--bg-main); border-color: var(--text-primary); transform: translateY(-1px); }
 .tertiary-btn { color: var(--danger-color); background-color: transparent; border: 1px solid var(--danger-color-bg); }
 .tertiary-btn:hover { background-color: var(--danger-color-bg); }
 body.dark-theme .tertiary-btn { color: var(--danger-color-dark); border-color: var(--danger-color-dark-bg); }
@@ -247,7 +255,7 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 
 /* --- SOSGEN Specific --- */
 .sosgen-results { margin-top: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
-.sosgen-result-box .styled-textarea { min-height: 250px; }
+.sosgen-result-box .styled-textarea, .sosgen-result-box .editable-message { min-height: 250px; }
 .sosgen-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .sosgen-result-header h3 { font-size: 1.1rem; color: var(--text-primary); }
 .copy-btn {
@@ -259,8 +267,24 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 .copy-btn:hover:not(:disabled) { background-color: var(--bg-main); border-color: var(--accent-color); color: var(--accent-color); }
 .copy-btn:hover:not(:disabled) svg { fill: var(--accent-color); }
 .copy-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-.placeholder { color: var(--accent-color-dark); font-weight: 700; background-color: rgba(139, 195, 74, 0.1); padding: 0.1em 0.3em; border-radius: 4px;}
-[contenteditable="true"]:focus .placeholder { background-color: transparent; }
+
+/* SOSGEN Editable Placeholders */
+.placeholder-input {
+    background-color: rgba(139, 195, 74, 0.1);
+    color: var(--accent-color-dark);
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+    font-weight: 700;
+    border-bottom: 2px dotted var(--accent-color);
+    cursor: text;
+    transition: background-color 0.2s ease;
+}
+.placeholder-input:focus {
+    outline: none;
+    background-color: rgba(139, 195, 74, 0.2);
+    border-bottom-style: solid;
+}
+
 
 /* --- SOSGEN History --- */
 .sosgen-history { margin-top: 3rem; }
@@ -283,9 +307,9 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 .sub-nav-btn {
   width: 100%; display: block; font-size: 0.95rem; padding: 0.75rem 1.25rem;
   border: none; background: transparent; cursor: pointer; color: rgba(255, 255, 255, 0.85);
-  transition: color 0.2s, background-color 0.2s; text-align: left; border-radius: 6px; font-weight: 500;
+  transition: all 0.2s; text-align: left; border-radius: 6px; font-weight: 500;
 }
-.sub-nav-btn:hover { background-color: rgba(255, 255, 255, 0.1); color: white; }
+.sub-nav-btn:hover { background-color: rgba(255, 255, 255, 0.1); color: white; transform: translateX(5px); }
 .sub-nav-btn.active { background-color: var(--accent-color); color: white; font-weight: 700; }
 .template-card {
   border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem;
@@ -342,7 +366,6 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
     font-size: 1rem; color: var(--text-primary);
 }
 .translation-result .error { color: var(--danger-color); }
-.translation-result .loader-container { padding: 0 !important; min-height: 50px; }
 
 /* Phone Directory */
 .phone-directory-search { width: 100%; padding: 0.75rem 1rem; font-size: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-main); color: var(--text-primary); margin-bottom: 1.5rem; }
@@ -523,14 +546,14 @@ body.dark-theme .reminder-box.warning { background-color: var(--danger-color-dar
 .wizard-btn {
     font-family: var(--font-sans); font-size: 1rem; font-weight: 500; color: var(--text-primary);
     background-color: transparent; border: 2px solid var(--accent-color); border-radius: 8px;
-    padding: 0.75rem 1.5rem; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+    padding: 0.75rem 1.5rem; cursor: pointer; transition: all 0.2s ease;
 }
 .wizard-btn:hover { background-color: var(--accent-color); color: var(--text-inverted); transform: translateY(-2px); }
 .procedure-box {
-    background-color: #C3E6CB; color: #155724; border: 1px solid var(--accent-color-dark);
+    background-color: var(--info-color-bg); color: var(--info-color); border: 1px solid var(--info-color);
     border-radius: 8px; padding: 1.5rem; margin-top: 1rem; animation: fadeIn 0.5s ease;
 }
-body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; border-color: var(--accent-color); }
+body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); color: var(--info-color-dark); border-color: var(--info-color); }
 .procedure-box h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; color: inherit; }
 .procedure-box ol { padding-left: 20px; margin: 0; }
 .procedure-box li { margin-bottom: 0.75rem; line-height: 1.6; }
@@ -540,14 +563,10 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
 .wizard-restart-btn {
     font-family: var(--font-sans); font-size: 1rem; font-weight: 500; color: var(--text-inverted);
     background-color: var(--text-secondary); border: none; border-radius: 8px;
-    padding: 0.75rem 1.5rem; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease;
+    padding: 0.75rem 1.5rem; cursor: pointer; transition: all 0.2s ease;
 }
 .wizard-restart-btn:hover { background-color: var(--text-primary); transform: translateY(-2px); }
 
-/* Loader */
-.loader-container { display: flex; justify-content: center; align-items: center; padding: 3rem; min-height: 200px; }
-.loader { border: 4px solid var(--border-color); border-top: 4px solid var(--accent-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 /* Tip of the Day Modal */
 .modal-overlay {
@@ -575,6 +594,95 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
     padding: 0.75rem 2rem;
 }
 
+/* --- Dashboard --- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+}
+.dashboard-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+.dashboard-card-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.dashboard-card-title svg { width: 20px; height: 20px; color: var(--text-secondary); }
+.dashboard-card .stat-item { margin-bottom: 1rem; }
+.dashboard-card .stat-item:last-child { margin-bottom: 0; }
+.dashboard-card .history-list { gap: 1rem; }
+.dashboard-card .history-entry { background-color: var(--bg-main); }
+.dashboard-card .history-entry-ts { font-size: 0.8rem; }
+.dashboard-card .history-entry-content { padding: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); }
+.dashboard-card .quick-links { display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* --- Toast Notifications --- */
+#toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+.toast {
+    font-family: var(--font-sans);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-width: 250px;
+    animation: slideIn 0.4s ease forwards;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.toast.hiding { animation: slideOut 0.4s ease forwards; }
+.toast-icon { width: 20px; height: 20px; }
+.toast.success { background-color: var(--accent-color); color: white; }
+.toast.error { background-color: var(--danger-color); color: white; }
+.toast.info { background-color: var(--info-color); color: white; }
+
+/* --- Skeleton Loaders --- */
+@keyframes shimmer { 0% { background-position: -468px 0; } 100% { background-position: 468px 0; } }
+.skeleton {
+    animation: shimmer 1.5s linear infinite;
+    background: linear-gradient(to right, var(--bg-main) 8%, #e0e0e0 18%, var(--bg-main) 33%);
+    background-size: 800px 104px;
+    border-radius: 8px;
+}
+body.dark-theme .skeleton {
+    background: linear-gradient(to right, var(--bg-main) 8%, #333 18%, var(--bg-main) 33%);
+    background-size: 800px 104px;
+}
+.skeleton-text { height: 1em; margin-bottom: 0.5rem; border-radius: 4px; }
+.skeleton-text:last-child { margin-bottom: 0; width: 80%; }
+.skeleton-title { height: 1.5em; width: 50%; margin-bottom: 1rem; border-radius: 4px; }
+.skeleton-box { width: 100%; border-radius: 8px; }
+.sosgen-results.loading .sosgen-result-box {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+}
+.sosgen-results.loading .skeleton-box-header { height: 24px; width: 40%; margin-bottom: 1rem; }
+.sosgen-results.loading .skeleton-box-content { height: 200px; }
+
+.drill-content.loading .skeleton-scenario { width: 100%; height: 80px; margin-bottom: 2rem; }
+.drill-content.loading .skeleton-question { width: 100%; height: 120px; margin-bottom: 1.5rem; }
+
+.translation-result.loading .skeleton-text { height: 1.2em; }
+
 /* --- Responsive --- */
 @media (max-width: 1400px) {
     .floating-panel { display: none; }
@@ -599,4 +707,5 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
   .phone-entry-contact-grid { grid-template-columns: 1fr; }
   .buoy-visuals-container { flex-direction: column; gap: 1rem; }
   .history-entry-content { grid-template-columns: 1fr; }
+  .dashboard-grid { grid-template-columns: 1fr; }
 }

@@ -4,6 +4,7 @@
 */
 import { APP_PAGE_ICONS, APP_PAGES } from './data';
 import { showTipOfTheDay } from './utils/helpers';
+import { renderDashboard } from './components/DashboardPage';
 import { renderSosgen } from './components/SosgenPage';
 import { renderRegistroOceano } from './components/RegistroOceanoPage';
 import { renderProtocolo } from './components/ProtocoloPage';
@@ -15,6 +16,7 @@ const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://
 const pageRenderStatus: { [key: number]: boolean } = {};
 
 const pageRenderers = [
+    renderDashboard,
     renderSosgen,
     renderRegistroOceano,
     renderProtocolo,
@@ -23,7 +25,7 @@ const pageRenderers = [
     renderInfo
 ];
 
-function switchToPage(pageIndex: number) {
+function switchToPage(pageIndex: number, subTarget?: string) {
     document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
     const navLink = document.querySelector(`.nav-link[data-page-index="${pageIndex}"]`);
     if (navLink) {
@@ -38,15 +40,25 @@ function switchToPage(pageIndex: number) {
             pageRenderers[pageIndex](activePanel);
             pageRenderStatus[pageIndex] = true;
         }
+        // Handle sub-navigation for dashboard quick links
+        if (subTarget) {
+            const subNavBtn = activePanel.querySelector<HTMLButtonElement>(`.sub-nav-btn[data-target="${subTarget}"]`);
+            if (subNavBtn) {
+                subNavBtn.click();
+            }
+        }
     }
 }
+
+// Expose switchToPage to the global scope so it can be called from dynamically created HTML
+(window as any).switchToPage = switchToPage;
 
 function renderApp(container: HTMLElement) {
     const navHtml = `
         <nav>
             <div class="nav-top"></div>
             <div class="nav-bottom">
-                <div class="nav-brand" style="cursor: pointer;" title="Ir a la página principal de SOSGEN">
+                <div class="nav-brand" style="cursor: pointer;" title="Ir al Dashboard">
                     ${NEW_LOGO_SVG}
                     <span>SOSGEN</span>
                 </div>

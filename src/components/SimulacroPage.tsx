@@ -1,4 +1,5 @@
 import { checkDrillAnswers, renderDrillCalendar, renderDrillDashboard } from "../utils/drill";
+import { showToast } from "../utils/helpers";
 
 export function renderSimulacro(container: HTMLElement) {
     container.innerHTML = `
@@ -11,7 +12,6 @@ export function renderSimulacro(container: HTMLElement) {
                      <button class="primary-btn" data-drill-type="dsc">Simulacro DSC (IA)</button>
                      <button class="primary-btn" data-drill-type="radiotelephony">Simulacro Radiotelefonía (IA)</button>
                  </div>
-                 <div id="drill-loader" class="loader-container" style="display: none;"><div class="loader"></div></div>
                  <div id="drill-content" class="drill-content">
                      <p class="drill-placeholder">Seleccione un tipo de simulacro para comenzar.</p>
                  </div>
@@ -29,13 +29,18 @@ function initializeSimulacro() {
 
     const drillButtons = drillContainer.querySelectorAll<HTMLButtonElement>('.drill-actions button');
     const drillContent = drillContainer.querySelector<HTMLDivElement>('#drill-content');
-    const loader = drillContainer.querySelector<HTMLDivElement>('#drill-loader');
 
-    if (!drillButtons.length || !drillContent || !loader) return;
+    if (!drillButtons.length || !drillContent) return;
+    
+    const skeletonHtml = `
+        <div class="skeleton skeleton-scenario"></div>
+        <div class="skeleton skeleton-question"></div>
+        <div class="skeleton skeleton-question"></div>
+    `;
 
     const generateDrill = async (drillType: string) => {
-        drillContent.innerHTML = '';
-        loader.style.display = 'flex';
+        drillContent.innerHTML = skeletonHtml;
+        drillContent.classList.add('loading');
         drillButtons.forEach(btn => btn.disabled = true);
 
         try {
@@ -75,9 +80,11 @@ function initializeSimulacro() {
 
         } catch (error) {
             console.error("Drill Generation Error:", error);
-            drillContent.innerHTML = `<p class="error">No se pudo generar el simulacro. Inténtelo de nuevo.</p>`;
+            const errorMessage = error instanceof Error ? error.message : "No se pudo generar el simulacro.";
+            drillContent.innerHTML = `<p class="error">${errorMessage}</p>`;
+            showToast(errorMessage, 'error');
         } finally {
-            loader.style.display = 'none';
+            drillContent.classList.remove('loading');
             drillButtons.forEach(btn => btn.disabled = false);
         }
     };

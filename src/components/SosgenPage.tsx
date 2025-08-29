@@ -1,4 +1,4 @@
-import { handleCopy, logSosgenEvent } from "../utils/helpers";
+import { handleCopy, logSosgenEvent, showToast } from "../utils/helpers";
 
 const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
 
@@ -53,7 +53,7 @@ function renderSosgenHistory() {
             const entryDiv = btn.closest('.history-entry-content > div');
             const textarea = entryDiv?.querySelector('textarea');
             if (textarea) {
-                handleCopy(btn, textarea.value);
+                handleCopy(textarea.value);
             }
         });
     });
@@ -97,10 +97,21 @@ async function initializeSosgen() {
     generateBtn.addEventListener('click', async () => {
         const naturalInput = inputEl.value.trim();
         if (!naturalInput) {
-            resultsEl.innerHTML = `<p class="error">La descripción no puede estar vacía.</p>`;
+            showToast("La descripción no puede estar vacía.", "error");
             return;
         }
-        resultsEl.innerHTML = `<div class="loader-container"><div class="loader"></div></div>`;
+
+        resultsEl.innerHTML = `
+            <div class="sosgen-result-box">
+                <div class="sosgen-result-header"><div class="skeleton skeleton-box-header"></div></div>
+                <div class="skeleton skeleton-box-content"></div>
+            </div>
+            <div class="sosgen-result-box">
+                <div class="sosgen-result-header"><div class="skeleton skeleton-box-header"></div></div>
+                <div class="skeleton skeleton-box-content"></div>
+            </div>
+        `;
+        resultsEl.classList.add('loading');
         generateBtn.disabled = true;
 
         try {
@@ -125,16 +136,17 @@ async function initializeSosgen() {
               throw new Error(`Falta información. La IA no pudo extraer: ${missingFields.join(', ')}. Por favor, sea más específico en su descripción.`);
             }
             
-            const rawStationName = extractedData.stationName?.trim();
+            const placeholder = (text: string) => `<span class="placeholder-input" contenteditable="true" spellcheck="false">${text}</span>`;
             
-            let fullStationName = '____________________';
+            const rawStationName = extractedData.stationName?.trim();
+            let fullStationName = placeholder('____________________');
             if (rawStationName) {
               fullStationName = rawStationName.toLowerCase().includes('radio') ? rawStationName : `${rawStationName} Radio`;
             }
 
-            const mrcc = extractedData.mrcc?.trim() || '____________________';
-            const utcTime = '____________________';
-            const infoNumber = '1';
+            const mrcc = extractedData.mrcc?.trim() || placeholder('____________________');
+            const utcTime = placeholder('________');
+            const infoNumber = placeholder('1');
 
             const esMsg = `MAYDAY RELAY (x3)\nAQUI ${fullStationName} (x3)\nMAYDAY\nINFORMACION Nº ${infoNumber} A ${utcTime} UTC.\n\n${extractedData.spanishDescription}\n\nSE REQUIERE A TODOS LOS BARCOS EN LA ZONA, EXTREMAR LA VIGILANCIA, ASISTIR SI ES NECESSARIO, E INFORMAR A SALVAMENTO MARITIMO ${mrcc} O ESTACION RADIO COSTERA MAS PROXIMA.\nAQUI ${fullStationName} A ${utcTime} UTC.`;
             const enMsg = `MAYDAY RELAY (x3)\nTHIS IS ${fullStationName} (x3)\nMAYDAY\nINFORMATION Nº ${infoNumber} AT ${utcTime} UTC.\n\n${extractedData.englishDescription}\n\nALL VESSELS IN THE AREA, ARE REQUESTED TO KEEP A SHARP LOOK OUT, ASSIST IF NECESSARY AND MAKE FURTHER REPORTS TO MRCC ${mrcc} OR NEAREST COASTAL RADIO STATION.\nTHIS IS ${fullStationName} AT ${utcTime} UTC.`;
@@ -148,7 +160,7 @@ async function initializeSosgen() {
                             <span>Copiar</span>
                         </button>
                     </div>
-                    <textarea class="styled-textarea" rows="12">${esMsg}</textarea>
+                    <div class="editable-message">${esMsg}</div>
                 </div>
                 <div class="sosgen-result-box">
                     <div class="sosgen-result-header">
@@ -158,21 +170,26 @@ async function initializeSosgen() {
                             <span>Copiar</span>
                         </button>
                     </div>
-                    <textarea class="styled-textarea" rows="12">${enMsg}</textarea>
+                    <div class="editable-message">${enMsg}</div>
                 </div>`;
             
             resultsEl.querySelectorAll('.copy-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const btn = e.currentTarget as HTMLButtonElement;
                     const resultBox = btn.closest('.sosgen-result-box');
-                    const textarea = resultBox?.querySelector('textarea');
-                    if(textarea) {
-                        handleCopy(btn, textarea.value);
+                    const editableDiv = resultBox?.querySelector<HTMLDivElement>('.editable-message');
+                    if(editableDiv) {
+                        handleCopy(editableDiv.innerText);
                     }
                 });
             });
 
-            logSosgenEvent('SOSGEN', { spanish: esMsg, english: enMsg });
+            // FIX: Cast querySelector result to HTMLElement to access innerText.
+            const finalSpanish = (resultsEl.querySelector('.editable-message') as HTMLElement)?.innerText || '';
+            // FIX: Cast querySelectorAll result to HTMLElement to access innerText.
+            const finalEnglish = (resultsEl.querySelectorAll('.editable-message')[1] as HTMLElement)?.innerText || '';
+
+            logSosgenEvent('SOSGEN', { spanish: finalSpanish, english: finalEnglish });
             renderSosgenHistory();
             localStorage.removeItem('sosgen_draft');
 
@@ -180,8 +197,10 @@ async function initializeSosgen() {
             console.error("Error generating message:", error);
             const errorMessage = error instanceof Error ? error.message : "Error interno del servidor";
             resultsEl.innerHTML = `<p class="error">${errorMessage}</p>`;
+            showToast(errorMessage, 'error');
         } finally {
             generateBtn.disabled = false;
+            resultsEl.classList.remove('loading');
         }
     });
 
