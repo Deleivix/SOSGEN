@@ -94,8 +94,28 @@ body {
 }
 #app { display: flex; flex-direction: column; }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+/* --- Page Transitions --- */
+@keyframes page-enter {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes page-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+}
 
 /* --- Navigation --- */
 nav {
@@ -184,8 +204,10 @@ nav {
 
 /* --- Main Content --- */
 main { padding: 2rem; }
-.page-panel { display: none; animation: fadeIn 0.5s ease; }
-.page-panel.active { display: block; }
+.page-panel { display: none; }
+.page-panel.active { display: block; animation: page-enter 0.4s ease-out forwards; }
+.page-panel.is-exiting { display: block; animation: page-exit 0.4s ease-out forwards; }
+
 
 /* --- Page Banner (for SOSGEN) --- */
 .page-banner {
@@ -244,7 +266,7 @@ body.dark-theme .primary-btn:disabled { background-color: #333; color: #777; }
   transition: all 0.2s ease-in-out;
 }
 .secondary-btn { color: var(--text-primary); background-color: transparent; border: 1px solid var(--border-color); }
-.secondary-btn:hover { background-color: var(--bg-main); border-color: var(--text-primary); transform: translateY(-1px); }
+.secondary-btn:hover { background-color: var(--bg-main); border-color: var(--text-primary); transform: translateY(-2px); }
 .tertiary-btn { color: var(--danger-color); background-color: transparent; border: 1px solid var(--danger-color-bg); }
 .tertiary-btn:hover { background-color: var(--danger-color-bg); }
 body.dark-theme .tertiary-btn { color: var(--danger-color-dark); border-color: var(--danger-color-dark-bg); }
@@ -540,7 +562,7 @@ body.dark-theme .reminder-box.warning { background-color: var(--danger-color-dar
 
 /* --- GMDSS Procedure Wizard --- */
 .wizard-step { display: none; }
-.wizard-step.active { display: block; animation: fadeIn 0.4s ease; }
+.wizard-step.active { display: block; animation: page-enter 0.4s ease; }
 .wizard-question { font-size: 1.2rem; font-weight: 500; color: var(--text-primary); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
 .wizard-options { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
 .wizard-btn {
@@ -551,7 +573,7 @@ body.dark-theme .reminder-box.warning { background-color: var(--danger-color-dar
 .wizard-btn:hover { background-color: var(--accent-color); color: var(--text-inverted); transform: translateY(-2px); }
 .procedure-box {
     background-color: var(--info-color-bg); color: var(--info-color); border: 1px solid var(--info-color);
-    border-radius: 8px; padding: 1.5rem; margin-top: 1rem; animation: fadeIn 0.5s ease;
+    border-radius: 8px; padding: 1.5rem; margin-top: 1rem; animation: page-enter 0.5s ease;
 }
 body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); color: var(--info-color-dark); border-color: var(--info-color); }
 .procedure-box h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; color: inherit; }
@@ -664,10 +686,66 @@ body.dark-theme .skeleton {
 }
 
 @media (max-width: 768px) {
-  .nav-bottom { padding: 0 1rem; }
-  .nav-links-container { position: static; transform: none; gap: 0.25rem; }
-  .nav-link { font-size: 0.9rem; padding: 0.5rem; }
-  .nav-brand span { display: none; }
+  body {
+    padding-bottom: 70px; /* Space for bottom nav */
+  }
+
+  nav {
+    top: auto;
+    bottom: 0;
+    box-shadow: 0 -2px 10px var(--shadow-color);
+  }
+
+  .nav-top { display: none; }
+
+  .nav-bottom { 
+    padding: 0.5rem 0;
+    height: auto;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 2px solid var(--accent-color);
+  }
+
+  .nav-brand, .theme-switcher {
+      display: none;
+  }
+  
+  .nav-links-container { 
+    position: static; 
+    transform: none; 
+    gap: 0;
+    width: 100%;
+    justify-content: space-around;
+  }
+  
+  .nav-link { 
+    flex-direction: column;
+    color: var(--text-secondary);
+    padding: 0.25rem;
+    height: 56px;
+    border-radius: 8px;
+    gap: 0.25rem;
+    width: 100%;
+    max-width: 80px;
+  }
+  .nav-link:hover {
+      color: var(--text-primary);
+  }
+  .nav-link.active {
+      color: var(--accent-color);
+      background: transparent;
+  }
+  .nav-link .nav-icon {
+      stroke: currentColor;
+  }
+
+  .nav-link-text { 
+    display: block;
+    font-size: 0.7rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
   main { padding: 1rem; }
   .page-banner { padding: 2rem 1rem; } .banner-title { font-size: 2rem; }
   .content-card { padding: 1.5rem; }
