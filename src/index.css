@@ -315,21 +315,16 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .translation-result .loader-container { padding: 0 !important; min-height: 50px; }
 
 /* Phone Directory */
-.phone-directory-search {
-    width: 100%; padding: 0.75rem 1rem; font-size: 1rem;
-    border: 1px solid var(--border-color); border-radius: 8px;
-    background-color: var(--bg-main); color: var(--text-primary); margin-bottom: 1.5rem;
-}
-.phone-directory-list { display: flex; flex-direction: column; gap: 0.75rem; }
-.phone-entry-card {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 1rem; border-radius: 6px; background-color: var(--bg-main);
-    border: 1px solid var(--border-color);
-}
-.phone-entry-info .name { font-weight: 500; color: var(--text-primary); }
-.phone-entry-info .location { font-size: 0.9rem; color: var(--text-secondary); }
-.phone-entry-number { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent-color-dark); font-weight: 700; }
-
+.phone-directory-search { width: 100%; padding: 0.75rem 1rem; font-size: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-main); color: var(--text-primary); margin-bottom: 1.5rem; }
+.phone-directory-list { display: flex; flex-direction: column; gap: 1rem; }
+.phone-entry-card { padding: 1rem; border-radius: 6px; background-color: var(--bg-main); border: 1px solid var(--border-color); }
+.phone-entry-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+.phone-entry-name { font-weight: 500; color: var(--text-primary); font-size: 1.1rem; }
+.phone-entry-contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; }
+.phone-entry-contact-item { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.95rem; }
+.phone-entry-contact-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary); }
+.phone-entry-contact-item a { color: var(--accent-color-dark); text-decoration: none; }
+.phone-entry-contact-item a:hover { text-decoration: underline; }
 
 /* --- Maritime Signals Simulator --- */
 .simulator-form { display: flex; gap: 1rem; margin-bottom: 2rem; }
@@ -349,22 +344,38 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .lighthouse-schematic { position: relative; width: 80px; height: 180px; display: flex; flex-direction: column; align-items: center; }
 .lighthouse-tower { width: 100%; height: 140px; clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%); position: absolute; bottom: 0; border: 1px solid #c8ced5; }
 .lighthouse-top { width: 90px; height: 40px; position: absolute; top: 0; border-radius: 5px 5px 0 0; display: flex; justify-content: center; align-items: center; }
-.lighthouse-light, .buoy-light { width: 30px; height: 30px; border-radius: 50%; transition: background-color 0.1s ease-in-out, box-shadow 0.3s ease-in-out; }
-.lighthouse-light.on, .buoy-light.on { box-shadow: 0 0 15px, 0 0 30px, 0 0 45px; }
-.lighthouse-light.w.on, .buoy-light.w.on { background-color: #ffffff; box-shadow: 0 0 15px #ffffff, 0 0 30px #ffffff; }
-.lighthouse-light.r.on, .buoy-light.r.on { background-color: #E53935; box-shadow: 0 0 15px #E53935, 0 0 30px #E53935; }
-.lighthouse-light.g.on, .buoy-light.g.on { background-color: #43A047; box-shadow: 0 0 15px #43A047, 0 0 30px #43A047; }
-.lighthouse-light.y.on, .buoy-light.y.on { background-color: #FDD835; box-shadow: 0 0 15px #FDD835, 0 0 30px #FDD835; }
-.lighthouse-light.bu.on, .buoy-light.bu.on { background-color: #1E88E5; box-shadow: 0 0 15px #1E88E5, 0 0 30px #1E88E5; }
+.lighthouse-light, .buoy-light-el { width: 30px; height: 30px; border-radius: 50%; transition: background-color 0.1s ease-in-out, box-shadow 0.3s ease-in-out; }
+.lighthouse-light.on, .buoy-light-el.on { box-shadow: 0 0 15px, 0 0 30px, 0 0 45px; }
+.lighthouse-light.w.on, .buoy-light-el.w.on { background-color: #ffffff; box-shadow: 0 0 15px #ffffff, 0 0 30px #ffffff; }
+.lighthouse-light.r.on, .buoy-light-el.r.on { background-color: #E53935; box-shadow: 0 0 15px #E53935, 0 0 30px #E53935; }
+.lighthouse-light.g.on, .buoy-light-el.g.on { background-color: #43A047; box-shadow: 0 0 15px #43A047, 0 0 30px #43A047; }
+.lighthouse-light.y.on, .buoy-light-el.y.on { background-color: #FDD835; box-shadow: 0 0 15px #FDD835, 0 0 30px #FDD835; }
+.lighthouse-light.bu.on, .buoy-light-el.bu.on { background-color: #1E88E5; box-shadow: 0 0 15px #1E88E5, 0 0 30px #1E88E5; }
 
-.buoy-schematic { position: relative; width: 100px; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;}
-.buoy-body { width: 100%; height: 100px; background-color: #E53935; border-radius: 50% 50% 20px 20px / 80% 80% 20% 20%; border: 3px solid #b71c1c; position: relative; }
-body.dark-theme .buoy-body { background-color: #b71c1c; border-color: #7f0000; }
-.buoy-body::before { content: ''; position: absolute; bottom: -10px; left: 25%; width: 50%; height: 10px; background: #c8ced5; border-radius: 0 0 5px 5px; }
-.buoy-top { position: absolute; top: 0; width: 20px; height: 80px; background-color: #798691; display: flex; flex-direction: column; align-items: center; }
-body.dark-theme .buoy-top { background-color: #444; }
-.buoy-top::before { content: ''; width: 40px; height: 10px; background-color: inherit; position: absolute; top: 30px; border-radius: 2px; }
-.buoy-light { position: absolute; top: 5px; }
+/* Buoy & Marks Simulator */
+#buoy-simulator-controls { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; width: 100%; align-items: center; }
+.buoy-selector-group { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+.buoy-selector-btn { font-size: 0.9rem; padding: 0.5rem 1rem; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
+.buoy-selector-btn:hover { border-color: var(--accent-color); background-color: var(--bg-main); }
+.buoy-selector-btn.active { background-color: var(--accent-color); color: var(--text-inverted); border-color: var(--accent-color); font-weight: 500; }
+#buoy-region-selector { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem; background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; }
+#buoy-region-selector span { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); }
+.buoy-region-toggle { width: 40px; height: 22px; background-color: #B0BEC5; border-radius: 11px; position: relative; cursor: pointer; transition: background-color 0.3s ease; }
+.buoy-region-toggle::after { content: 'A'; color: white; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; font-weight: bold; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background-color: #E53935; border-radius: 50%; transition: transform 0.3s ease, background-color 0.3s ease; }
+#buoy-region-input { display: none; }
+#buoy-region-input:checked + .buoy-region-toggle { background-color: #43A047; }
+#buoy-region-input:checked + .buoy-region-toggle::after { background-color: #43A047; content: 'B'; transform: translateX(18px); }
+
+#buoy-schematic-container { min-height: 220px; display: flex; justify-content: center; align-items: center; width: 100%; }
+.buoy-schematic-svg { width: 120px; height: 220px; }
+.buoy-stroke { stroke: var(--text-secondary); stroke-width: 1.5; }
+body.dark-theme .buoy-stroke { stroke: var(--text-primary); }
+.buoy-red { fill: #D32F2F; } .buoy-green { fill: #2E7D32; } .buoy-yellow { fill: #FDD835; } .buoy-black { fill: #212529; } .buoy-white { fill: #F8F9FA; } .buoy-blue { fill: #1E88E5; }
+
+#buoy-info-panel h4 { font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.75rem; }
+#buoy-info-panel p { font-size: 0.95rem; line-height: 1.6; margin-bottom: 0.5rem; }
+#buoy-info-panel strong { color: var(--text-primary); font-weight: 500; }
+#buoy-info-panel .purpose-text { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-style: italic; }
 
 .simulation-info {
     background-color: var(--bg-main); padding: 1.5rem; border: 1px solid var(--border-color);
@@ -482,4 +493,5 @@ body.dark-theme .procedure-box { background-color: #2E4B3E; color: #C3E6CB; bord
   .content-card { padding: 1.5rem; }
   .registro-oceano-layout { flex-direction: column; } .ro-sidebar { flex: 0 0 auto; }
   .log-entry-content { grid-template-columns: 1fr; }
+  .phone-entry-contact-grid { grid-template-columns: 1fr; }
 }

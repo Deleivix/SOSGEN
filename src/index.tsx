@@ -7,7 +7,7 @@
 interface Template { title: string; template: string; }
 interface Category { category: string; items: Template[]; }
 interface QuickRef { category: string; content: string; }
-interface PhoneEntry { name: string; number: string; location: string; keywords: string[]; }
+interface PhoneEntry { name: string; phones: string[]; fax?: string; email?: string; keywords: string[]; }
 interface Page { name: string; contentRenderer: (container: HTMLElement) => void; }
 
 const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
@@ -57,17 +57,31 @@ const REGISTRO_OCEANO_DATA: Category[] = [
 ];
 
 const PHONE_DIRECTORY_DATA: PhoneEntry[] = [
-    // Add your full phone directory here
-    { name: 'Salvamento Marítimo (EMERGENCIAS)', number: '900 202 202', location: 'Nacional', keywords: ['urgencia', 'sos', 'sasemar'] },
-    { name: 'Guardia Civil del Mar', number: '062', location: 'Nacional', keywords: ['policia', 'gc'] },
-    { name: 'Centro Nacional de Coordinación de Salvamento (CNCS)', number: '917 559 100', location: 'Madrid', keywords: ['mrcc', 'cncs'] },
-    { name: 'MRCC Madrid', number: '917 559 133', location: 'Madrid', keywords: ['coordinacion'] },
-    { name: 'MRCC Barcelona', number: '932 234 782', location: 'Barcelona', keywords: ['cataluña'] },
-    { name: 'MRCC Valencia', number: '963 679 302', location: 'Valencia', keywords: ['levante'] },
-    { name: 'MRCC Tarifa', number: '956 684 740', location: 'Tarifa', keywords: ['estrecho', 'gibraltar'] },
-    { name: 'MRCC Finisterre', number: '981 767 400', location: 'A Coruña', keywords: ['galicia', 'noroeste'] },
-    { name: 'MRCC Las Palmas', number: '928 467 757', location: 'Gran Canaria', keywords: ['canarias'] },
-    { name: 'Instituto Nacional de Meteorología (AEMET)', number: '807 170 370', location: 'Nacional', keywords: ['tiempo', 'meteo', 'aemet'] },
+    { name: 'CNCS', phones: ['917 559 132', '917 559 133', '917 559 138', '608 229 010'], fax: '915 26 14 40', email: 'cncs@sasemar.es', keywords: ['madrid', 'nacional'] },
+    { name: 'RADIOAVISOS', phones: ['917 559 191'], fax: '917 55 91 92', email: 'radioavisos.cncs@sasemar.es', keywords: ['navtex', 'avisos'] },
+    { name: 'CCS BILBAO', phones: ['944 839 286', '944 837 053', '690 608 803'], fax: '944 83 91 61', email: 'bilbao@sasemar.es', keywords: ['bizkaia', 'euskadi'] },
+    { name: 'CCS SANTANDER', phones: ['942 21 30 60', '942 21 30 30', '690 615 645', '609 430 310'], fax: '942 21 36 38', email: 'santander@sasemar.es', keywords: ['cantabria'] },
+    { name: 'CCS GIJÓN', phones: ['985 326 050', '985 326 373', '985 300 475', '690 634 123', '629 837 682'], fax: '985 32 09 08', email: 'gijon@sasemar.es', keywords: ['asturias'] },
+    { name: 'CCS A CORUÑA', phones: ['981 209 548', '981 270 405', '606 195 875'], fax: '981 20 95 18', email: 'coruna@sasemar.es', keywords: ['galicia'] },
+    { name: 'CCS FINISTERRE', phones: ['981 767 738', '981 767 320', '981 767 500', '690 607 377'], fax: '981 76 77 40', email: 'finisterre@sasemar.es', keywords: ['galicia'] },
+    { name: 'CCS VIGO', phones: ['986 228 874', '986 222 230', '630 347 746'], fax: '986 22 89 57', email: 'vigo@sasemar.es', keywords: ['galicia', 'pontevedra'] },
+    { name: 'CCS HUELVA', phones: ['959 243 000', '959 243 061'], fax: '959 24 21 03', email: 'huelva@sasemar.es', keywords: ['andalucia'] },
+    { name: 'CCS CÁDIZ', phones: ['956 214 253', '690 633 848'], fax: '956 22 60 91', email: 'cadiz@sasemar.es', keywords: ['andalucia'] },
+    { name: 'SASEMAR GUARDIA', phones: ['911 832 906', '618 890 423'], email: 'apsi@sasemar.es', keywords: ['guardia'] },
+    { name: 'Antonio Beltrán García', phones: ['917 559 195'], email: 'antoniobg@sasemar.es', keywords: ['sasemar', 'persona'] },
+    { name: 'José Ramón Vico García', phones: [], email: 'jramonvg@sasemar.es', keywords: ['sasemar', 'persona'] },
+    { name: 'Francisco Maceiras Tajes', phones: ['981 767 500', '619 403 749'], email: 'franciscomt@sasemar.es', keywords: ['sasemar', 'persona'] },
+    { name: 'CCS TARIFA', phones: ['956 684 757', '956 684 740', '956 681 452'], fax: '956 68 06 06', email: 'tarifa@sasemar.es', keywords: ['andalucia', 'estrecho'] },
+    { name: 'CCS ALGECIRAS', phones: ['956 580 930', '956 580 035'], fax: '956 58 54 02', email: 'algeciras@sasemar.es', keywords: ['andalucia'] },
+    { name: 'CCS ALMERÍA', phones: ['950 275 477', '950 270 715', '950 271 726'], fax: '950 27 04 02', email: 'almeria@sasemar.es', keywords: ['andalucia'] },
+    { name: 'CCS CARTAGENA', phones: ['968 505 366', '968 529 594', '968 529 517'], fax: '968 52 97 48', email: 'cartagena@sasemar.es', keywords: ['murcia'] },
+    { name: 'CCS VALENCIA', phones: ['963 679 204', '963 679 302'], fax: '963 67 94 03', email: 'valencia@sasemar.es', keywords: ['comunidad valenciana'] },
+    { name: 'CCS CASTELLÓN', phones: ['964 737 202', '964 737 187'], fax: '964 73 71 05', email: 'castellon@sasemar.es', keywords: ['comunidad valenciana'] },
+    { name: 'CCS TARRAGONA', phones: ['977 216 203', '977 216 215'], fax: '977 21 62 09', email: 'tarragona@sasemar.es', keywords: ['cataluña'] },
+    { name: 'CCS BARCELONA', phones: ['932 234 759', '932 234 748'], fax: '932 23 46 13', email: 'barcelona@sasemar.es', keywords: ['cataluña'] },
+    { name: 'CCS PALMA', phones: ['971 724 562'], fax: '971 72 83 52', email: 'palma@sasemar.es', keywords: ['baleares', 'mallorca'] },
+    { name: 'CCS TENERIFE', phones: ['922 597 551', '922 597 550'], fax: '922 59 73 31', email: 'tenerife@sasemar.es', keywords: ['canarias'] },
+    { name: 'CCS LAS PALMAS', phones: ['928 467 955', '928 467 965', '928 467 757', '618 068 005'], fax: '928 46 77 60', email: 'laspalmas@sasemar.es', keywords: ['canarias', 'gran canaria'] }
 ];
 
 const QUICK_REFERENCE_DATA: QuickRef[] = [
@@ -79,6 +93,8 @@ const QUICK_REFERENCE_DATA: QuickRef[] = [
     { category: 'Calculadora', content: `...` },
     { category: 'Diccionario', content: `...` }
 ];
+
+const pageRenderStatus: { [key: number]: boolean } = {};
 
 
 // --- RENDER FUNCTIONS ---
@@ -452,19 +468,19 @@ function renderMaritimeSignalsSimulator(container: HTMLElement) {
             </div>
 
             <div id="simulator-tab-buoy" class="sub-tab-panel">
-                <div class="simulator-display">
-                    <form id="buoy-simulator-form" class="simulator-form" aria-label="Simulador de boyas">
-                        <input type="text" id="buoy-char-input" class="simulator-input" placeholder="Ej: Q G" required aria-label="Característica de la luz">
-                        <button type="submit" class="simulator-btn">Simular</button>
-                    </form>
-                    <div class="buoy-schematic" aria-hidden="true">
-                        <div class="buoy-body"></div>
-                        <div class="buoy-top">
-                           <div id="buoy-light" class="buoy-light"></div>
-                        </div>
+                 <div id="buoy-simulator-controls">
+                    <div id="buoy-region-selector" style="display: none;">
+                        <span>Región</span>
+                        <input type="checkbox" id="buoy-region-input">
+                        <label for="buoy-region-input" class="buoy-region-toggle"></label>
                     </div>
-                    <div id="buoy-simulation-info" class="simulation-info" aria-live="polite">
-                        <p>Introduzca la característica de una boya y pulse "Simular".</p>
+                    <div id="buoy-category-selector" class="buoy-selector-group"></div>
+                    <div id="buoy-type-selector" class="buoy-selector-group"></div>
+                </div>
+                <div class="simulator-display">
+                    <div id="buoy-schematic-container"></div>
+                    <div id="buoy-info-panel" class="simulation-info" aria-live="polite">
+                        <p>Seleccione un tipo de señal para comenzar la simulación.</p>
                     </div>
                 </div>
             </div>
@@ -534,11 +550,13 @@ function switchToPage(pageIndex: number) {
     const activePanel = document.getElementById(`page-${pageIndex}`) as HTMLElement;
     if (activePanel) {
         activePanel.classList.add('active');
-        if (!activePanel.innerHTML.trim()) {
+        if (!pageRenderStatus[pageIndex]) {
             APP_PAGES[pageIndex].contentRenderer(activePanel);
+            pageRenderStatus[pageIndex] = true;
         }
     }
 }
+
 
 function renderApp(container: HTMLElement) {
     const navHtml = `
@@ -571,7 +589,10 @@ function renderApp(container: HTMLElement) {
     container.innerHTML = navHtml + mainContentHtml;
     
     const initialActivePanel = container.querySelector<HTMLElement>('.page-panel.active');
-    if(initialActivePanel) { APP_PAGES[0].contentRenderer(initialActivePanel); }
+    if(initialActivePanel) {
+        APP_PAGES[0].contentRenderer(initialActivePanel);
+        pageRenderStatus[0] = true;
+    }
 }
 
 // --- LOGGING ---
@@ -595,16 +616,12 @@ function logSosgenEvent(type: string, content: object): object | null {
 
 function updateBitacoraView(newEntry: any) {
     const bitacoraPanel = document.getElementById('page-5'); // BITÁCORA is index 5
-    // Only update if the panel has already been rendered
-    if (bitacoraPanel && bitacoraPanel.innerHTML.trim()) {
+    if (pageRenderStatus[5] && bitacoraPanel) {
         let logbookList = bitacoraPanel.querySelector('#logbook-list');
         
-        // If the list doesn't exist, it means the logbook was empty.
         if (!logbookList) {
-            // Re-render the whole panel content, which is simpler and handles placeholder removal.
             renderBitacora(bitacoraPanel);
         } else {
-            // List exists, so just prepend the new item.
             const newEntryHTML = createLogEntryHTML(newEntry);
             logbookList.insertAdjacentHTML('afterbegin', newEntryHTML);
         }
@@ -637,7 +654,7 @@ async function handleCopy(button: HTMLButtonElement, textToCopy: string) {
 
 // --- MARITIME SIGNALS SIMULATOR LOGIC ---
 let simulationTimeoutId: number | null = null;
-interface LightConfig { rhythm: string; group: number[]; color: string; period: number; }
+interface LightConfig { rhythm: string; group: number[]; color: string; period: number; altColor?: string; }
 const LIGHT_CHARACTERISTIC_TERMS: { [key: string]: { es: string; en: string } } = {
     'F': { es: 'Fija', en: 'Fixed' },
     'FL': { es: 'Destellos', en: 'Flashing' },
@@ -651,7 +668,7 @@ const LIGHT_CHARACTERISTIC_TERMS: { [key: string]: { es: string; en: string } } 
     'IQ': { es: 'Destellos Rápidos Interrumpidos', en: 'Interrupted Quick' },
     'W': { es: 'Blanca', en: 'White' }, 'R': { es: 'Roja', en: 'Red' },
     'G': { es: 'Verde', en: 'Green' }, 'Y': { es: 'Amarilla', en: 'Yellow' },
-    'BU': { es: 'Azul', en: 'Blue' },
+    'BU': { es: 'Azul', en: 'Blue' }, 'AL': { es: 'Alternativa', en: 'Alternating' }
 };
 
 
@@ -659,30 +676,67 @@ function generateCharacteristicDescription(config: LightConfig): string {
     const rhythmTerm = LIGHT_CHARACTERISTIC_TERMS[config.rhythm as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
     const colorTerm = LIGHT_CHARACTERISTIC_TERMS[config.color as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
     if (!rhythmTerm || !colorTerm) return '';
+    
+    let colorDesc;
+    if (config.rhythm === 'AL') {
+        const altColorTerm = LIGHT_CHARACTERISTIC_TERMS[config.altColor as keyof typeof LIGHT_CHARACTERISTIC_TERMS];
+        colorDesc = { es: `${colorTerm.es}/${altColorTerm.es}`, en: `${colorTerm.en}/${altColorTerm.en}` };
+    } else {
+        colorDesc = { es: colorTerm.es.toLowerCase(), en: colorTerm.en };
+    }
+
     let groupText = config.group.length > 1 || (config.group.length > 0 && config.group[0] > 1) ? ` (${config.group.join('+')})` : '';
+    if (config.rhythm.includes('Q') && config.group.length > 0) {
+        if (config.group.length > 1) { // For South Cardinal Q(6)+LFl
+            groupText = `(${config.group[0]}) + LFl`;
+        } else {
+            groupText = `(${config.group[0]})`;
+        }
+    }
+
+
     const periodText = config.period > 0 ? `, con un período de ${config.period} segundos` : '';
-    const es = `Luz de ${rhythmTerm.es}${groupText}, color ${colorTerm.es.toLowerCase()}${periodText}.`;
-    const en = `${rhythmTerm.en}${groupText} light, ${colorTerm.en} color${config.period > 0 ? `, with a period of ${config.period} seconds` : ''}.`;
+    const es = `Luz de ${rhythmTerm.es}${groupText}, color ${colorDesc.es}${periodText}.`;
+    const en = `${rhythmTerm.en}${groupText} light, ${colorDesc.en} color${config.period > 0 ? `, with a period of ${config.period} seconds` : ''}.`;
     return `<p class="desc-lang"><strong>ES:</strong> ${es}</p><p class="desc-lang"><strong>EN:</strong> ${en}</p><hr class="info-divider">`;
 }
 
 function parseLightCharacteristic(input: string): LightConfig | null {
     const cleanInput = input.trim().toUpperCase();
+    // Special case for alternating lights
+    if (cleanInput.startsWith('AL')) {
+        const altMatch = cleanInput.match(/AL\.\s*([A-Z]{1,2})\.\s*([A-Z]{1,2})/);
+        const periodMatch = cleanInput.match(/(\d+(?:\.\d+)?)\s*S/);
+        if (altMatch) {
+            return {
+                rhythm: 'AL',
+                group: [],
+                color: altMatch[1],
+                altColor: altMatch[2],
+                period: periodMatch ? parseFloat(periodMatch[1]) : 3
+            };
+        }
+    }
     const rhythmMatch = cleanInput.match(/^(LFL|GP FL|FL|GP OC|OC|ISO|F|VQ|Q|IQ)\s*(?:\(([\d\+]+)\))?/);
     const colorMatch = cleanInput.match(/\b(W|R|G|Y|BU)\b/);
     const periodMatch = cleanInput.match(/(\d+(?:\.\d+)?)\s*S/);
-
+    // Special case for South Cardinal: Q(6) + LFl 15s
+    const southCardinalMatch = cleanInput.match(/^(Q|VQ)\s*\(6\)\s*\+\s*LFL\s*(\d+)/);
+    if(southCardinalMatch) {
+        return {
+            rhythm: southCardinalMatch[1], // Q or VQ
+            group: [6, 1], // 6 quick, 1 long
+            color: 'W',
+            period: parseInt(southCardinalMatch[2], 10)
+        };
+    }
     if (!rhythmMatch || !colorMatch) return null;
 
     let group: number[] = [1];
     if (rhythmMatch[2]) { group = rhythmMatch[2].split('+').map(Number); }
     
-    // For quick flashes, period is often omitted and derived from rhythm.
-    // If period is not specified for Q/VQ/IQ, we use a default of 0, which the simulation handles.
     const period = periodMatch ? parseFloat(periodMatch[1]) : 0;
     
-    // If no group is specified for Q/VQ, but a number follows, it becomes the group.
-    // Example: Q(9) 15s -> group [9], period 15. VQ(3) 5s -> group [3], period 5.
     const quickGroupMatch = cleanInput.match(/(?:VQ|Q|IQ)\s*\((\d+)\)/);
     if(quickGroupMatch && quickGroupMatch[1]) {
         group = [parseInt(quickGroupMatch[1], 10)];
@@ -693,8 +747,16 @@ function parseLightCharacteristic(input: string): LightConfig | null {
 
 function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightConfig) {
     if (simulationTimeoutId) clearTimeout(simulationTimeoutId);
-    lightEl.className = `lighthouse-light ${config.color.toLowerCase()}`;
-    let sequence: { state: 'on' | 'off'; duration: number; }[] = [];
+    
+    let baseClassName = 'buoy-light-el';
+    // If the light is inside a lighthouse schematic, use that class instead.
+    if (lightEl.classList.contains('lighthouse-light')) {
+        baseClassName = 'lighthouse-light';
+    }
+
+    lightEl.className = `${baseClassName} ${config.color.toLowerCase()}`;
+    
+    let sequence: { state: 'on' | 'off'; duration: number; color?: string }[] = [];
     let desc = `<strong>Secuencia:</strong> `;
     
     const flash = 0.5, longFlash = 2.0, intraEclipse = 1.0, interEclipse = 3.0;
@@ -712,24 +774,63 @@ function runSimulation(lightEl: HTMLElement, infoEl: HTMLElement, config: LightC
             const isVQ = config.rhythm.startsWith('V');
             const f = isVQ ? vqFlash : qFlash;
             const e = isVQ ? vqEclipse : qEclipse;
-            const numFlashes = config.group.length > 0 ? config.group[0] : 1;
-            for (let i = 0; i < numFlashes; i++) {
-                sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 });
-                time += f + e;
+            
+            // South Cardinal Q(6)+LFl
+            if (config.group.length === 2 && config.group[1] === 1) { 
+                for (let i = 0; i < config.group[0]; i++) {
+                    sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 });
+                    time += f + e;
+                }
+                sequence.push({ state: 'on', duration: longFlash * 1000 }, { state: 'off', duration: e * 1000 });
+                time += longFlash + e;
+            } else { // Standard Quick flashes
+                const numFlashes = config.group.length > 0 ? config.group[0] : 1;
+                for (let i = 0; i < numFlashes; i++) {
+                    sequence.push({ state: 'on', duration: f * 1000 }, { state: 'off', duration: e * 1000 });
+                    time += f + e;
+                }
             }
-            if (config.rhythm === 'IQ' || (config.period > 0 && config.period > time)) {
-                const darkPeriod = (config.period > time ? config.period : 5) - time; // Default dark period for IQ if none given
-                sequence.pop(); // remove last eclipse
-                sequence.push({state: 'off', duration: (darkPeriod + e) * 1000})
+
+            if (config.period > time) {
+                 const darkPeriod = config.period - time;
+                 sequence[sequence.length -1].duration = (darkPeriod + e) * 1000;
+            } else if (config.rhythm === 'IQ') {
+                 const darkPeriod = 5 - time;
+                 sequence[sequence.length -1].duration = (darkPeriod + e) * 1000;
             }
+            break;
+        case 'AL':
+            sequence.push(
+                { state: 'on', duration: 1000, color: config.color.toLowerCase() },
+                { state: 'off', duration: 500 },
+                { state: 'on', duration: 1000, color: (config.altColor || '').toLowerCase() },
+                { state: 'off', duration: 500 }
+            );
+            desc = `1s Luz ${config.color}, 0.5s Osc, 1s Luz ${config.altColor}, 0.5s Osc.`;
             break;
         default: desc = 'Característica no reconocida.';
     }
-    infoEl.innerHTML = generateCharacteristicDescription(config) + `<p>${desc}</p>`;
+
+    if (!infoEl.innerHTML.includes('<hr')) {
+        infoEl.innerHTML = generateCharacteristicDescription(config) + `<p>${desc}</p>`;
+    } else {
+        infoEl.innerHTML = infoEl.innerHTML.split('<hr')[0] + `<hr class="info-divider"><p>${desc}</p>`;
+    }
+
     let idx = 0;
-    function next() { if (!sequence.length) return; const step = sequence[idx]; lightEl.classList.toggle('on', step.state === 'on'); simulationTimeoutId = window.setTimeout(() => { idx = (idx + 1) % sequence.length; next(); }, step.duration); }
+    function next() { 
+        if (!sequence.length) return; 
+        const step = sequence[idx]; 
+        lightEl.className = baseClassName; // Reset
+        if(step.state === 'on') {
+            const colorClass = step.color || config.color.toLowerCase();
+            lightEl.classList.add('on', colorClass);
+        }
+        simulationTimeoutId = window.setTimeout(() => { idx = (idx + 1) % sequence.length; next(); }, step.duration); 
+    }
     if (sequence.length > 0) next(); else lightEl.classList.remove('on');
 }
+
 
 function initializeLighthouseSimulator() {
     const form = document.getElementById('lighthouse-simulator-form') as HTMLFormElement | null;
@@ -740,15 +841,187 @@ function initializeLighthouseSimulator() {
     form.addEventListener('submit', (e) => { e.preventDefault(); const config = parseLightCharacteristic(input.value); if (config) { runSimulation(lightEl, infoEl, config); } else { if (simulationTimeoutId) clearTimeout(simulationTimeoutId); lightEl.classList.remove('on'); infoEl.innerHTML = '<p class="error">Formato no válido.</p>'; } });
 }
 
-function initializeBuoySimulator() {
-    const form = document.getElementById('buoy-simulator-form') as HTMLFormElement | null;
-    const input = document.getElementById('buoy-char-input') as HTMLInputElement | null;
-    const lightEl = document.getElementById('buoy-light');
-    const infoEl = document.getElementById('buoy-simulation-info');
-    if (!form || !input || !lightEl || !infoEl) return;
-    form.addEventListener('submit', (e) => { e.preventDefault(); const config = parseLightCharacteristic(input.value); if (config) { runSimulation(lightEl, infoEl, config); } else { if (simulationTimeoutId) clearTimeout(simulationTimeoutId); lightEl.classList.remove('on'); infoEl.innerHTML = '<p class="error">Formato no válido.</p>'; } });
+// --- BUOY & MARKS SIMULATOR LOGIC (NEW) ---
+
+const IALA_BUOY_DATA = [
+    // Lateral Marks
+    { category: 'Laterales', type: 'Babor', region: 'A', daymark: { shape: 'can', colors: ['red'], topmark: { shape: 'can', color: 'red' } }, light: { characteristic: 'Fl R', color: 'R' }, purpose: 'Región A: Señal de babor. Debe dejarse por babor (izquierda) al entrar a puerto.' },
+    { category: 'Laterales', type: 'Estribor', region: 'A', daymark: { shape: 'conical', colors: ['green'], topmark: { shape: 'cone', arrangement: 'up', color: 'green' } }, light: { characteristic: 'Fl G', color: 'G' }, purpose: 'Región A: Señal de estribor. Debe dejarse por estribor (derecha) al entrar a puerto.' },
+    { category: 'Laterales', type: 'Babor', region: 'B', daymark: { shape: 'can', colors: ['green'], topmark: { shape: 'can', color: 'green' } }, light: { characteristic: 'Fl G', color: 'G' }, purpose: 'Región B: Señal de babor. Debe dejarse por babor (izquierda) al entrar a puerto.' },
+    { category: 'Laterales', type: 'Estribor', region: 'B', daymark: { shape: 'conical', colors: ['red'], topmark: { shape: 'cone', arrangement: 'up', color: 'red' } }, light: { characteristic: 'Fl R', color: 'R' }, purpose: 'Región B: Señal de estribor. Debe dejarse por estribor (derecha) al entrar a puerto.' },
+    
+    // Preferred Channel Marks
+    { category: 'Canal Preferido', type: 'Estribor', region: 'A', daymark: { shape: 'can', colors: ['red', 'green', 'red'], topmark: { shape: 'can', color: 'red' } }, light: { characteristic: 'Gp Fl(2+1) R 10s', color: 'R' }, purpose: 'Región A: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
+    { category: 'Canal Preferido', type: 'Babor', region: 'A', daymark: { shape: 'conical', colors: ['green', 'red', 'green'], topmark: { shape: 'cone', arrangement: 'up', color: 'green' } }, light: { characteristic: 'Gp Fl(2+1) G 10s', color: 'G' }, purpose: 'Región A: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
+    { category: 'Canal Preferido', type: 'Estribor', region: 'B', daymark: { shape: 'can', colors: ['green', 'red', 'green'], topmark: { shape: 'can', color: 'green' } }, light: { characteristic: 'Gp Fl(2+1) G 10s', color: 'G' }, purpose: 'Región B: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
+    { category: 'Canal Preferido', type: 'Babor', region: 'B', daymark: { shape: 'conical', colors: ['red', 'green', 'red'], topmark: { shape: 'cone', arrangement: 'up', color: 'red' } }, light: { characteristic: 'Gp Fl(2+1) R 10s', color: 'R' }, purpose: 'Región B: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
+
+    // Cardinal Marks
+    { category: 'Cardinales', type: 'Norte', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'yellow'], topmark: { shape: 'double_cone', arrangement: 'up', color: 'black' } }, light: { characteristic: 'VQ W', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Norte de la marca. Se debe pasar al Norte de ella.' },
+    { category: 'Cardinales', type: 'Este', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'yellow', 'black'], topmark: { shape: 'double_cone', arrangement: 'base_to_base', color: 'black' } }, light: { characteristic: 'VQ(3) W 5s', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Este de la marca. Se debe pasar al Este de ella.' },
+    { category: 'Cardinales', type: 'Sur', region: 'Both', daymark: { shape: 'pillar', colors: ['yellow', 'black'], topmark: { shape: 'double_cone', arrangement: 'down', color: 'black' } }, light: { characteristic: 'VQ(6)+LFl W 10s', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Sur de la marca. Se debe pasar al Sur de ella.' },
+    { category: 'Cardinales', type: 'Oeste', region: 'Both', daymark: { shape: 'pillar', colors: ['yellow', 'black', 'yellow'], topmark: { shape: 'double_cone', arrangement: 'point_to_point', color: 'black' } }, light: { characteristic: 'VQ(9) W 10s', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Oeste de la marca. Se debe pasar al Oeste de ella.' },
+
+    // Other Marks
+    { category: 'Otras', type: 'Peligro Aislado', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'red', 'black'], topmark: { shape: 'double_sphere', color: 'black' } }, light: { characteristic: 'Gp Fl(2) W 5s', color: 'W' }, purpose: 'Se erige sobre un peligro de extensión reducida rodeado de aguas navegables. Se puede pasar por cualquier lado.' },
+    { category: 'Otras', type: 'Aguas Seguras', region: 'Both', daymark: { shape: 'spherical', colors: ['red', 'white'], vertical: true, topmark: { shape: 'sphere', color: 'red' } }, light: { characteristic: 'Iso W 6s', color: 'W' }, purpose: 'Indica que hay aguas navegables en todas sus bandas. Usada como marca de centro de canal o de recalada.' },
+    { category: 'Otras', type: 'Marca Especial', region: 'Both', daymark: { shape: 'optional', colors: ['yellow'], topmark: { shape: 'cross', color: 'yellow' } }, light: { characteristic: 'Fl Y 5s', color: 'Y' }, purpose: 'Indica una zona o configuración especial (zona de ejercicios, cables submarinos, ODAS, etc.).' },
+    { category: 'Otras', type: 'Nuevo Peligro', region: 'Both', daymark: { shape: 'pillar', colors: ['blue', 'yellow'], vertical: true, topmark: { shape: 'cross_upright', color: 'yellow' } }, light: { characteristic: 'Al.Bu.Y 3s', color: 'Bu' }, purpose: 'Se usa para señalar peligros descubiertos recientemente que no figuran en las cartas náuticas.' },
+];
+
+
+function renderBuoySchematic(data: any) {
+    const { shape, colors, vertical } = data.daymark;
+    const { shape: tmShape, color: tmColor, arrangement: tmArr } = data.daymark.topmark || {};
+    let body = '';
+    let topmark = '';
+
+    const bodyHeight = 120;
+    const bodyWidth = 80;
+    const cx = 60; // Center X
+    const bodyTopY = 220 - bodyHeight;
+
+    // Body Color Bands
+    if (vertical) { // Vertical stripes
+        const stripeWidth = bodyWidth / colors.length;
+        colors.forEach((c: string, i: number) => {
+            body += `<rect x="${cx - bodyWidth/2 + i*stripeWidth}" y="${bodyTopY}" width="${stripeWidth}" height="${bodyHeight}" class="buoy-${c.toLowerCase()}" />`;
+        });
+    } else { // Horizontal bands
+        const bandHeight = bodyHeight / colors.length;
+        colors.forEach((c: string, i: number) => {
+            body += `<rect x="${cx - bodyWidth/2}" y="${bodyTopY + i*bandHeight}" width="${bodyWidth}" height="${bandHeight}" class="buoy-${c.toLowerCase()}" />`;
+        });
+    }
+    
+    // Body Shape
+    let bodyClipPath = '';
+    switch (shape) {
+        case 'conical': bodyClipPath = `polygon(${cx} ${bodyTopY}, ${cx + bodyWidth/2} ${bodyTopY + bodyHeight}, ${cx - bodyWidth/2} ${bodyTopY + bodyHeight})`; break;
+        case 'can': bodyClipPath = `rect(${cx - bodyWidth/2}, ${bodyTopY}, ${bodyWidth}, ${bodyHeight})`; break;
+        case 'spherical': bodyClipPath = `circle(${cx}, ${bodyTopY + bodyHeight/2}, ${bodyWidth/2})`; break;
+        default: bodyClipPath = `rect(${cx - bodyWidth/2 + 15}, ${bodyTopY}, ${bodyWidth - 30}, ${bodyHeight})`; break; // Pillar
+    }
+    
+    // Topmark
+    if (tmShape) {
+        const tmBaseY = bodyTopY - 10;
+        const tmColorClass = `buoy-${tmColor.toLowerCase()}`;
+        switch(tmShape) {
+            case 'cone': topmark = `<polygon points="${cx},${tmBaseY-30} ${cx+15},${tmBaseY} ${cx-15},${tmBaseY}" class="${tmColorClass}" />`; break;
+            case 'can': topmark = `<rect x="${cx-12}" y="${tmBaseY-25}" width="24" height="25" class="${tmColorClass}" />`; break;
+            case 'sphere': topmark = `<circle cx="${cx}" cy="${tmBaseY-15}" r="15" class="${tmColorClass}" />`; break;
+            case 'cross': topmark = `<path d="M ${cx-15},${tmBaseY-15} L ${cx+15},${tmBaseY-15} M ${cx},${tmBaseY-30} L ${cx},${tmBaseY}" stroke="${tmColor}" stroke-width="5" />`; break;
+            case 'cross_upright': topmark = `<path d="M ${cx-20},${tmBaseY-15} L ${cx+20},${tmBaseY-15} M ${cx},${tmBaseY-35} L ${cx},${tmBaseY+5}" stroke="${tmColor}" stroke-width="6" />`; break;
+            case 'double_sphere': topmark = `<circle cx="${cx}" cy="${tmBaseY-15}" r="12" class="${tmColorClass}" /><circle cx="${cx}" cy="${tmBaseY-45}" r="12" class="${tmColorClass}" />`; break;
+            case 'double_cone':
+                const cone1Up = `M ${cx},${tmBaseY-30} L ${cx+15},${tmBaseY} L ${cx-15},${tmBaseY} Z`;
+                const cone1Down = `M ${cx},${tmBaseY} L ${cx+15},${tmBaseY-30} L ${cx-15},${tmBaseY-30} Z`;
+                const cone2Up = `M ${cx},${tmBaseY-65} L ${cx+15},${tmBaseY-35} L ${cx-15},${tmBaseY-35} Z`;
+                const cone2Down = `M ${cx},${tmBaseY-35} L ${cx+15},${tmBaseY-65} L ${cx-15},${tmBaseY-65} Z`;
+                if(tmArr === 'up') topmark = `<path d="${cone1Up}" class="${tmColorClass}" /><path d="${cone2Up}" class="${tmColorClass}" />`;
+                if(tmArr === 'down') topmark = `<path d="${cone1Down}" class="${tmColorClass}" /><path d="${cone2Down}" class="${tmColorClass}" />`;
+                if(tmArr === 'base_to_base') topmark = `<path d="${cone1Up}" class="${tmColorClass}" /><path d="${cone2Down.replace(/-35/g, '-32').replace(/-65/g, '-62')}" class="${tmColorClass}" />`;
+                if(tmArr === 'point_to_point') topmark = `<path d="${cone1Down}" class="${tmColorClass}" /><path d="${cone2Up.replace(/-35/g, '-32').replace(/-65/g, '-62')}" class="${tmColorClass}" />`;
+                break;
+        }
+    }
+    
+    return `
+        <svg class="buoy-schematic-svg" viewBox="0 0 120 220">
+            <defs><clipPath id="bodyClip"><path d="${bodyClipPath}" /></clipPath></defs>
+            <g clip-path="url(#bodyClip)">${body}</g>
+            <path d="${bodyClipPath}" fill="none" class="buoy-stroke" />
+            <g>${topmark}</g>
+            <circle cx="60" cy="50" r="15" class="buoy-light-el" id="buoy-light" />
+        </svg>
+    `;
 }
 
+function initializeBuoySimulator() {
+    const categorySelector = document.getElementById('buoy-category-selector');
+    const typeSelector = document.getElementById('buoy-type-selector');
+    const regionSelector = document.getElementById('buoy-region-selector');
+    const regionInput = document.getElementById('buoy-region-input') as HTMLInputElement;
+    const schematicContainer = document.getElementById('buoy-schematic-container');
+    const infoPanel = document.getElementById('buoy-info-panel');
+
+    if (!categorySelector || !typeSelector || !schematicContainer || !infoPanel || !regionSelector) return;
+    
+    const categories = [...new Set(IALA_BUOY_DATA.map(b => b.category))];
+    categorySelector.innerHTML = categories.map(c => `<button class="buoy-selector-btn" data-category="${c}">${c}</button>`).join('');
+
+    let currentCategory = '';
+    let currentRegion = 'A';
+
+    const updateSimulator = (buoyData: any) => {
+        schematicContainer.innerHTML = renderBuoySchematic(buoyData);
+        infoPanel.innerHTML = `
+            <h4>${buoyData.category} - ${buoyData.type}</h4>
+            <p><strong>Día:</strong> Forma ${buoyData.daymark.shape}, colores ${buoyData.daymark.colors.join(' y ')}${buoyData.daymark.vertical ? ' (vertical)' : ''}.</p>
+            <p><strong>Luz:</strong> ${buoyData.light.characteristic}</p>
+            <p class="purpose-text">${buoyData.purpose}</p>
+        `;
+        const lightEl = document.getElementById('buoy-light');
+        const config = parseLightCharacteristic(buoyData.light.characteristic);
+        if (lightEl && config) {
+            runSimulation(lightEl, infoPanel, config);
+        }
+    }
+
+    const renderTypeButtons = () => {
+        const typesForCategory = IALA_BUOY_DATA
+            .filter(b => b.category === currentCategory && (b.region === 'Both' || b.region === currentRegion));
+        
+        typeSelector.innerHTML = typesForCategory.map(t => `<button class="buoy-selector-btn" data-type="${t.type}">${t.type}</button>`).join('');
+        
+        // Auto-select first type if available
+        if (typesForCategory.length > 0) {
+            typeSelector.querySelector('button')?.classList.add('active');
+            updateSimulator(typesForCategory[0]);
+        } else {
+             schematicContainer.innerHTML = '';
+             infoPanel.innerHTML = '<p>No hay señales de este tipo para la región seleccionada.</p>';
+        }
+    }
+
+    categorySelector.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const btn = target.closest<HTMLButtonElement>('.buoy-selector-btn');
+        if (btn) {
+            currentCategory = btn.dataset.category || '';
+            categorySelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            regionSelector.style.display = (currentCategory === 'Laterales' || currentCategory === 'Canal Preferido') ? 'flex' : 'none';
+            
+            renderTypeButtons();
+        }
+    });
+
+    typeSelector.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const btn = target.closest<HTMLButtonElement>('.buoy-selector-btn');
+        if (btn) {
+            const type = btn.dataset.type;
+            typeSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const buoyData = IALA_BUOY_DATA.find(b => b.category === currentCategory && b.type === type && (b.region === 'Both' || b.region === currentRegion));
+            if (buoyData) {
+                updateSimulator(buoyData);
+            }
+        }
+    });
+
+    regionInput.addEventListener('change', () => {
+        currentRegion = regionInput.checked ? 'B' : 'A';
+        renderTypeButtons();
+    });
+
+    // Initial state
+    categorySelector.querySelector('button')?.click();
+}
 
 // --- SOSGEN LOGIC ---
 async function initializeSosgen() {
@@ -1094,8 +1367,8 @@ function initializePhoneDirectory() {
         const searchTerm = filter.toLowerCase().trim();
         const filteredData = searchTerm === '' ? PHONE_DIRECTORY_DATA : PHONE_DIRECTORY_DATA.filter(entry => 
             entry.name.toLowerCase().includes(searchTerm) ||
-            entry.location.toLowerCase().includes(searchTerm) ||
-            entry.number.includes(searchTerm) ||
+            entry.phones.some(p => p.includes(searchTerm)) ||
+            (entry.email && entry.email.toLowerCase().includes(searchTerm)) ||
             entry.keywords.some(k => k.toLowerCase().includes(searchTerm))
         );
 
@@ -1103,14 +1376,20 @@ function initializePhoneDirectory() {
             listContainer.innerHTML = `<p class="drill-placeholder">No se encontraron resultados.</p>`;
             return;
         }
+        const phoneIcon = `<svg viewBox="0 0 16 16"><path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.678.678 0 0 0 .178.643l2.457 2.457a.678.678 0 0 0 .644.178l2.189-.547a1.745 1.745 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.634 18.634 0 0 1-7.01-4.42 18.634 18.634 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877L1.885.511z"/></svg>`;
+        const faxIcon = `<svg viewBox="0 0 16 16"><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1M4 5.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 0-1h-7a.5.5 0 0 0-.5.5M4 8a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 0-1h-7A.5.5 0 0 0 4 8m0 2.5a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 0-1h-4a.5.5 0 0 0-.5.5"/></svg>`;
+        const emailIcon = `<svg viewBox="0 0 16 16"><path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414zM0 4.697v7.104l5.803-3.558zM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586zm3.436-.586L16 11.801V4.697z"/></svg>`;
 
         listContainer.innerHTML = filteredData.map(entry => `
             <div class="phone-entry-card">
-                <div class="phone-entry-info">
-                    <div class="name">${entry.name}</div>
-                    <div class="location">${entry.location}</div>
+                <div class="phone-entry-header">
+                     <h4 class="phone-entry-name">${entry.name}</h4>
                 </div>
-                <div class="phone-entry-number">${entry.number}</div>
+                <div class="phone-entry-contact-grid">
+                    ${entry.phones.map(p => `<div class="phone-entry-contact-item">${phoneIcon}<span>${p}</span></div>`).join('')}
+                    ${entry.fax ? `<div class="phone-entry-contact-item">${faxIcon}<span>${entry.fax}</span></div>` : ''}
+                    ${entry.email ? `<div class="phone-entry-contact-item">${emailIcon}<a href="mailto:${entry.email}">${entry.email}</a></div>` : ''}
+                </div>
             </div>
         `).join('');
     };
