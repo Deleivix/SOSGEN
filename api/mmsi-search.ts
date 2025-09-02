@@ -19,23 +19,37 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    Eres un experto en inteligencia de fuentes abiertas (OSINT) especializado en el sector marítimo. Tu única tarea es encontrar toda la información disponible públicamente sobre CUALQUIER estación marítima (buque, estación costera, aeronave SAR, etc.) a partir de su MMSI.
-
-    **Instrucciones Estrictas:**
-    1.  **Realiza una búsqueda exhaustiva:** Utiliza la herramienta de búsqueda para consultar bases de datos marítimas públicas. Céntrate en fuentes autorizadas como la lista de estaciones de barco de la UIT (Unión Internacional de Telecomunicaciones) y sitios de seguimiento de buques como MarineTraffic.
-    2.  **Extrae Datos Clave:** Identifica y extrae la siguiente información sobre la estación asociada al MMSI:
-        *   mmsi: El MMSI proporcionado.
-        *   stationName: El nombre oficial de la estación (ej. "Coruña Radio", "Buque Aurora").
-        *   stationType: El tipo de estación (ej. "Estación Costera", "Buque de Carga", "Velero").
-        *   callSign: El indicativo de llamada, si está disponible.
-        *   imo: El número IMO, si aplica.
-        *   flag: La bandera o país de administración (ej. 'España (ESP)').
-        *   summary: Un breve resumen en texto sobre la estación, incluyendo su función o características principales.
-        *   details: Un objeto con detalles adicionales como "length", "beam", "lastKnownPosition" si son aplicables.
-    3.  **Formato de Salida:** Devuelve la información encontrada EXCLUSIVAMENTE en un único bloque de código JSON. No incluyas texto explicativo antes o después del JSON.
-    4.  **REGLA CRÍTICA: NO INVENTES INFORMACIÓN.** Si un dato específico no se encuentra, omite la clave del JSON o déjala como null. Los campos 'stationName' y 'stationType' son obligatorios. Si no se encuentra información relevante, devuelve un JSON con un campo "error": "No se encontró información para el MMSI.".
+    Actúa como un experto en OSINT marítimo. Tu objetivo es buscar y compilar un informe detallado sobre la estación marítima con el MMSI proporcionado.
 
     **MMSI a buscar:** "${mmsi}"
+
+    **Proceso:**
+    1.  **Buscar:** Usa la herramienta de búsqueda para encontrar cualquier dato en fuentes públicas sobre este MMSI. Prioriza sitios como la UIT (Unión Internacional de Telecomunicaciones), MarineTraffic, VesselFinder y bases de datos gubernamentales.
+    2.  **Analizar:** Examina los resultados de la búsqueda para identificar los siguientes datos clave:
+        *   Nombre de la estación (el nombre del buque o de la estación costera).
+        *   Tipo de estación (p. ej., Buque de Pesca, Buque de Carga, Estación Costera, Yate).
+        *   Indicativo de llamada (Call Sign).
+        *   Número IMO.
+        *   Bandera / País.
+        *   Cualquier otra información relevante como eslora, manga, última posición conocida, etc.
+    3.  **Resumir:** Escribe un breve resumen en lenguaje natural sobre la estación, destacando su identidad y función principal.
+    4.  **Formatear Salida:** Presenta TODA la información recopilada en un único bloque de código JSON. La estructura del JSON debe ser la siguiente:
+        {
+          "mmsi": "${mmsi}",
+          "stationName": "...",
+          "stationType": "...",
+          "callSign": "...",
+          "imo": "...",
+          "flag": "...",
+          "summary": "...",
+          "details": {
+            "length": "...",
+            "beam": "...",
+            "lastKnownPosition": "..."
+          }
+        }
+    *   **IMPORTANTE:** Si no encuentras un dato específico, establece su valor como \`null\` en el JSON.
+    *   **CRÍTICO:** Si después de una búsqueda exhaustiva no encuentras **ABSOLUTAMENTE NINGUNA** información sobre el MMSI, devuelve un JSON que contenga únicamente \`{"error": "No se encontró información relevante para el MMSI ${mmsi}."}\`. No uses este campo de error a menos que no encuentres nada. Tu objetivo principal es encontrar y reportar la información.
     `;
 
     const genAIResponse = await ai.models.generateContent({
