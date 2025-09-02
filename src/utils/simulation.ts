@@ -419,7 +419,7 @@ function getBuoyBody(daymark: any, stroke: string): string {
         if (shape === 'can') return `<rect x="35" y="${y}" width="30" height="${h}" fill="${getFill(colors[0])}" stroke="${stroke}" />`;
         if (shape === 'conical') return `<polygon points="30,${y+h} 70,${y+h} 50,${y}" fill="${getFill(colors[0])}" stroke="${stroke}" />`;
         if (shape === 'spherical') return `<circle cx="50" cy="${y+h/2}" r="25" fill="${getFill(colors[0])}" stroke="${stroke}" />`;
-        return `<rect x="40" y="${y}" width="20" height="${h}" fill="${getFill(colors[0])}" stroke="${stroke}" />`; // Pillar
+        return `<rect x="36" y="${y}" width="28" height="${h}" fill="${getFill(colors[0])}" stroke="${stroke}" />`; // Pillar
     } else {
         let bodySvg = '';
         if (vertical) {
@@ -434,7 +434,7 @@ function getBuoyBody(daymark: any, stroke: string): string {
                     const bottomW = 20 + (i + 1) * 10;
                     bodySvg += `<polygon points="${50-bottomW/2},${partY+partH} ${50+bottomW/2},${partY+partH} ${50+topW/2},${partY} ${50-topW/2},${partY}" fill="${getFill(c)}" stroke="${stroke}"/>`;
                 } else {
-                    bodySvg += `<rect x="${shape === 'can' ? 35:40}" y="${partY}" width="${shape === 'can' ? 30:20}" height="${partH}" fill="${getFill(c)}" stroke="${stroke}" />`;
+                    bodySvg += `<rect x="${shape === 'can' ? 35:36}" y="${partY}" width="${shape === 'can' ? 30:28}" height="${partH}" fill="${getFill(c)}" stroke="${stroke}" />`;
                 }
             });
         }
@@ -458,7 +458,7 @@ function getBuoyTopmark(topmark: any, stroke: string): string {
             if (arrangement === 'up') return `<g><polygon points="40,${y} 60,${y} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y-15} 60,${y-15} 50,${y-30}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
             if (arrangement === 'down') return `<g><polygon points="40,${y-15} 60,${y-15} 50,${y}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y-30} 60,${y-30} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
             if (arrangement === 'base_to_base') return `<g><polygon points="40,${y-7.5} 60,${y-7.5} 50,${y-22.5}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y-7.5} 60,${y-7.5} 50,${y+7.5}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
-            if (arrangement === 'point_to_point') return `<g><polygon points="40,${y-15} 60,${y-15} 50,${y}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y} 60,${y} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
+            if (arrangement === 'point_to_point') return `<g><polygon points="40,${y-30} 60,${y-30} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y} 60,${y} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
             break;
     }
     return '';
