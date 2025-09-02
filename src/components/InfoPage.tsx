@@ -237,14 +237,13 @@ function renderMmsiResults(data: any, container: HTMLElement) {
     const { details, sources } = data;
     const na = 'No disponible';
 
-    const detailsMap: { [key: string]: string | undefined } = {
+    const detailsMap: { [key: string]: string | null | undefined } = {
         'MMSI': details.mmsi,
         'Indicativo': details.callSign,
         'OMI': details.imo,
         'Bandera': details.flag,
-        'Eslora': details.details?.length,
-        'Manga': details.details?.beam,
-        'Últ. Posición': details.details?.lastKnownPosition,
+        'Eslora': details.length,
+        'Manga': details.beam,
     };
 
     let detailsHtml = '';

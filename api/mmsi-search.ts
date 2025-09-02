@@ -19,37 +19,42 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    Actúa como un experto en OSINT marítimo. Tu objetivo es buscar y compilar un informe detallado sobre la estación marítima con el MMSI proporcionado.
+    You are a highly-skilled maritime OSINT (Open-Source Intelligence) analyst. Your task is to find public information for the maritime station with MMSI: "${mmsi}".
 
-    **MMSI a buscar:** "${mmsi}"
-
-    **Proceso:**
-    1.  **Buscar:** Usa la herramienta de búsqueda para encontrar cualquier dato en fuentes públicas sobre este MMSI. Prioriza sitios como la UIT (Unión Internacional de Telecomunicaciones), MarineTraffic, VesselFinder y bases de datos gubernamentales.
-    2.  **Analizar:** Examina los resultados de la búsqueda para identificar los siguientes datos clave:
-        *   Nombre de la estación (el nombre del buque o de la estación costera).
-        *   Tipo de estación (p. ej., Buque de Pesca, Buque de Carga, Estación Costera, Yate).
-        *   Indicativo de llamada (Call Sign).
-        *   Número IMO.
-        *   Bandera / País.
-        *   Cualquier otra información relevante como eslora, manga, última posición conocida, etc.
-    3.  **Resumir:** Escribe un breve resumen en lenguaje natural sobre la estación, destacando su identidad y función principal.
-    4.  **Formatear Salida:** Presenta TODA la información recopilada en un único bloque de código JSON. La estructura del JSON debe ser la siguiente:
-        {
-          "mmsi": "${mmsi}",
-          "stationName": "...",
-          "stationType": "...",
-          "callSign": "...",
-          "imo": "...",
-          "flag": "...",
-          "summary": "...",
-          "details": {
-            "length": "...",
-            "beam": "...",
-            "lastKnownPosition": "..."
+    **Instructions:**
+    1.  Use the search tool to query public databases like ITU, MarineTraffic, VesselFinder, and official maritime authorities for the MMSI "${mmsi}".
+    2.  From the search results, extract the following information:
+        - stationName: The vessel name or coast station name.
+        - stationType: e.g., "Fishing Vessel", "Cargo Ship", "Coast Station".
+        - callSign: The official call sign.
+        - imo: The IMO number.
+        - flag: The flag state or country.
+        - summary: A brief, one or two-sentence summary of the station's identity and purpose.
+        - length: The vessel's length (if applicable).
+        - beam: The vessel's beam/width (if applicable).
+    3.  **Output Format:** You MUST return your findings in a single JSON object. Do not include any other text, explanations, or markdown formatting.
+        - **On Success:** If you find ANY information, return a JSON object like this. For any field you cannot find, use the value \`null\`.
+          \`\`\`json
+          {
+            "mmsi": "${mmsi}",
+            "stationName": "NUEVO ANITA",
+            "stationType": "Fishing Vessel",
+            "callSign": "EA6209",
+            "imo": null,
+            "flag": "Spain",
+            "summary": "El Nuevo Anita es un buque pesquero con bandera de España.",
+            "length": "23m",
+            "beam": null
           }
-        }
-    *   **IMPORTANTE:** Si no encuentras un dato específico, establece su valor como \`null\` en el JSON.
-    *   **REGLA DE ORO (CRÍTICO):** Tu misión es encontrar *algo*. Es extremadamente raro que un MMSI válido no tenga NINGÚN dato público. Antes de devolver un error, realiza múltiples búsquedas con variaciones si es necesario. Considera CUALQUIER pieza de información (nombre, tipo, bandera, etc.) como un ÉXITO. Solo devuelve el JSON de error como último recurso absoluto si estás 100% seguro de que no existe registro alguno en las fuentes consultadas. El JSON de error debe ser: \`{"error": "No se encontró información relevante para el MMSI ${mmsi}."}\`.
+          \`\`\`
+        - **On Absolute Failure:** Only if extensive searching yields absolutely NO relevant results for the MMSI "${mmsi}", you must return this specific JSON object:
+          \`\`\`json
+          {
+            "error": "No se encontró información relevante para el MMSI ${mmsi}."
+          }
+          \`\`\`
+
+    Your primary goal is to successfully return the data JSON, even if it's partially filled. The failure case is the absolute last resort.
     `;
 
     const genAIResponse = await ai.models.generateContent({
