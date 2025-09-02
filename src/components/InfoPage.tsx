@@ -237,24 +237,46 @@ function renderMmsiResults(data: any, container: HTMLElement) {
     const { details, sources } = data;
     const na = 'No disponible';
 
-    const flagCode = details.flag?.split('(')[1]?.replace(')', '').trim().toLowerCase() || '';
+    const detailsMap: { [key: string]: string | undefined } = {
+        'MMSI': details.mmsi,
+        'Indicativo': details.callSign,
+        'OMI': details.imo,
+        'Bandera': details.flag,
+        'Eslora': details.details?.length,
+        'Manga': details.details?.beam,
+        'Últ. Posición': details.details?.lastKnownPosition,
+    };
+
+    let detailsHtml = '';
+    for (const [label, value] of Object.entries(detailsMap)) {
+        if (value) {
+            detailsHtml += `
+                <div class="mmsi-detail-item">
+                    <span>${label}</span>
+                    <strong>${value}</strong>
+                </div>`;
+        }
+    }
 
     container.innerHTML = `
         <div class="mmsi-result-card">
             <h4 class="mmsi-result-title">
-                ${flagCode ? `<span class="fi fi-${flagCode}"></span>` : ''}
-                ${details.vesselName || 'Nombre Desconocido'}
+                ${details.stationName || 'Nombre Desconocido'}
             </h4>
-            <div class="mmsi-details-grid">
-                <div class="mmsi-detail-item"><span>MMSI</span><strong>${details.mmsi || na}</strong></div>
-                <div class="mmsi-detail-item"><span>Indicativo</span><strong>${details.callSign || na}</strong></div>
-                <div class="mmsi-detail-item"><span>OMI</span><strong>${details.imo || na}</strong></div>
-                <div class="mmsi-detail-item"><span>Bandera</span><strong>${details.flag || na}</strong></div>
-                <div class="mmsi-detail-item"><span>Tipo</span><strong>${details.vesselType || na}</strong></div>
-                <div class="mmsi-detail-item"><span>Eslora</span><strong>${details.length || na}</strong></div>
-                <div class="mmsi-detail-item"><span>Manga</span><strong>${details.beam || na}</strong></div>
-                <div class="mmsi-detail-item"><span>Últ. Posición</span><strong class="mmsi-position">${details.lastKnownPosition || na}</strong></div>
+            <div class="mmsi-detail-item" style="grid-column: 1 / -1; background-color: var(--bg-card); border: none; padding-left: 0; padding-top: 0; margin-bottom: 1rem;">
+                <span style="background: var(--accent-color); color: white; padding: .2em .5em; border-radius: 4px; font-size: .8em; font-weight: 500;">${details.stationType || na}</span>
             </div>
+            
+            ${details.summary ? `
+                <div class="mmsi-summary">
+                    <p>${details.summary}</p>
+                </div>
+            ` : ''}
+
+            <div class="mmsi-details-grid">
+                ${detailsHtml}
+            </div>
+
             ${(sources && sources.length > 0) ? `
             <div class="mmsi-sources">
                 <h5>Fuentes Consultadas</h5>
@@ -277,8 +299,11 @@ async function initializeMmsiSearcher() {
     const skeletonHtml = `
         <div class="mmsi-result-card">
             <div class="skeleton skeleton-title" style="width: 60%;"></div>
-            <div class="mmsi-details-grid">
-                ${Array(8).fill('<div class="skeleton skeleton-text" style="height: 2em;"></div>').join('')}
+            <div class="skeleton skeleton-text" style="width: 30%; height: 1.5em; margin-bottom: 1rem;"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text" style="width: 80%;"></div>
+            <div class="mmsi-details-grid" style="margin-top: 1.5rem;">
+                ${Array(6).fill('<div class="skeleton skeleton-text" style="height: 3em;"></div>').join('')}
             </div>
         </div>`;
 
@@ -306,7 +331,10 @@ async function initializeMmsiSearcher() {
             }
 
             const data = await response.json();
-            if (data.details && data.details.vesselName) {
+            
+            if (data.details?.error) {
+                 resultsContainer.innerHTML = `<p class="drill-placeholder">${data.details.error.replace('${mmsi}', mmsi)}</p>`;
+            } else if (data.details && data.details.stationName) {
                 renderMmsiResults(data, resultsContainer);
             } else {
                 resultsContainer.innerHTML = `<p class="drill-placeholder">No se encontró información para el MMSI ${mmsi}.</p>`;

@@ -19,22 +19,21 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    Eres un experto en inteligencia de fuentes abiertas (OSINT) especializado en el sector marítimo. Tu única tarea es encontrar toda la información disponible públicamente sobre un buque a partir de su MMSI.
+    Eres un experto en inteligencia de fuentes abiertas (OSINT) especializado en el sector marítimo. Tu única tarea es encontrar toda la información disponible públicamente sobre CUALQUIER estación marítima (buque, estación costera, aeronave SAR, etc.) a partir de su MMSI.
 
     **Instrucciones Estrictas:**
     1.  **Realiza una búsqueda exhaustiva:** Utiliza la herramienta de búsqueda para consultar bases de datos marítimas públicas. Céntrate en fuentes autorizadas como la lista de estaciones de barco de la UIT (Unión Internacional de Telecomunicaciones) y sitios de seguimiento de buques como MarineTraffic.
-    2.  **Extrae Datos Clave:** Identifica y extrae la siguiente información sobre el buque asociado al MMSI:
-        *   mmsi: El MMSI del buque.
-        *   vesselName: El nombre del buque.
-        *   callSign: El indicativo de llamada.
-        *   imo: El número IMO.
-        *   flag: La bandera (país de registro), incluyendo el código de país entre paréntesis (ej. 'España (ESP)').
-        *   vesselType: El tipo de buque.
-        *   length: La eslora (longitud) total en metros.
-        *   beam: La manga (anchura) en metros.
-        *   lastKnownPosition: La última posición conocida.
-    3.  **Formato de Salida:** Devuelve la información encontrada EXCLUSIVAMENTE en un único bloque de código JSON. No incluyas texto explicativo antes o después del JSON. La estructura debe ser: { "mmsi": "...", "vesselName": "...", /* etc */ }.
-    4.  **No Inventes Información:** Si un dato específico no se encuentra, omite la clave del JSON o déjala como null. El campo 'vesselName' es obligatorio. Si no se encuentra un nombre, devuelve un JSON vacío {}.
+    2.  **Extrae Datos Clave:** Identifica y extrae la siguiente información sobre la estación asociada al MMSI:
+        *   mmsi: El MMSI proporcionado.
+        *   stationName: El nombre oficial de la estación (ej. "Coruña Radio", "Buque Aurora").
+        *   stationType: El tipo de estación (ej. "Estación Costera", "Buque de Carga", "Velero").
+        *   callSign: El indicativo de llamada, si está disponible.
+        *   imo: El número IMO, si aplica.
+        *   flag: La bandera o país de administración (ej. 'España (ESP)').
+        *   summary: Un breve resumen en texto sobre la estación, incluyendo su función o características principales.
+        *   details: Un objeto con detalles adicionales como "length", "beam", "lastKnownPosition" si son aplicables.
+    3.  **Formato de Salida:** Devuelve la información encontrada EXCLUSIVAMENTE en un único bloque de código JSON. No incluyas texto explicativo antes o después del JSON.
+    4.  **REGLA CRÍTICA: NO INVENTES INFORMACIÓN.** Si un dato específico no se encuentra, omite la clave del JSON o déjala como null. Los campos 'stationName' y 'stationType' son obligatorios. Si no se encuentra información relevante, devuelve un JSON con un campo "error": "No se encontró información para el MMSI.".
 
     **MMSI a buscar:** "${mmsi}"
     `;

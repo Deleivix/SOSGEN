@@ -433,12 +433,18 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .mmsi-result-title {
     font-size: 1.5rem;
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+.mmsi-summary {
+    grid-column: 1 / -1;
+    margin: 0.5rem 0 1.5rem 0;
+    line-height: 1.6;
+    color: var(--text-secondary);
 }
 .mmsi-details-grid {
     display: grid;
