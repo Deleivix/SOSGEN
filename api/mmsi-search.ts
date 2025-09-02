@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
 export default async function handler(
   request: VercelRequest,
@@ -18,38 +18,23 @@ export default async function handler(
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
-    const schema = {
-        type: Type.OBJECT,
-        properties: {
-            mmsi: { type: Type.STRING, description: "El MMSI del buque, que debe ser el mismo que se proporcionó en la entrada." },
-            vesselName: { type: Type.STRING, description: "El nombre del buque." },
-            callSign: { type: Type.STRING, description: "El indicativo de llamada del buque." },
-            imo: { type: Type.STRING, description: "El número de la Organización Marítima Internacional (OMI) del buque." },
-            flag: { type: Type.STRING, description: "La bandera o país de registro del buque, incluyendo el código de país entre paréntesis (ej. 'España (ESP)')." },
-            vesselType: { type: Type.STRING, description: "El tipo de buque (ej. 'Cargo', 'Fishing', 'Sailing Vessel')." },
-            length: { type: Type.STRING, description: "La eslora (longitud) total del buque en metros (ej. '120m')." },
-            beam: { type: Type.STRING, description: "La manga (anchura) del buque en metros (ej. '20m')." },
-            lastKnownPosition: { type: Type.STRING, description: "La última posición conocida del buque, si está disponible, en formato 'latitud, longitud'." },
-        },
-        required: ["mmsi", "vesselName"]
-    };
-    
     const prompt = `
     Eres un experto en inteligencia de fuentes abiertas (OSINT) especializado en el sector marítimo. Tu única tarea es encontrar toda la información disponible públicamente sobre un buque a partir de su MMSI.
 
     **Instrucciones Estrictas:**
     1.  **Realiza una búsqueda exhaustiva:** Utiliza la herramienta de búsqueda para consultar bases de datos marítimas públicas. Céntrate en fuentes autorizadas como la lista de estaciones de barco de la UIT (Unión Internacional de Telecomunicaciones) y sitios de seguimiento de buques como MarineTraffic.
     2.  **Extrae Datos Clave:** Identifica y extrae la siguiente información sobre el buque asociado al MMSI:
-        *   Nombre del buque (vesselName)
-        *   Indicativo de llamada (callSign)
-        *   Número IMO
-        *   Bandera y país de registro (flag)
-        *   Tipo de buque (vesselType)
-        *   Eslora (length)
-        *   Manga (beam)
-        *   Última posición conocida (lastKnownPosition)
-    3.  **Formato de Salida:** Devuelve la información encontrada EXCLUSIVAMENTE en formato JSON, adhiriéndote estrictamente al esquema proporcionado.
-    4.  **No Inventes Información:** Si un dato específico no se encuentra, omite el campo del JSON. No inventes ni supongas ningún dato.
+        *   mmsi: El MMSI del buque.
+        *   vesselName: El nombre del buque.
+        *   callSign: El indicativo de llamada.
+        *   imo: El número IMO.
+        *   flag: La bandera (país de registro), incluyendo el código de país entre paréntesis (ej. 'España (ESP)').
+        *   vesselType: El tipo de buque.
+        *   length: La eslora (longitud) total en metros.
+        *   beam: La manga (anchura) en metros.
+        *   lastKnownPosition: La última posición conocida.
+    3.  **Formato de Salida:** Devuelve la información encontrada EXCLUSIVAMENTE en un único bloque de código JSON. No incluyas texto explicativo antes o después del JSON. La estructura debe ser: { "mmsi": "...", "vesselName": "...", /* etc */ }.
+    4.  **No Inventes Información:** Si un dato específico no se encuentra, omite la clave del JSON o déjala como null. El campo 'vesselName' es obligatorio. Si no se encuentra un nombre, devuelve un JSON vacío {}.
 
     **MMSI a buscar:** "${mmsi}"
     `;
@@ -58,15 +43,27 @@ export default async function handler(
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        responseMimeType: "application/json",
-        responseSchema: schema,
         temperature: 0.1,
         tools: [{googleSearch: {}}],
       }
     });
 
-    const resultText = genAIResponse.text.trim() || '{}';
-    const details = JSON.parse(resultText);
+    let resultText = genAIResponse.text.trim();
+    
+    // The model might return the JSON inside a markdown code block.
+    const jsonMatch = resultText.match(/```(json)?([\s\S]*?)```/);
+    if (jsonMatch && jsonMatch[2]) {
+        resultText = jsonMatch[2].trim();
+    }
+
+    let details = {};
+    try {
+        // If the response is empty, default to an empty object.
+        details = JSON.parse(resultText || '{}');
+    } catch (e) {
+        console.error("Failed to parse JSON from AI response:", resultText);
+        throw new Error("La IA devolvió una respuesta con formato inválido.");
+    }
 
     const sources = genAIResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
