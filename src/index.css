@@ -94,6 +94,27 @@ body {
 }
 #app { display: flex; flex-direction: column; }
 
+/* --- General Animations --- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
 /* --- Page Transitions --- */
 @keyframes page-enter {
     from {
@@ -426,6 +447,36 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .lighthouse-light.g.on, .buoy-light-el.g.on { background-color: #43A047; box-shadow: 0 0 15px #43A047, 0 0 30px #43A047; }
 .lighthouse-light.y.on, .buoy-light-el.y.on { background-color: #FDD835; box-shadow: 0 0 15px #FDD835, 0 0 30px #FDD835; }
 .lighthouse-light.bu.on, .buoy-light-el.bu.on { background-color: #1E88E5; box-shadow: 0 0 15px #1E88E5, 0 0 30px #1E88E5; }
+
+/* Lighthouse Controls */
+.lighthouse-controls-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: center;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    width: 100%;
+}
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.control-group label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.control-group .simulator-input {
+    padding: 0.5rem;
+    height: 38px; /* Match button height */
+}
+#lighthouse-group-input { width: 100px; }
+#lighthouse-period-input { width: 80px; }
+
 
 /* Buoy & Marks Simulator */
 #buoy-simulator-controls { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; width: 100%; align-items: center; }

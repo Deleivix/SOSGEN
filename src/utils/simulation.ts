@@ -1,4 +1,5 @@
 import { LIGHT_CHARACTERISTIC_TERMS } from "../data";
+import { debounce } from "./helpers";
 
 // --- SIMULATION STATE ---
 let simulationTimeoutId: number | null = null;
@@ -13,25 +14,36 @@ interface LightConfig {
 
 // --- LIGHTHOUSE SIMULATOR ---
 export function initializeLighthouseSimulator() {
-    const form = document.getElementById('lighthouse-simulator-form') as HTMLFormElement;
-    const input = document.getElementById('lighthouse-char-input') as HTMLInputElement;
+    const rhythmSelector = document.getElementById('lighthouse-rhythm-selector') as HTMLElement;
+    const groupInput = document.getElementById('lighthouse-group-input') as HTMLInputElement;
+    const groupContainer = document.getElementById('lighthouse-group-container') as HTMLElement;
+    const colorSelector = document.getElementById('lighthouse-color-selector') as HTMLElement;
+    const periodInput = document.getElementById('lighthouse-period-input') as HTMLInputElement;
     const lightElement = document.getElementById('lighthouse-light') as HTMLElement;
     const infoElement = document.getElementById('lighthouse-simulation-info') as HTMLElement;
 
-    if (!form || !input || !lightElement || !infoElement) return;
+    if (!rhythmSelector || !groupInput || !colorSelector || !periodInput || !lightElement || !infoElement || !groupContainer) return;
 
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
+    const updateLighthouseSimulation = () => {
         // Clear previous simulation
-        if (simulationTimeoutId) clearTimeout(simulationTimeoutId);
+        if (simulationTimeoutId) window.clearTimeout(simulationTimeoutId);
         simulationTimeoutId = null;
         lightElement.className = 'lighthouse-light';
 
-        const characteristic = input.value.trim();
-        if (!characteristic) {
-            infoElement.innerHTML = '<p>Introduzca la característica de una luz y pulse "Simular".</p>';
-            return;
+        const rhythm = rhythmSelector.querySelector<HTMLButtonElement>('.active')?.dataset.rhythm || 'FL';
+        const group = groupInput.value.trim();
+        const color = colorSelector.querySelector<HTMLButtonElement>('.active')?.dataset.color || 'W';
+        const period = periodInput.value || '10';
+
+        // Show/hide group input based on rhythm
+        const rhythmSupportsGroup = !['F', 'ISO'].includes(rhythm);
+        groupContainer.style.display = rhythmSupportsGroup ? 'flex' : 'none';
+
+        let characteristic = rhythm;
+        if (rhythmSupportsGroup && group) {
+            characteristic += `(${group})`;
         }
+        characteristic += ` ${color} ${period}s`;
 
         const config = parseLightCharacteristic(characteristic);
 
@@ -41,7 +53,33 @@ export function initializeLighthouseSimulator() {
             infoElement.innerHTML = generateCharacteristicDescription(config as LightConfig);
             runSimulation(config as LightConfig, lightElement);
         }
+    };
+
+    const debouncedUpdate = debounce(updateLighthouseSimulation, 300);
+
+    rhythmSelector.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'BUTTON') {
+            rhythmSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            target.classList.add('active');
+            debouncedUpdate();
+        }
     });
+    
+    colorSelector.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'BUTTON') {
+            colorSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            target.classList.add('active');
+            debouncedUpdate();
+        }
+    });
+
+    groupInput.addEventListener('input', debouncedUpdate);
+    periodInput.addEventListener('input', debouncedUpdate);
+    
+    // Initial simulation run
+    updateLighthouseSimulation();
 }
 
 
@@ -61,7 +99,7 @@ export function initializeBuoySimulator(buoyData: any[]) {
 
     const updateUI = () => {
         // Stop previous simulation
-        if (currentBuoySimId) clearTimeout(currentBuoySimId);
+        if (currentBuoySimId) window.clearTimeout(currentBuoySimId);
         currentBuoySimId = null;
         lightElement.className = 'buoy-light-el'; // Reset light classes
 
@@ -168,7 +206,7 @@ function parseLightCharacteristic(input: string): LightConfig | { error: string 
 
     const groupMatch = str.match(/\(([^)]+)\)/);
     if (groupMatch) {
-        result.group = result.rhythm === 'MO' ? [groupMatch[1]] : groupMatch[1].split('+').map(g => parseInt(g.trim(), 10));
+        result.group = result.rhythm === 'MO' ? [groupMatch[1]] : groupMatch[1].split('+').map(g => g.trim() === '' ? 0 : (isNaN(parseInt(g.trim(), 10)) ? g.trim() : parseInt(g.trim(), 10)));
     } else if (/^\d+$/.test(str)) {
         result.group = [parseInt(str, 10)];
     }
@@ -230,8 +268,8 @@ function generateCharacteristicDescription(config: LightConfig): string {
 // --- SIMULATION RUNNER ---
 function runSimulation(config: LightConfig, lightElement: HTMLElement) {
     const simIdRef = lightElement.id === 'lighthouse-light' ? 'simulationTimeoutId' : 'currentBuoySimId';
-    if (simIdRef === 'simulationTimeoutId' && simulationTimeoutId) clearTimeout(simulationTimeoutId);
-    if (simIdRef === 'currentBuoySimId' && currentBuoySimId) clearTimeout(currentBuoySimId);
+    if (simIdRef === 'simulationTimeoutId' && simulationTimeoutId) window.clearTimeout(simulationTimeoutId);
+    if (simIdRef === 'currentBuoySimId' && currentBuoySimId) window.clearTimeout(currentBuoySimId);
     
     const periodMs = config.period * 1000;
     const sequence: { duration: number; on: boolean; color?: string; }[] = [];
@@ -254,7 +292,7 @@ function runSimulation(config: LightConfig, lightElement: HTMLElement) {
         case 'ISO': flash(config.period / 2, true); flash(config.period / 2, false); break;
         case 'OC': {
             if (config.group.length > 0) {
-                 const group = config.group as number[]; // This is the fix: assert type to number[]
+                 const group = config.group as number[];
                  const totalOffTime = group.reduce((a, b) => a + b, 0) * 1000;
                  const onDuration = (periodMs - totalOffTime) / group.length;
                  group.forEach(off => { flash(onDuration / 1000, true); flash(off, false); });
@@ -294,7 +332,7 @@ function runSimulation(config: LightConfig, lightElement: HTMLElement) {
         lightElement.className = lightClass; // Reset
         if (currentStep.on) lightElement.classList.add('on', currentStep.color || defaultColor);
         
-        const simId = setTimeout(() => {
+        const simId = window.setTimeout(() => {
             currentIndex = (currentIndex + 1) % sequence.length;
             animate();
         }, currentStep.duration);
