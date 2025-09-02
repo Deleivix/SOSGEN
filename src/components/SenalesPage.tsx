@@ -40,6 +40,15 @@ export function renderMaritimeSignalsSimulator(container: HTMLElement) {
                         </div>
                     </div>
 
+                    <div class="form-divider">
+                        <span>O introducir manualmente</span>
+                    </div>
+
+                    <div class="simulator-form">
+                        <input type="text" id="lighthouse-char-input" class="simulator-input" placeholder="Ej: Gp Oc(2+1) W 15s">
+                        <button id="lighthouse-simulate-btn" class="simulator-btn">Simular</button>
+                    </div>
+
                     <div class="lighthouse-schematic" aria-hidden="true">
                         <div class="lighthouse-tower"></div>
                         <div class="lighthouse-top">

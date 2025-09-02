@@ -14,72 +14,130 @@ interface LightConfig {
 
 // --- LIGHTHOUSE SIMULATOR ---
 export function initializeLighthouseSimulator() {
+    // Get all elements
     const rhythmSelector = document.getElementById('lighthouse-rhythm-selector') as HTMLElement;
     const groupInput = document.getElementById('lighthouse-group-input') as HTMLInputElement;
     const groupContainer = document.getElementById('lighthouse-group-container') as HTMLElement;
     const colorSelector = document.getElementById('lighthouse-color-selector') as HTMLElement;
     const periodInput = document.getElementById('lighthouse-period-input') as HTMLInputElement;
+    const charInput = document.getElementById('lighthouse-char-input') as HTMLInputElement;
+    const simulateBtn = document.getElementById('lighthouse-simulate-btn') as HTMLButtonElement;
     const lightElement = document.getElementById('lighthouse-light') as HTMLElement;
     const infoElement = document.getElementById('lighthouse-simulation-info') as HTMLElement;
 
-    if (!rhythmSelector || !groupInput || !colorSelector || !periodInput || !lightElement || !infoElement || !groupContainer) return;
-
-    const updateLighthouseSimulation = () => {
-        // Clear previous simulation
+    if (!rhythmSelector || !groupInput || !colorSelector || !periodInput || !charInput || !simulateBtn || !lightElement || !infoElement || !groupContainer) return;
+    
+    // --- CORE SIMULATION FUNCTION ---
+    const runLighthouseSimulation = (config: LightConfig | { error: string }) => {
         if (simulationTimeoutId) window.clearTimeout(simulationTimeoutId);
         simulationTimeoutId = null;
         lightElement.className = 'lighthouse-light';
-
-        const rhythm = rhythmSelector.querySelector<HTMLButtonElement>('.active')?.dataset.rhythm || 'FL';
-        const group = groupInput.value.trim();
-        const color = colorSelector.querySelector<HTMLButtonElement>('.active')?.dataset.color || 'W';
-        const period = periodInput.value || '10';
-
-        // Show/hide group input based on rhythm
-        const rhythmSupportsGroup = !['F', 'ISO'].includes(rhythm);
-        groupContainer.style.display = rhythmSupportsGroup ? 'flex' : 'none';
-
-        let characteristic = rhythm;
-        if (rhythmSupportsGroup && group) {
-            characteristic += `(${group})`;
-        }
-        characteristic += ` ${color} ${period}s`;
-
-        const config = parseLightCharacteristic(characteristic);
-
+        
         if ('error' in config) {
-            infoElement.innerHTML = `<p class="error">${(config as any).error}</p>`;
+            infoElement.innerHTML = `<p class="error">${config.error}</p>`;
         } else {
             infoElement.innerHTML = generateCharacteristicDescription(config as LightConfig);
             runSimulation(config as LightConfig, lightElement);
         }
     };
+    
+    // --- SYNC FUNCTIONS ---
+    
+    // Reads selectors and returns a characteristic string
+    const getCharacteristicFromSelectors = (): string => {
+        const rhythm = rhythmSelector.querySelector<HTMLButtonElement>('.active')?.dataset.rhythm || 'FL';
+        const group = groupInput.value.trim();
+        const color = colorSelector.querySelector<HTMLButtonElement>('.active')?.dataset.color || 'W';
+        const period = periodInput.value || '10';
 
-    const debouncedUpdate = debounce(updateLighthouseSimulation, 300);
+        const rhythmSupportsGroup = !['F', 'ISO'].includes(rhythm);
+        groupContainer.style.display = rhythmSupportsGroup ? 'flex' : 'none';
+        
+        let characteristic = rhythm;
+        if (rhythmSupportsGroup && group) {
+            characteristic += `(${group})`;
+        }
+        characteristic += ` ${color} ${period}s`;
+        return characteristic;
+    };
+    
+    // Reads text input and updates selector UI
+    const updateSelectorsFromTextInput = () => {
+        const characteristic = charInput.value;
+        if (!characteristic) return { error: "Introduzca una característica." };
+        const config = parseLightCharacteristic(characteristic);
 
+        if (!('error' in config)) {
+            // Update Rhythm
+            rhythmSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            const rhythmBtn = rhythmSelector.querySelector<HTMLButtonElement>(`[data-rhythm="${config.rhythm}"]`);
+            if (rhythmBtn) rhythmBtn.classList.add('active');
+
+            // Update Group
+            const rhythmSupportsGroup = !['F', 'ISO'].includes(config.rhythm);
+            groupContainer.style.display = rhythmSupportsGroup ? 'flex' : 'none';
+            if (rhythmSupportsGroup) {
+                groupInput.value = config.group.join('+');
+            } else {
+                groupInput.value = '';
+            }
+            
+            // Update Color
+            colorSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            const colorBtn = colorSelector.querySelector<HTMLButtonElement>(`[data-color="${config.color}"]`);
+            if (colorBtn) colorBtn.classList.add('active');
+            
+            // Update Period
+            periodInput.value = String(config.period);
+        }
+        
+        return config;
+    };
+
+    // --- EVENT HANDLERS ---
+    
+    // Handles updates from the interactive selectors
+    const handleSelectorChange = () => {
+        const characteristic = getCharacteristicFromSelectors();
+        charInput.value = characteristic;
+        const config = parseLightCharacteristic(characteristic);
+        runLighthouseSimulation(config);
+    };
+
+    const debouncedSelectorUpdate = debounce(handleSelectorChange, 300);
+
+    // Attach listeners to selectors
     rhythmSelector.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
         if (target.tagName === 'BUTTON') {
+            if (target.classList.contains('active')) return;
             rhythmSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
             target.classList.add('active');
-            debouncedUpdate();
+            debouncedSelectorUpdate();
         }
     });
     
     colorSelector.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
         if (target.tagName === 'BUTTON') {
+            if (target.classList.contains('active')) return;
             colorSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
             target.classList.add('active');
-            debouncedUpdate();
+            debouncedSelectorUpdate();
         }
     });
 
-    groupInput.addEventListener('input', debouncedUpdate);
-    periodInput.addEventListener('input', debouncedUpdate);
+    groupInput.addEventListener('input', debouncedSelectorUpdate);
+    periodInput.addEventListener('input', debouncedSelectorUpdate);
+    
+    // Attach listener to manual simulate button
+    simulateBtn.addEventListener('click', () => {
+        const config = updateSelectorsFromTextInput();
+        runLighthouseSimulation(config);
+    });
     
     // Initial simulation run
-    updateLighthouseSimulation();
+    handleSelectorChange();
 }
 
 

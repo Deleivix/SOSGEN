@@ -423,7 +423,7 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .phone-entry-contact-item a:hover { text-decoration: underline; }
 
 /* --- Maritime Signals Simulator --- */
-.simulator-form { display: flex; gap: 1rem; margin-bottom: 2rem; }
+.simulator-form { display: flex; gap: 1rem; margin-bottom: 1rem; width: 100%; max-width: 600px; }
 .simulator-input {
   flex-grow: 1; padding: 0.75rem; font-family: var(--font-mono); border: 1px solid var(--border-color);
   border-radius: 8px; background-color: var(--bg-main); color: var(--text-primary);
@@ -433,7 +433,7 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
   font-weight: 500; color: var(--text-inverted); background-color: var(--accent-color);
   border: none; border-radius: 8px; padding: 0.75rem 1.5rem; cursor: pointer;
 }
-.simulator-display { display: flex; flex-direction: column; align-items: center; gap: 2rem; padding-top: 1rem; }
+.simulator-display { display: flex; flex-direction: column; align-items: center; gap: 2rem; padding-top: 1rem; width: 100%; }
 .lighthouse-tower { background-color: #DDE2E7; } body.dark-theme .lighthouse-tower { background-color: #444; }
 .lighthouse-top { background-color: #B0B8C1; } body.dark-theme .lighthouse-top { background-color: #555; }
 .lighthouse-light { background-color: #798691; } body.dark-theme .lighthouse-light { background-color: #333; }
@@ -455,7 +455,7 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
     gap: 1.5rem;
     justify-content: center;
     align-items: flex-end;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     width: 100%;
 }
 .control-group {
@@ -476,6 +476,28 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 }
 #lighthouse-group-input { width: 100px; }
 #lighthouse-period-input { width: 80px; }
+
+.form-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    width: 80%;
+    margin: 1.5rem auto;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.form-divider::before,
+.form-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+.form-divider:not(:empty)::before {
+    margin-right: .5em;
+}
+.form-divider:not(:empty)::after {
+    margin-left: .5em;
+}
 
 
 /* Buoy & Marks Simulator */
