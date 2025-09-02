@@ -49,7 +49,7 @@ export default async function handler(
           }
         }
     *   **IMPORTANTE:** Si no encuentras un dato específico, establece su valor como \`null\` en el JSON.
-    *   **CRÍTICO:** Si después de una búsqueda exhaustiva no encuentras **ABSOLUTAMENTE NINGUNA** información sobre el MMSI, devuelve un JSON que contenga únicamente \`{"error": "No se encontró información relevante para el MMSI ${mmsi}."}\`. No uses este campo de error a menos que no encuentres nada. Tu objetivo principal es encontrar y reportar la información.
+    *   **REGLA DE ORO (CRÍTICO):** Tu misión es encontrar *algo*. Es extremadamente raro que un MMSI válido no tenga NINGÚN dato público. Antes de devolver un error, realiza múltiples búsquedas con variaciones si es necesario. Considera CUALQUIER pieza de información (nombre, tipo, bandera, etc.) como un ÉXITO. Solo devuelve el JSON de error como último recurso absoluto si estás 100% seguro de que no existe registro alguno en las fuentes consultadas. El JSON de error debe ser: \`{"error": "No se encontró información relevante para el MMSI ${mmsi}."}\`.
     `;
 
     const genAIResponse = await ai.models.generateContent({

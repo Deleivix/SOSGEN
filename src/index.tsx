@@ -4,12 +4,14 @@
 */
 import { APP_PAGE_ICONS, APP_PAGES } from './data';
 import { showTipOfTheDay } from './utils/helpers';
+import { renderDashboard } from './components/DashboardPage';
 import { renderSosgen } from './components/SosgenPage';
 import { renderRegistroOceano } from './components/RegistroOceanoPage';
 import { renderProtocolo } from './components/ProtocoloPage';
 import { renderMaritimeSignalsSimulator } from './components/SenalesPage';
 import { renderSimulacro } from './components/SimulacroPage';
 import { renderInfo } from './components/InfoPage';
+import { renderBitacora } from './components/BitacoraPage';
 
 const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
 const pageRenderStatus: { [key: number]: boolean } = {};
@@ -18,15 +20,17 @@ let isTransitioning = false;
 const animationDuration = 400; // ms, should match CSS animation duration
 
 const pageRenderers = [
+    renderDashboard,
     renderSosgen,
     renderRegistroOceano,
     renderProtocolo,
     renderMaritimeSignalsSimulator,
     renderSimulacro,
-    renderInfo
+    renderInfo,
+    renderBitacora,
 ];
 
-function switchToPage(pageIndex: number) {
+function switchToPage(pageIndex: number, subTabId?: string) {
     if (isTransitioning) return;
 
     const outgoingPanel = document.querySelector('.page-panel.active') as HTMLElement | null;
@@ -53,6 +57,14 @@ function switchToPage(pageIndex: number) {
         pageRenderStatus[pageIndex] = true;
     }
 
+    if (subTabId) {
+        // Use timeout to ensure the tab content is rendered and its own scripts are initialized
+        setTimeout(() => {
+            const subTabButton = incomingPanel?.querySelector<HTMLButtonElement>(`[data-target="${subTabId}"]`);
+            subTabButton?.click();
+        }, 0);
+    }
+
     setTimeout(() => {
         if (outgoingPanel) {
             outgoingPanel.classList.remove('is-exiting');
@@ -61,13 +73,15 @@ function switchToPage(pageIndex: number) {
     }, animationDuration);
 }
 
+// Expose to window for use in dashboard quick links
+(window as any).switchToPage = switchToPage;
 
 function renderApp(container: HTMLElement) {
     const navHtml = `
         <nav>
             <div class="nav-top"></div>
             <div class="nav-bottom">
-                <div class="nav-brand" style="cursor: pointer;" title="Ir a SOSGEN">
+                <div class="nav-brand" style="cursor: pointer;" title="Ir al Dashboard">
                     ${NEW_LOGO_SVG}
                     <span>SOSGEN</span>
                 </div>

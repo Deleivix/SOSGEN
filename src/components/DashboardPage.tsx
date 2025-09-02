@@ -37,7 +37,7 @@ export function renderDashboard(container: HTMLElement) {
                     <button class="secondary-btn" onclick="window.switchToPage(1)">Generar Mensaje SOSGEN</button>
                     <button class="secondary-btn" onclick="window.switchToPage(2, 'sub-tab-Programados')">Plantilla: Entrada de Guardia</button>
                     <button class="secondary-btn" onclick="window.switchToPage(2, 'sub-tab-Transmisiones')">Plantilla: Transmisión WX</button>
-                    <button class="secondary-btn" onclick="window.switchToPage(4)">Iniciar un Simulacro</button>
+                    <button class="secondary-btn" onclick="window.switchToPage(5)">Iniciar un Simulacro</button>
                 </div>
             </div>
 

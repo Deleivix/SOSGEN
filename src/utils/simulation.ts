@@ -230,7 +230,7 @@ export function initializeBuoySimulator(buoyData: any[]) {
 
 // --- PARSING LOGIC ---
 function parseLightCharacteristic(input: string): LightConfig | { error: string } {
-    let str = input.trim().toUpperCase().replace(/\./g, '');
+    let str = input.trim().toUpperCase().replace(/\./g, '').replace(/\s*\+\s*/g, '+');
     const result: Partial<LightConfig> = { group: [] };
 
     const periodMatch = str.match(/(\d+(\.\d+)?)S$/);
@@ -251,12 +251,21 @@ function parseLightCharacteristic(input: string): LightConfig | { error: string 
         str = str.substring(2).trim();
     }
     
-    const rhythmKeys = Object.keys(LIGHT_CHARACTERISTIC_TERMS).sort((a, b) => b.length - a.length);
-    for (const key of rhythmKeys) {
-        if (str.startsWith(key)) {
-            result.rhythm = key;
-            str = str.substring(key.length).trim();
-            break;
+    // Special case for South Cardinal Mark before generic parsing
+    if (str.includes('VQ(6)+LFL')) {
+        result.rhythm = 'VQ(6)+LFL';
+        str = str.replace('VQ(6)+LFL', '').trim();
+    } else if (str.includes('Q(6)+LFL')) {
+        result.rhythm = 'Q(6)+LFL';
+        str = str.replace('Q(6)+LFL', '').trim();
+    } else {
+        const rhythmKeys = Object.keys(LIGHT_CHARACTERISTIC_TERMS).sort((a, b) => b.length - a.length);
+        for (const key of rhythmKeys) {
+            if (str.startsWith(key)) {
+                result.rhythm = key;
+                str = str.substring(key.length).trim();
+                break;
+            }
         }
     }
 
@@ -276,6 +285,14 @@ function parseLightCharacteristic(input: string): LightConfig | { error: string 
 // --- DESCRIPTION GENERATION ---
 function generateCharacteristicDescription(config: LightConfig): string {
     const { rhythm, group, color, period, altColor } = config;
+
+    // Handle special rhythms first
+    if (rhythm === 'VQ(6)+LFL') {
+        return `<p class="desc-lang"><b>ES:</b> Luz de 6 centelleos muy rápidos seguidos de un destello largo, blanca, con un período de ${period} segundos.</p><hr class="info-divider"><p class="desc-lang"><b>EN:</b> 6 very quick flashes followed by one long flash, white, with a period of ${period} seconds.</p>`;
+    }
+     if (rhythm === 'Q(6)+LFL') {
+        return `<p class="desc-lang"><b>ES:</b> Luz de 6 centelleos seguidos de un destello largo, blanca, con un período de ${period} segundos.</p><hr class="info-divider"><p class="desc-lang"><b>EN:</b> 6 quick flashes followed by one long flash, white, with a period of ${period} seconds.</p>`;
+    }
 
     if (!LIGHT_CHARACTERISTIC_TERMS[rhythm]) return '<p class="error">Característica no reconocida.</p>';
     
@@ -357,11 +374,19 @@ function runSimulation(config: LightConfig, lightElement: HTMLElement) {
             } else { flash(periodMs * 0.75 / 1000, true); flash(periodMs * 0.25 / 1000, false); }
             break;
         }
-        case 'Q': case 'VQ': case 'UQ': {
-            const rate = config.rhythm === 'Q' ? 1 : (config.rhythm === 'VQ' ? 0.5 : 0.25);
-            createFlashes((config.group[0] as number) || Math.floor(config.period/rate), rate/2, rate/2);
+        case 'Q': createFlashes((config.group[0] as number) || Math.floor(config.period / 1), 0.4, 0.6); break;
+        case 'VQ': createFlashes((config.group[0] as number) || Math.floor(config.period / 0.5), 0.2, 0.3); break;
+        case 'UQ': createFlashes((config.group[0] as number) || Math.floor(config.period / 0.25), 0.1, 0.15); break;
+        case 'VQ(6)+LFL':
+            createFlashes(6, 0.2, 0.3); // 6 VQ flashes
+            flash(1.0, false); // Pause
+            flash(2.0, true);  // 1 LFl
             break;
-        }
+        case 'Q(6)+LFL':
+            createFlashes(6, 0.4, 0.6); // 6 Q flashes
+            flash(1.0, false); // Pause
+            flash(2.0, true);  // 1 LFl
+            break;
         case 'AL':
             if(altColor){ flash(config.period / 2, true, defaultColor); flash(config.period / 2, true, altColor); }
             else { flash(config.period, true); }
@@ -414,27 +439,39 @@ function getBuoyBody(daymark: any, stroke: string): string {
     const { colors, vertical, shape } = daymark;
     const getFill = (c:string) => `var(--buoy-${c.toLowerCase()})`;
     const y=60, h=60;
+    const pillarWidth = 32;
 
     if (colors.length === 1) {
         if (shape === 'can') return `<rect x="35" y="${y}" width="30" height="${h}" fill="${getFill(colors[0])}" stroke="${stroke}" />`;
         if (shape === 'conical') return `<polygon points="30,${y+h} 70,${y+h} 50,${y}" fill="${getFill(colors[0])}" stroke="${stroke}" />`;
         if (shape === 'spherical') return `<circle cx="50" cy="${y+h/2}" r="25" fill="${getFill(colors[0])}" stroke="${stroke}" />`;
-        return `<rect x="36" y="${y}" width="28" height="${h}" fill="${getFill(colors[0])}" stroke="${stroke}" />`; // Pillar
+        return `<rect x="${50 - pillarWidth / 2}" y="${y}" width="${pillarWidth}" height="${h}" fill="${getFill(colors[0])}" stroke="${stroke}" />`; // Pillar
     } else {
         let bodySvg = '';
-        if (vertical) {
-            const w = 100 / colors.length;
-            colors.forEach((c:string, i:number) => { bodySvg += `<rect x="${i*w + (50-w*colors.length/2)}" y="${y}" width="${w}" height="${h}" fill="${getFill(c)}" stroke="${stroke}" />`; });
-        } else {
+        if (vertical) { // For spherical or special buoys with vertical stripes
+            const w = pillarWidth; // Use fixed width for vertical stripes
+             if (shape === 'spherical') {
+                const clipPathId = `clip-${Date.now()}`;
+                bodySvg += `<defs><clipPath id="${clipPathId}"><circle cx="50" cy="${y+h/2}" r="25" /></clipPath></defs>`;
+                bodySvg += `<g clip-path="url(#${clipPathId})">`;
+                const stripeWidth = 50 / colors.length; // 50 is radius
+                colors.forEach((c:string, i:number) => { bodySvg += `<rect x="${25 + i * stripeWidth}" y="${y}" width="${stripeWidth}" height="${h}" fill="${getFill(c)}" />`; });
+                bodySvg += `</g>`;
+                bodySvg += `<circle cx="50" cy="${y+h/2}" r="25" fill="none" stroke="${stroke}" />`;
+            } else {
+                 const stripeWidth = w / colors.length;
+                 colors.forEach((c:string, i:number) => { bodySvg += `<rect x="${(50 - w/2) + i*stripeWidth}" y="${y}" width="${stripeWidth}" height="${h}" fill="${getFill(c)}" stroke="${stroke}" />`; });
+            }
+        } else { // Horizontal stripes
             const partH = h / colors.length;
             colors.forEach((c:string, i:number) => {
                 const partY = y + (i * partH);
                 if (shape === 'conical') {
-                    const topW = 20 + i * 10;
-                    const bottomW = 20 + (i + 1) * 10;
+                    const topW = 20 + (i * (30 / colors.length));
+                    const bottomW = 20 + ((i + 1) * (30 / colors.length));
                     bodySvg += `<polygon points="${50-bottomW/2},${partY+partH} ${50+bottomW/2},${partY+partH} ${50+topW/2},${partY} ${50-topW/2},${partY}" fill="${getFill(c)}" stroke="${stroke}"/>`;
                 } else {
-                    bodySvg += `<rect x="${shape === 'can' ? 35:36}" y="${partY}" width="${shape === 'can' ? 30:28}" height="${partH}" fill="${getFill(c)}" stroke="${stroke}" />`;
+                    bodySvg += `<rect x="${shape === 'can' ? 35 : (50-pillarWidth/2)}" y="${partY}" width="${shape === 'can' ? 30 : pillarWidth}" height="${partH}" fill="${getFill(c)}" stroke="${stroke}" />`;
                 }
             });
         }
@@ -458,7 +495,7 @@ function getBuoyTopmark(topmark: any, stroke: string): string {
             if (arrangement === 'up') return `<g><polygon points="40,${y} 60,${y} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y-15} 60,${y-15} 50,${y-30}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
             if (arrangement === 'down') return `<g><polygon points="40,${y-15} 60,${y-15} 50,${y}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y-30} 60,${y-30} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
             if (arrangement === 'base_to_base') return `<g><polygon points="40,${y-7.5} 60,${y-7.5} 50,${y-22.5}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y-7.5} 60,${y-7.5} 50,${y+7.5}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
-            if (arrangement === 'point_to_point') return `<g><polygon points="40,${y-30} 60,${y-30} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="40,${y} 60,${y} 50,${y-15}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
+            if (arrangement === 'point_to_point') return `<g><polygon points="42,${y-15} 58,${y-15} 50,${y-25}" fill="${getFill(color)}" stroke="${stroke}" /><polygon points="42,${y-15} 58,${y-15} 50,${y-5}" fill="${getFill(color)}" stroke="${stroke}" /></g>`;
             break;
     }
     return '';

@@ -31,7 +31,7 @@ export function logSosgenEvent(type: string, content: object): object | null {
 export function debounce(func: Function, delay: number) {
     let timeoutId: number;
     return function(this: any, ...args: any[]) {
-        clearTimeout(timeoutId);
+        window.clearTimeout(timeoutId);
         timeoutId = window.setTimeout(() => func.apply(this, args), delay);
     };
 }

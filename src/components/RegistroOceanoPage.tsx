@@ -57,7 +57,6 @@ function initializeRegistroOceano(container: HTMLElement) {
             const card = copyBtn.closest('.template-card');
             const body = card?.querySelector('.template-card-body');
             if(body) {
-                // FIX: handleCopy expects only one argument (the text to copy).
                 handleCopy(body.textContent || '');
             }
         }
