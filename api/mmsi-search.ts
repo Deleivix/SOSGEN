@@ -19,49 +19,51 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    You are a highly-skilled maritime OSINT (Open-Source Intelligence) analyst. Your task is to find public information for the maritime station with MMSI: "${mmsi}".
+    **ROLE:** You are an automated information extraction system.
 
-    **Instructions:**
-    1.  Use the search tool to query public databases like ITU, MarineTraffic, VesselFinder, and official maritime authorities for the MMSI "${mmsi}".
-    2.  From the search results, extract the following information:
-        - stationName: The vessel name or coast station name.
-        - stationType: e.g., "Fishing Vessel", "Cargo Ship", "Coast Station".
-        - callSign: The official call sign.
+    **TASK:** Your only task is to find information for the maritime station with MMSI "${mmsi}" and return it as a JSON object. For example, the MMSI 224013350 belongs to "Salvamar Altair".
+
+    **CRITICAL INSTRUCTIONS:**
+    1.  **SEARCH:** Use the provided search tool to find any public information about MMSI "${mmsi}". Search for terms like "MMSI ${mmsi}", "vessel ${mmsi}", etc. Be thorough.
+    2.  **EXTRACT:** From the search results, extract the following fields:
+        - stationName: The name of the vessel or station (e.g., "Salvamar Altair").
+        - stationType: The type of station (e.g., "Search and Rescue Vessel", "Fishing Vessel").
+        - callSign: The call sign.
         - imo: The IMO number.
-        - flag: The flag state or country.
-        - summary: A brief, one or two-sentence summary of the station's identity and purpose.
-        - length: The vessel's length (if applicable).
-        - beam: The vessel's beam/width (if applicable).
-    3.  **Output Format:** You MUST return your findings in a single JSON object. Do not include any other text, explanations, or markdown formatting.
-        - **On Success:** If you find ANY information, return a JSON object like this. For any field you cannot find, use the value \`null\`.
+        - flag: The flag country.
+        - summary: A single sentence describing the station.
+        - length: The vessel's length.
+        - beam: The vessel's width.
+    3.  **RESPONSE FORMAT:** YOU MUST RESPOND WITH A SINGLE JSON OBJECT AND NOTHING ELSE.
+        - **If you find ANY information:** Return a JSON object with the data. For any field you cannot find, YOU MUST use the value \`null\`. Example:
           \`\`\`json
           {
             "mmsi": "${mmsi}",
-            "stationName": "NUEVO ANITA",
-            "stationType": "Fishing Vessel",
-            "callSign": "EA6209",
+            "stationName": "Salvamar Altair",
+            "stationType": "Search and Rescue Vessel",
+            "callSign": "EA2222",
             "imo": null,
             "flag": "Spain",
-            "summary": "El Nuevo Anita es un buque pesquero con bandera de España.",
-            "length": "23m",
+            "summary": "Salvamar Altair is a search and rescue vessel operating in Spain.",
+            "length": "21m",
             "beam": null
           }
           \`\`\`
-        - **On Absolute Failure:** Only if extensive searching yields absolutely NO relevant results for the MMSI "${mmsi}", you must return this specific JSON object:
+        - **If, and ONLY IF, you find ABSOLUTELY NO information after searching:** Return this specific JSON object:
           \`\`\`json
           {
             "error": "No se encontró información relevante para el MMSI ${mmsi}."
           }
           \`\`\`
 
-    Your primary goal is to successfully return the data JSON, even if it's partially filled. The failure case is the absolute last resort.
+    **FAILURE IS NOT AN OPTION.** Prioritize returning a JSON with partial data over returning an error. The error response is your absolute last resort.
     `;
 
     const genAIResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        temperature: 0.1,
+        temperature: 0.2,
         tools: [{googleSearch: {}}],
       }
     });
