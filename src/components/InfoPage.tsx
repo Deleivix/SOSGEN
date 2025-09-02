@@ -3,14 +3,27 @@ import { debounce, initializeInfoTabs, showToast } from "../utils/helpers";
 
 export function renderInfo(container: HTMLElement) {
     const fullQuickRefData = [...QUICK_REFERENCE_DATA];
-    fullQuickRefData[0] = { category: 'Directorio', content: `
+    fullQuickRefData[0] = { category: 'Buscador MMSI', content: `
+        <div class="mmsi-searcher">
+            <h3 class="reference-table-subtitle">Buscador Inteligente de Buques por MMSI (OSINT)</h3>
+            <p class="translator-desc">Introduzca un MMSI (Identidad del Servicio Móvil Marítimo) de 9 dígitos para buscar información pública del buque utilizando IA para consultar bases de datos oficiales y de seguimiento.</p>
+            <form id="mmsi-search-form" class="simulator-form" style="max-width: none;">
+                <input type="text" id="mmsi-search-input" class="simulator-input" placeholder="Introduzca MMSI de 9 dígitos..." pattern="[0-9]{9}" title="Debe ser un número de 9 dígitos." required>
+                <button id="mmsi-search-btn" class="simulator-btn" type="submit">Buscar</button>
+            </form>
+            <div id="mmsi-result-container">
+                 <p class="drill-placeholder">Introduzca un MMSI para comenzar la búsqueda.</p>
+            </div>
+        </div>
+    `};
+    fullQuickRefData[1] = { category: 'Directorio', content: `
         <h3 class="reference-table-subtitle">Directorio Telefónico Marítimo</h3>
         <input type="search" id="phone-search-input" class="phone-directory-search" placeholder="Buscar por nombre, centro, etc.">
         <div id="phone-directory-list" class="phone-directory-list">
             <!-- Phone entries will be rendered here by JS -->
         </div>
     `};
-    fullQuickRefData[1] = { category: 'Frecuencias', content: `
+    fullQuickRefData[2] = { category: 'Frecuencias', content: `
         <h3 class="reference-table-subtitle">Canales VHF</h3>
         <div class="vhf-tables-container">
             <table class="reference-table">
@@ -70,7 +83,7 @@ export function renderInfo(container: HTMLElement) {
             </table>
         </div>
     `};
-    fullQuickRefData[2] = { category: 'Alfabeto Fonético', content: `
+    fullQuickRefData[3] = { category: 'Alfabeto Fonético', content: `
         <table class="reference-table">
             <thead><tr><th>Letra</th><th>Código</th><th>Letra</th><th>Código</th></tr></thead>
             <tbody>
@@ -90,7 +103,7 @@ export function renderInfo(container: HTMLElement) {
             </tbody>
         </table>`
     };
-    fullQuickRefData[3] = { category: 'Códigos Q', content: `
+    fullQuickRefData[4] = { category: 'Códigos Q', content: `
         <table class="reference-table">
             <thead><tr><th>Código</th><th>Significado</th></tr></thead>
             <tbody>
@@ -104,7 +117,7 @@ export function renderInfo(container: HTMLElement) {
             </tbody>
         </table>`
     };
-    fullQuickRefData[4] = { category: 'Escalas', content: `
+    fullQuickRefData[5] = { category: 'Escalas', content: `
         <h3 class="reference-table-subtitle">Escala Beaufort / Beaufort Wind Scale</h3>
         <table class="reference-table">
             <thead>
@@ -155,7 +168,7 @@ export function renderInfo(container: HTMLElement) {
         </table>
         `
     };
-    fullQuickRefData[5] = { category: 'Calculadora', content: `
+    fullQuickRefData[6] = { category: 'Calculadora', content: `
         <div class="coord-converter">
             <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
             <p class="translator-desc">Introduzca un par de coordenadas (Latitud y Longitud) para convertirlas al formato estándar <strong>gg° mm,ddd' N/S ggg° mm,ddd' E/W</strong>. Use espacios como separadores.</p>
@@ -166,7 +179,7 @@ export function renderInfo(container: HTMLElement) {
             <div id="coord-result" class="translation-result" aria-live="polite"></div>
         </div>
     `};
-    fullQuickRefData[6] = { category: 'Diccionario', content: `
+    fullQuickRefData[7] = { category: 'Diccionario', content: `
         <div class="nautical-translator">
             <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
             <p class="translator-desc">Traduce términos o frases cortas entre español e inglés.</p>
@@ -214,10 +227,101 @@ export function renderInfo(container: HTMLElement) {
         </div>
     `;
     initializeInfoTabs(container);
+    initializeMmsiSearcher();
     initializePhoneDirectory();
     initializeNauticalTranslator();
     initializeCoordinateConverter();
 }
+
+function renderMmsiResults(data: any, container: HTMLElement) {
+    const { details, sources } = data;
+    const na = 'No disponible';
+
+    const flagCode = details.flag?.split('(')[1]?.replace(')', '').trim().toLowerCase() || '';
+
+    container.innerHTML = `
+        <div class="mmsi-result-card">
+            <h4 class="mmsi-result-title">
+                ${flagCode ? `<span class="fi fi-${flagCode}"></span>` : ''}
+                ${details.vesselName || 'Nombre Desconocido'}
+            </h4>
+            <div class="mmsi-details-grid">
+                <div class="mmsi-detail-item"><span>MMSI</span><strong>${details.mmsi || na}</strong></div>
+                <div class="mmsi-detail-item"><span>Indicativo</span><strong>${details.callSign || na}</strong></div>
+                <div class="mmsi-detail-item"><span>OMI</span><strong>${details.imo || na}</strong></div>
+                <div class="mmsi-detail-item"><span>Bandera</span><strong>${details.flag || na}</strong></div>
+                <div class="mmsi-detail-item"><span>Tipo</span><strong>${details.vesselType || na}</strong></div>
+                <div class="mmsi-detail-item"><span>Eslora</span><strong>${details.length || na}</strong></div>
+                <div class="mmsi-detail-item"><span>Manga</span><strong>${details.beam || na}</strong></div>
+                <div class="mmsi-detail-item"><span>Últ. Posición</span><strong class="mmsi-position">${details.lastKnownPosition || na}</strong></div>
+            </div>
+            ${(sources && sources.length > 0) ? `
+            <div class="mmsi-sources">
+                <h5>Fuentes Consultadas</h5>
+                <ul class="mmsi-sources-list">
+                    ${sources.map((s: any) => `<li><a href="${s.web.uri}" target="_blank" rel="noopener noreferrer">${s.web.title || s.web.uri}</a></li>`).join('')}
+                </ul>
+            </div>` : ''}
+        </div>
+    `;
+}
+
+
+async function initializeMmsiSearcher() {
+    const form = document.getElementById('mmsi-search-form') as HTMLFormElement;
+    const input = document.getElementById('mmsi-search-input') as HTMLInputElement;
+    const button = document.getElementById('mmsi-search-btn') as HTMLButtonElement;
+    const resultsContainer = document.getElementById('mmsi-result-container') as HTMLDivElement;
+    if (!form || !input || !button || !resultsContainer) return;
+
+    const skeletonHtml = `
+        <div class="mmsi-result-card">
+            <div class="skeleton skeleton-title" style="width: 60%;"></div>
+            <div class="mmsi-details-grid">
+                ${Array(8).fill('<div class="skeleton skeleton-text" style="height: 2em;"></div>').join('')}
+            </div>
+        </div>`;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const mmsi = input.value.trim();
+        if (!/^\d{9}$/.test(mmsi)) {
+            showToast("Por favor, introduzca un MMSI válido de 9 dígitos.", "error");
+            return;
+        }
+
+        resultsContainer.innerHTML = skeletonHtml;
+        button.disabled = true;
+
+        try {
+            const response = await fetch('/api/mmsi-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mmsi })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || 'La API devolvió un error.');
+            }
+
+            const data = await response.json();
+            if (data.details && data.details.vesselName) {
+                renderMmsiResults(data, resultsContainer);
+            } else {
+                resultsContainer.innerHTML = `<p class="drill-placeholder">No se encontró información para el MMSI ${mmsi}.</p>`;
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Error al realizar la búsqueda";
+            resultsContainer.innerHTML = `<p class="error">${errorMessage}</p>`;
+            showToast(errorMessage, 'error');
+        } finally {
+            button.disabled = false;
+        }
+    });
+}
+
 
 function initializePhoneDirectory() {
     const searchInput = document.getElementById('phone-search-input') as HTMLInputElement | null;

@@ -85,6 +85,7 @@ export const PHONE_DIRECTORY_DATA: PhoneEntry[] = [
 ];
 
 export const QUICK_REFERENCE_DATA: QuickRef[] = [
+    { category: 'Buscador MMSI', content: `...` },
     { category: 'Directorio', content: `...` },
     { category: 'Frecuencias', content: `...` },
     { category: 'Alfabeto Fonético', content: `...` },
