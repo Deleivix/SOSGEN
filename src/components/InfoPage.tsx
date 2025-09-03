@@ -370,12 +370,19 @@ async function initializeMmsiSearcher() {
 
             const data = await response.json();
             
-            if (data.error) {
-                 resultsContainer.innerHTML = `<p class="drill-placeholder">${data.error.replace('${mmsi}', mmsi)}</p>`;
-            } else if (data.vesselInfo) {
+            const hasData = data.vesselInfo && Object.entries(data.vesselInfo).some(([key, value]) => {
+                if (key === 'mmsi') return false;
+                if (value !== null && typeof value !== 'object') return true;
+                if (value !== null && typeof value === 'object') {
+                    return Object.values(value).some(subValue => subValue !== null);
+                }
+                return false;
+            });
+
+            if (hasData) {
                 renderMmsiResults(data, resultsContainer);
             } else {
-                resultsContainer.innerHTML = `<p class="drill-placeholder">No se encontró información para el MMSI ${mmsi}.</p>`;
+                resultsContainer.innerHTML = `<p class="drill-placeholder">No se encontró información relevante para el MMSI ${mmsi} en las fuentes públicas consultadas.</p>`;
             }
 
         } catch (error) {
