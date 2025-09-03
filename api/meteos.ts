@@ -35,7 +35,7 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-        Eres un experto asistente meteorológico. Tu tarea es procesar cuatro boletines marítimos en formato XML y formatearlos en texto limpio y legible, optimizado para la síntesis de texto a voz (TTS).
+        Eres un experto asistente meteorológico. Tu tarea es procesar cuatro boletines marítimos en formato XML y formatearlos en texto limpio y legible.
 
         **Boletín Principal XML (de FQNT42MM.xml):**
         \`\`\`xml
@@ -58,43 +58,13 @@ export default async function handler(
         \`\`\`
 
         **Instrucciones:**
-
-        1.  **Analiza y Combina Principal/Avisos:**
-            *   Del boletín principal, extrae la hora de emisión, el período de validez, la situación general y las predicciones para cada zona marítima.
-            *   Del boletín de avisos, identifica todas las zonas marítimas únicas que tienen avisos activos.
-
-        2.  **Formatea el Boletín en Español:** Crea un boletín de texto plano.
-            *   Comienza con "AGENCIA ESTATAL DE METEOROLOGIA DE ESPANA".
-            *   Añade títulos como "ZONAS DEL ATLANTICO...", "EMITIDO A LAS...", "ALCANZA HASTA LAS...".
-            *   Bajo "AVISOS:", lista todas las zonas únicas con avisos del XML de avisos.
-            *   Incluye "SITUACION GENERAL..." y "PREDICCION VALIDA HASTA...".
-            *   Lista la predicción detallada para cada zona.
-            *   **Crucial: Limpia todos los errores tipográficos y artefactos de formato. Asegura que haya una línea en blanco separando la predicción detallada de una zona del título de la siguiente para mejorar la legibilidad.**
-
-        3.  **Traduce el Boletín al Inglés:**
-            *   Traduce todo el boletín en español formateado a un inglés claro y preciso, preservando la estructura y el espaciado.
-
-        4.  **Formatea los Avisos en Español:**
-            *   Del XML de avisos, extrae el texto completo de todos los avisos activos.
-            *   Formatea esto en un bloque de texto limpio y legible en español. Dale un título apropiado como "AVISOS EN VIGOR". Limpia cualquier artefacto XML y asegura una línea en blanco entre cada aviso distinto.
-
-        5.  **Traduce los Avisos al Inglés:**
-            *   Traduce el texto de los avisos en español formateado a un inglés claro y preciso. Dale un título apropiado como "CURRENT WARNINGS" y preserva el espaciado entre avisos.
-
-        6.  **Formatea los Boletines Costeros (Solo Español):**
-            *   **Galicia:** Procesa el boletín costero de Galicia. Formatea todo el contenido en un bloque de texto limpio y legible.
-            *   **Cantábrico:** Procesa el boletín costero del Cantábrico. Formatea todo el contenido en un bloque de texto limpio y legible.
-
-        7.  **Optimización para Texto a Voz (TTS) (CRÍTICO):** Antes de finalizar, aplica las siguientes transformaciones al texto para los seis bloques de salida. Este es el paso más importante.
-            *   **Puntuación para Pausas:** Inserta comas y puntos estratégicamente para crear pausas de sonido natural para el motor TTS.
-            *   **Aclarar Lecturas de Presión:** Después de cualquier valor de presión atmosférica (ej. 983 o 1028), añade la palabra "milibares" en español, o "millibars" en inglés.
-            *   **Expandir Abreviaturas:** Expande todas las abreviaturas de direcciones cardinales (ej. 'NW' se convierte en 'Noroeste' en español y 'Northwest' en inglés).
-            *   **Expandir Unidades:** Expande unidades de medida abreviadas (ej. '3 M' se convierte en 'tres metros' en español y 'three meters' en inglés).
-            *   **Fechas y Horas Fonéticas:** Escribe las horas fonéticamente (ej. '08:00 UTC' se convierte en 'cero ocho cero cero U T C'). Para las fechas, resuelve términos relativos como "del día siguiente" a la fecha absoluta. El día del mes DEBE escribirse como un dígito (ej. "día 3 de Septiembre"). El nombre del mes debe escribirse completo.
-            *   **Aclarar Viento:** Aclara las especificaciones del viento. Por ejemplo, 'W 4 A 6' debe indicarse explícitamente como 'Oeste fuerza cuatro a seis'.
-            *   **Números como Palabras:** Con la excepción explícita del día del mes en las fechas, asegúrate de que todos los demás números en el texto se escriban con palabras (ej. '10' se convierte en 'diez', '983' se convierte en 'novecientos ochenta y tres').
-
-        8.  **Devolver JSON:** Proporciona la salida final optimizada para TTS como un objeto JSON con seis claves: "spanish", "english", "spanish_warnings", "english_warnings", "galicia_coastal", "cantabrico_coastal".
+        1.  **Boletín Principal (Español):** Extrae la información clave (hora de emisión, validez, situación general, predicciones por zona) del boletín principal y los avisos. Formatea el resultado en un texto claro y bien estructurado en español. Asegura que haya una línea en blanco entre la predicción de una zona y el título de la siguiente.
+        2.  **Boletín Principal (Inglés):** Traduce el boletín en español formateado a un inglés claro y preciso, manteniendo la misma estructura.
+        3.  **Avisos (Español):** Extrae el texto completo de todos los avisos del XML de avisos y formatéalo como un bloque de texto legible en español.
+        4.  **Avisos (Inglés):** Traduce los avisos en español al inglés.
+        5.  **Boletines Costeros (Español):** Procesa los boletines de Galicia y Cantábrico y formatea su contenido en dos bloques de texto separados, limpios y legibles.
+        6.  **Limpieza:** Elimina todos los artefactos XML y el texto innecesario. Usa la información tal como está, sin expandir abreviaturas ni realizar ninguna otra transformación de texto.
+        7.  **Devolver JSON:** Proporciona la salida como un objeto JSON con seis claves: "spanish", "english", "spanish_warnings", "english_warnings", "galicia_coastal", "cantabrico_coastal".
     `;
     
     const genAIResponse = await ai.models.generateContent({
