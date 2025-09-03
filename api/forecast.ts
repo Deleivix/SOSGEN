@@ -28,12 +28,16 @@ export default async function handler(
     const locationList = locations.map(l => `- ${l.name} (Lat: ${l.lat}, Lon: ${l.lon})`).join('\n');
 
     const prompt = `
-        Eres un experto meteorólogo marítimo. Proporciona una previsión marítima concisa para las próximas 24 horas para las siguientes ubicaciones. La salida debe ser EXCLUSIVAMENTE un objeto JSON que coincida con el esquema proporcionado.
+        Eres un experto meteorólogo marítimo. Proporciona una previsión marítima concisa y detallada para las próximas 24 horas para las siguientes ubicaciones. La salida debe ser EXCLUSIVAMENTE un array de objetos JSON que coincida con el esquema proporcionado.
 
         Para \`weatherIcon\`, elige uno de los siguientes valores: 'sunny', 'partly-cloudy', 'cloudy', 'rain', 'heavy-rain', 'thunderstorm', 'windy', 'fog'.
         La dirección del viento debe ser una abreviatura cardinal (N, NE, E, SE, S, SO, O, NO).
         La fuerza del viento debe estar en la escala de Beaufort (número entero).
         La altura de las olas debe ser en metros.
+        La visibilidad debe ser en kilómetros (número entero).
+        Las temperaturas del aire y del mar deben ser en grados Celsius (número entero).
+        La presión atmosférica debe ser en hectopascales (hPa, número entero).
+        Para \`pressureTrend\`, elige uno de los siguientes valores: 'rising', 'falling', 'steady'.
         El resumen del tiempo debe ser una descripción muy breve.
 
         Ubicaciones:
@@ -49,9 +53,14 @@ export default async function handler(
                 windDirection: { type: Type.STRING },
                 windForceBft: { type: Type.INTEGER },
                 waveHeightMeters: { type: Type.NUMBER },
-                weatherIcon: { type: Type.STRING }
+                weatherIcon: { type: Type.STRING },
+                visibilityKm: { type: Type.INTEGER },
+                seaTemperatureCelsius: { type: Type.INTEGER },
+                airTemperatureCelsius: { type: Type.INTEGER },
+                pressureHpa: { type: Type.INTEGER },
+                pressureTrend: { type: Type.STRING }
             },
-            required: ["locationName", "windDirection", "windForceBft", "waveHeightMeters", "weatherIcon"]
+            required: ["locationName", "windDirection", "windForceBft", "waveHeightMeters", "weatherIcon", "visibilityKm", "seaTemperatureCelsius", "airTemperatureCelsius", "pressureHpa", "pressureTrend"]
         }
     };
 

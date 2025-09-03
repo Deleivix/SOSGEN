@@ -18,6 +18,20 @@ function renderWeatherIcon(iconName: string): string {
 }
 
 /**
+ * Renders an SVG icon representing the atmospheric pressure trend.
+ * @param trend - The pressure trend ('rising', 'falling', or 'steady').
+ * @returns An SVG string for the trend icon.
+ */
+function renderPressureTrendIcon(trend: string): string {
+    const icons: { [key: string]: string } = {
+        'rising': `<svg class="pressure-trend-icon rising" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg>`,
+        'falling': `<svg class="pressure-trend-icon falling" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l8-8h-6V4h-4v8H4z"/></svg>`,
+        'steady': `<svg class="pressure-trend-icon steady" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`
+    };
+    return icons[trend] || '';
+}
+
+/**
  * Fetches and renders the coastal weather warnings.
  */
 async function initializeWarnings() {
@@ -65,7 +79,7 @@ async function initializeForecast() {
     const forecastContent = forecastCard.querySelector('.dashboard-card-content');
     if (!forecastContent) return;
     
-    const skeletonHtml = Array(6).fill(`<div class="skeleton skeleton-text" style="height: 2.5em; margin-bottom: 0.5rem;"></div>`).join('');
+    const skeletonHtml = Array(8).fill(`<div class="skeleton skeleton-text" style="height: 2.5em; margin-bottom: 0.5rem;"></div>`).join('');
     forecastContent.innerHTML = skeletonHtml;
 
     try {
@@ -84,6 +98,10 @@ async function initializeForecast() {
                             <th>Ubicación</th>
                             <th style="text-align: center;">Viento (Bft)</th>
                             <th style="text-align: center;">Olas (m)</th>
+                            <th style="text-align: center;">Visib. (km)</th>
+                            <th style="text-align: center;">Presión</th>
+                            <th style="text-align: center;">T. Aire</th>
+                            <th style="text-align: center;">T. Mar</th>
                             <th style="text-align: center;">Tiempo</th>
                         </tr>
                     </thead>
@@ -96,6 +114,13 @@ async function initializeForecast() {
                                     ${f.windForceBft}
                                 </td>
                                 <td style="text-align: center;">${f.waveHeightMeters.toFixed(1)}</td>
+                                <td style="text-align: center;">${f.visibilityKm}</td>
+                                <td style="text-align: center;" class="pressure-cell">
+                                    <span>${f.pressureHpa}</span>
+                                    ${renderPressureTrendIcon(f.pressureTrend)}
+                                </td>
+                                <td style="text-align: center;">${f.airTemperatureCelsius}°C</td>
+                                <td style="text-align: center;">${f.seaTemperatureCelsius}°C</td>
                                 <td style="text-align: center;">
                                     <div class="weather-icon" title="${f.weatherSummary || ''}">${renderWeatherIcon(f.weatherIcon)}</div>
                                 </td>
