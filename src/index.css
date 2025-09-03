@@ -1237,10 +1237,14 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 .stat-card .value.green { color: var(--accent-color-dark); }
 .user-prompt-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); display: flex;
-    justify-content: center; align-items: center; z-index: 2000;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 2000;
 }
 .user-prompt-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: var(--bg-card); padding: 2rem; border-radius: 12px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center;
     width: 90%; max-width: 400px;

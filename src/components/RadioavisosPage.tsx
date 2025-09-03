@@ -91,7 +91,7 @@ function renderUserPrompt(): string {
                 <p>Por favor, introduce tu nombre o identificador para registrar las operaciones.</p>
                 <form id="user-prompt-form" style="margin-top: 1rem;">
                     <div class="form-group">
-                        <input class="simulator-input" type="text" id="username-input" placeholder="Ej: ILOPEZTE" required />
+                        <input class="simulator-input" type="text" id="username-input" placeholder="Ej: ASANDECA" required />
                     </div>
                     <button type="submit" class="primary-btn">Guardar</button>
                 </form>
