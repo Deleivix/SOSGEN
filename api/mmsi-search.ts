@@ -18,6 +18,7 @@ export default async function handler(
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
+    // Schema is not used in the config, but it's a good reference for the prompt
     const schema = {
         type: Type.OBJECT,
         properties: {
@@ -61,7 +62,7 @@ export default async function handler(
     const prompt = `
     **ROLE:** Actúa como un analista de élite en Inteligencia de Fuentes Abiertas (OSINT) con especialización en el sector marítimo. Eres meticuloso, preciso y experto en agregar datos de múltiples fuentes.
 
-    **MISSION:** Realizar una investigación exhaustiva del MMSI "${mmsi}" utilizando la herramienta de búsqueda de Google. Tu objetivo es recopilar la mayor cantidad de información pública disponible y consolidarla en un informe estructurado en formato JSON, adhiriéndote estrictamente al esquema proporcionado.
+    **MISSION:** Realizar una investigación exhaustiva del MMSI "${mmsi}" utilizando la herramienta de búsqueda de Google. Tu objetivo es recopilar la mayor cantidad de información pública disponible y consolidarla en un informe estructurado en formato JSON.
 
     **DATA SOURCES TO PRIORITIZE:**
     -   Registros oficiales de la ITU.
@@ -91,7 +92,7 @@ export default async function handler(
         -   \`summary\`: Basado en toda la información recopilada, escribe un resumen conciso (2-3 frases) que describa la identidad del buque y su actividad reciente o estado actual.
 
     **CRITICAL INSTRUCTIONS & OUTPUT FORMAT:**
-    -   **STRICT SCHEMA ADHERENCE:** Tu respuesta DEBE ser un único objeto JSON que se valide contra el esquema proporcionado. No incluyas texto, explicaciones o markdown.
+    -   **STRICT JSON OUTPUT:** Tu respuesta DEBE ser un único objeto JSON válido. No incluyas texto, explicaciones o markdown fuera del objeto JSON.
     -   **NO DATA, USE NULL:** Si no puedes encontrar un dato específico para un campo, DEBES usar el valor \`null\`. NO omitas la clave ni inventes información.
     -   **ERROR HANDLING:** Si tu investigación exhaustiva no arroja NINGÚN resultado que permita identificar al buque (es decir, no encuentras ni nombre, ni tipo, ni nada relevante), y SOLO en ese caso, devuelve el JSON con el campo \`error\` rellenado y \`vesselInfo\` como \`null\`. Ejemplo: \`{"error": "No se encontró información relevante para el MMSI ${mmsi}.", "vesselInfo": null}\`.
     -   **SUCCESSFUL SEARCH:** Si encuentras CUALQUIER información, por mínima que sea, el campo \`error\` DEBE ser \`null\` y \`vesselInfo\` debe contener los datos encontrados (usando \`null\` para los campos faltantes).
@@ -103,8 +104,6 @@ export default async function handler(
       config: {
         temperature: 0.1,
         tools: [{googleSearch: {}}],
-        responseMimeType: "application/json",
-        responseSchema: schema
       }
     });
 
