@@ -92,9 +92,16 @@ export default async function handler(
         -   \`summary\`: Basado en toda la información recopilada, escribe un resumen conciso (2-3 frases) que describa la identidad del buque y su actividad reciente o estado actual.
 
     **CRITICAL INSTRUCTIONS & OUTPUT FORMAT:**
-    -   **STRICT JSON OUTPUT:** Tu respuesta DEBE ser un único objeto JSON válido. No incluyas texto, explicaciones o markdown fuera del objeto JSON.
+    -   **STRICT JSON OUTPUT:** Tu respuesta DEBE ser un único objeto JSON válido, envuelto en un bloque de código markdown JSON. Ejemplo:
+        \`\`\`json
+        {
+          "error": null,
+          "vesselInfo": { "stationName": "Example Vessel" }
+        }
+        \`\`\`
+    -   No incluyas NINGÚN texto, explicación o markdown fuera del bloque de código JSON.
     -   **NO DATA, USE NULL:** Si no puedes encontrar un dato específico para un campo, DEBES usar el valor \`null\`. NO omitas la clave ni inventes información.
-    -   **ERROR HANDLING:** Si tu investigación exhaustiva no arroja NINGÚN resultado que permita identificar al buque (es decir, no encuentras ni nombre, ni tipo, ni nada relevante), y SOLO en ese caso, devuelve el JSON con el campo \`error\` rellenado y \`vesselInfo\` como \`null\`. Ejemplo: \`{"error": "No se encontró información relevante para el MMSI ${mmsi}.", "vesselInfo": null}\`.
+    -   **ERROR HANDLING:** Si tu investigación exhaustiva no arroja NINGÚN resultado que permita identificar al buque, y SOLO en ese caso, devuelve el JSON con el campo \`error\` rellenado y \`vesselInfo\` como \`null\`. Ejemplo: \`\`\`json\n{"error": "No se encontró información relevante para el MMSI ${mmsi}.", "vesselInfo": null}\n\`\`\`
     -   **SUCCESSFUL SEARCH:** Si encuentras CUALQUIER información, por mínima que sea, el campo \`error\` DEBE ser \`null\` y \`vesselInfo\` debe contener los datos encontrados (usando \`null\` para los campos faltantes).
     `;
 
@@ -108,7 +115,25 @@ export default async function handler(
     });
 
     let resultData = {};
-    const resultText = genAIResponse.text.trim() || '{"error": "La IA no devolvió resultados.", "vesselInfo": null}';
+    let resultText = genAIResponse.text.trim();
+    
+    // Extract JSON from markdown code block if present
+    const jsonMatch = resultText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+        resultText = jsonMatch[1];
+    } else {
+        // Fallback for cases where the model might not use markdown
+        const firstBrace = resultText.indexOf('{');
+        const lastBrace = resultText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+            resultText = resultText.substring(firstBrace, lastBrace + 1);
+        }
+    }
+
+    if (!resultText) {
+      resultText = '{"error": "La IA no devolvió resultados.", "vesselInfo": null}';
+    }
+
     try {
         resultData = JSON.parse(resultText);
     } catch (e) {
