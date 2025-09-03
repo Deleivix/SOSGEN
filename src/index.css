@@ -496,6 +496,7 @@ body.dark-theme .primary-btn:disabled { background-color: #333; color: #777; }
   font-family: var(--font-sans); font-size: 0.9rem; font-weight: 500;
   border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer;
   transition: all 0.2s ease-in-out;
+  text-decoration: none;
 }
 .secondary-btn { color: var(--text-primary); background-color: transparent; border: 1px solid var(--border-color); }
 .secondary-btn:hover { background-color: var(--bg-main); border-color: var(--text-primary); transform: translateY(-2px); }
@@ -708,6 +709,24 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+.mmsi-live-links {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    margin-top: -0.5rem; 
+}
+.mmsi-live-links .secondary-btn {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+}
+.mmsi-live-links .secondary-btn svg {
+    width: 14px;
+    height: 14px;
 }
 .mmsi-summary {
     grid-column: 1 / -1;
