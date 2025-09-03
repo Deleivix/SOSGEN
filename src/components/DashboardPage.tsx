@@ -174,8 +174,10 @@ export function renderDashboard(container: HTMLElement) {
             <!-- Windy Map Card -->
             <div class="dashboard-card map-card">
                 <h2 class="dashboard-card-title">${icons.map}<span>Mapa Meteorológico</span></h2>
-                <div class="windy-map-container">
-                    <iframe width="1200" height="800" src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=kt&zoom=5&overlay=wind&product=ecmwf&level=surface&lat=39.977&lon=4.966&detailLat=43.317&detailLon=-8.433&detail=true&pressure=true&message=true" frameborder="0"></iframe>
+                <div class="dashboard-card-content">
+                    <div class="windy-map-container">
+                        <iframe width="1200" height="800" src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=kt&zoom=5&overlay=wind&product=ecmwf&level=surface&lat=39.977&lon=4.966&detailLat=43.317&detailLon=-8.433&detail=true&pressure=true&message=true" frameborder="0"></iframe>
+                    </div>
                 </div>
             </div>
 

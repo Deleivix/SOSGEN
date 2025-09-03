@@ -21,6 +21,7 @@ export default async function handler(
         { name: 'Cabo Peñas', lat: 43.49, lon: -5.94 },
         { name: 'Navia', lat: 43.45, lon: -6.82 },
         { name: 'Cabo Ortegal', lat: 43.71, lon: -7.89 },
+        { name: 'Coruña', lat: 43.45, lon: -8.28 },
         { name: 'Finisterre', lat: 43.07, lon: -9.22 },
         { name: 'Vigo', lat: 42.31, lon: -8.70 }
     ];
