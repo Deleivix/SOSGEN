@@ -35,7 +35,7 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-        Eres un experto asistente meteorológico. Tu tarea es procesar cuatro boletines marítimos en formato XML y formatearlos en texto limpio y legible.
+        Eres un experto asistente meteorológico. Tu tarea es procesar cuatro boletines marítimos en formato XML y formatearlos en texto limpio, legible y optimizado para sistemas de Texto-a-Voz (TTS).
 
         **Boletín Principal XML (de FQNT42MM.xml):**
         \`\`\`xml
@@ -57,14 +57,23 @@ export default async function handler(
         ${cantabricoXmlText}
         \`\`\`
 
-        **Instrucciones:**
-        1.  **Boletín Principal (Español):** Extrae la información clave (hora de emisión, validez, situación general, predicciones por zona) del boletín principal y los avisos. Formatea el resultado en un texto claro y bien estructurado en español. Asegura que haya una línea en blanco entre la predicción de una zona y el título de la siguiente.
-        2.  **Boletín Principal (Inglés):** Traduce el boletín en español formateado a un inglés claro y preciso, manteniendo la misma estructura.
-        3.  **Avisos (Español):** Extrae el texto completo de todos los avisos del XML de avisos y formatéalo como un bloque de texto legible en español.
-        4.  **Avisos (Inglés):** Traduce los avisos en español al inglés.
-        5.  **Boletines Costeros (Español):** Procesa los boletines de Galicia y Cantábrico y formatea su contenido en dos bloques de texto separados, limpios y legibles.
-        6.  **Limpieza:** Elimina todos los artefactos XML y el texto innecesario. Usa la información tal como está, sin expandir abreviaturas ni realizar ninguna otra transformación de texto.
-        7.  **Devolver JSON:** Proporciona la salida como un objeto JSON con seis claves: "spanish", "english", "spanish_warnings", "english_warnings", "galicia_coastal", "cantabrico_coastal".
+        **Instrucciones Estrictas:**
+        1.  **Extracción y Formato (Español):**
+            *   **Boletín Principal:** Extrae la información clave (hora de emisión, validez, situación general, predicciones por zona) del boletín principal y los avisos. Formatea el resultado en un texto claro y bien estructurado. Asegura que haya una línea en blanco entre la predicción de una zona y el título de la siguiente.
+            *   **Avisos:** Extrae el texto completo de todos los avisos y formatéalo como un bloque de texto legible.
+            *   **Boletines Costeros:** Procesa los boletines de Galicia y Cantábrico y formatea su contenido en dos bloques de texto separados, limpios y legibles.
+        2.  **Limpieza Inicial:** Elimina todos los artefactos XML y el texto innecesario.
+        3.  **OPTIMIZACIÓN PARA TEXTO-A-VOZ (TTS) - CRÍTICO:**
+            *   Revisa TODO el texto en español generado y reescribe CUALQUIER abreviatura, número o código a su forma de palabra completa para garantizar una lectura natural por un sintetizador de voz.
+            *   **Ejemplos OBLIGATORIOS de conversión:**
+                *   Direcciones de viento: 'NW' -> 'Noroeste', 'SW' -> 'Suroeste'.
+                *   Fuerza del viento: 'Fuerza 4' -> 'fuerza cuatro'.
+                *   Números: '1018 hPa' -> 'mil dieciocho hectopascales', '20 nudos' -> 'veinte nudos'.
+                *   Horas: '12 UTC' -> 'doce UTC'.
+                *   Zonas: 'CABO FINISTERRE A CABO SILLEIRO' -> 'De Cabo Finisterre a Cabo Silleiro'.
+            *   Este paso es fundamental para la accesibilidad y debe aplicarse a todos los textos en español.
+        4.  **Traducción al Inglés:** Traduce los boletines ya formateados en español a un inglés claro y preciso, manteniendo la misma estructura. **No apliques la optimización TTS al texto en inglés**, mantenlo en formato estándar (ej. 'NW force 4').
+        5.  **Devolver JSON:** Proporciona la salida como un objeto JSON con seis claves: "spanish", "english", "spanish_warnings", "english_warnings", "galicia_coastal", "cantabrico_coastal".
     `;
     
     const genAIResponse = await ai.models.generateContent({
@@ -75,12 +84,12 @@ export default async function handler(
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                    spanish: { type: Type.STRING, description: "The fully formatted maritime bulletin in Spanish." },
+                    spanish: { type: Type.STRING, description: "The fully formatted maritime bulletin in Spanish, optimized for TTS." },
                     english: { type: Type.STRING, description: "The fully formatted maritime bulletin in English." },
-                    spanish_warnings: { type: Type.STRING, description: "The fully formatted maritime warnings in Spanish." },
+                    spanish_warnings: { type: Type.STRING, description: "The fully formatted maritime warnings in Spanish, optimized for TTS." },
                     english_warnings: { type: Type.STRING, description: "The fully formatted maritime warnings in English." },
-                    galicia_coastal: { type: Type.STRING, description: "The fully formatted coastal bulletin for Galicia in Spanish." },
-                    cantabrico_coastal: { type: Type.STRING, description: "The fully formatted coastal bulletin for Cantábrico in Spanish." }
+                    galicia_coastal: { type: Type.STRING, description: "The fully formatted coastal bulletin for Galicia in Spanish, optimized for TTS." },
+                    cantabrico_coastal: { type: Type.STRING, description: "The fully formatted coastal bulletin for Cantábrico in Spanish, optimized for TTS." }
                 },
                 required: ["spanish", "english", "spanish_warnings", "english_warnings", "galicia_coastal", "cantabrico_coastal"],
             },
