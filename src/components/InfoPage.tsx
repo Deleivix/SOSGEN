@@ -234,28 +234,52 @@ export function renderInfo(container: HTMLElement) {
 }
 
 function renderMmsiResults(data: any, container: HTMLElement) {
-    const { details, sources } = data;
+    const { vesselInfo: details, sources } = data;
     const na = 'No disponible';
 
-    const detailsMap: { [key: string]: string | null | undefined } = {
+    if (!details) {
+        container.innerHTML = `<p class="drill-placeholder">No se pudo obtener la información del buque.</p>`;
+        return;
+    }
+    
+    const detailsMap: Record<string, string | null | undefined> = {
         'MMSI': details.mmsi,
         'Indicativo': details.callSign,
-        'OMI': details.imo,
-        'Bandera': details.flag,
-        'Eslora': details.length,
-        'Manga': details.beam,
+        'IMO': details.imo,
+        'Bandera': details.flag
     };
 
-    let detailsHtml = '';
-    for (const [label, value] of Object.entries(detailsMap)) {
-        if (value) {
-            detailsHtml += `
+    const characteristicsMap: Record<string, string | null | undefined> = {
+        'Eslora': details.length,
+        'Manga': details.beam,
+        'Arqueo Bruto': details.grossTonnage,
+    };
+    
+    const voyageMap: Record<string, string | null | undefined> = {
+        'Última Posición': details.lastPosition,
+        'Timestamp': details.positionTimestamp,
+        'Destino': details.currentVoyage?.destination,
+        'ETA': details.currentVoyage?.eta,
+        'Estado': details.currentVoyage?.status,
+    };
+
+    const createGridItems = (map: Record<string, string | null | undefined>) => {
+        let html = '';
+        for (const [label, value] of Object.entries(map)) {
+            if (value) {
+                html += `
                 <div class="mmsi-detail-item">
                     <span>${label}</span>
                     <strong>${value}</strong>
                 </div>`;
+            }
         }
-    }
+        return html;
+    };
+    
+    const keyDetailsHtml = createGridItems(detailsMap);
+    const characteristicsHtml = createGridItems(characteristicsMap);
+    const voyageHtml = createGridItems(voyageMap);
 
     container.innerHTML = `
         <div class="mmsi-result-card">
@@ -272,9 +296,20 @@ function renderMmsiResults(data: any, container: HTMLElement) {
                 </div>
             ` : ''}
 
-            <div class="mmsi-details-grid">
-                ${detailsHtml}
-            </div>
+            ${keyDetailsHtml ? `
+                <h5 class="reference-table-subtitle" style="margin-top:0;">Datos Principales</h5>
+                <div class="mmsi-details-grid">${keyDetailsHtml}</div>
+            ` : ''}
+
+            ${characteristicsHtml ? `
+                <h5 class="reference-table-subtitle">Características</h5>
+                <div class="mmsi-details-grid">${characteristicsHtml}</div>
+            ` : ''}
+
+            ${voyageHtml ? `
+                <h5 class="reference-table-subtitle">Último Viaje</h5>
+                <div class="mmsi-details-grid">${voyageHtml}</div>
+            ` : ''}
 
             ${(sources && sources.length > 0) ? `
             <div class="mmsi-sources">
@@ -297,12 +332,16 @@ async function initializeMmsiSearcher() {
 
     const skeletonHtml = `
         <div class="mmsi-result-card">
-            <div class="skeleton skeleton-title" style="width: 60%;"></div>
-            <div class="skeleton skeleton-text" style="width: 30%; height: 1.5em; margin-bottom: 1rem;"></div>
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text" style="width: 80%;"></div>
-            <div class="mmsi-details-grid" style="margin-top: 1.5rem;">
-                ${Array(6).fill('<div class="skeleton skeleton-text" style="height: 3em;"></div>').join('')}
+            <div class="skeleton skeleton-title" style="width: 60%; height: 2em; margin-bottom: 1rem;"></div>
+            <div class="skeleton skeleton-text" style="width: 90%; margin-bottom: 0.5rem;"></div>
+            <div class="skeleton skeleton-text" style="width: 80%; margin-bottom: 2rem;"></div>
+            <h5 class="reference-table-subtitle" style="margin-top:0; margin-bottom: 1rem;"><div class="skeleton skeleton-text" style="width: 30%; height: 1.2em;"></div></h5>
+            <div class="mmsi-details-grid">
+                ${Array(4).fill('<div class="skeleton skeleton-box" style="height: 4em;"></div>').join('')}
+            </div>
+            <h5 class="reference-table-subtitle" style="margin-bottom: 1rem;"><div class="skeleton skeleton-text" style="width: 40%; height: 1.2em;"></div></h5>
+            <div class="mmsi-details-grid">
+                ${Array(3).fill('<div class="skeleton skeleton-box" style="height: 4em;"></div>').join('')}
             </div>
         </div>`;
 
@@ -331,9 +370,9 @@ async function initializeMmsiSearcher() {
 
             const data = await response.json();
             
-            if (data.details?.error) {
-                 resultsContainer.innerHTML = `<p class="drill-placeholder">${data.details.error.replace('${mmsi}', mmsi)}</p>`;
-            } else if (data.details && data.details.stationName) {
+            if (data.error) {
+                 resultsContainer.innerHTML = `<p class="drill-placeholder">${data.error.replace('${mmsi}', mmsi)}</p>`;
+            } else if (data.vesselInfo) {
                 renderMmsiResults(data, resultsContainer);
             } else {
                 resultsContainer.innerHTML = `<p class="drill-placeholder">No se encontró información para el MMSI ${mmsi}.</p>`;
