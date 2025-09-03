@@ -7,6 +7,17 @@ const AEMET_WARNINGS_URL = 'https://www.aemet.es/xml/maritima/WONT40MM.xml';
 const AEMET_GALICIA_COASTAL_URL = 'https://www.aemet.es/xml/maritima/FQXX40MM.xml';
 const AEMET_CANTABRICO_COASTAL_URL = 'https://www.aemet.es/xml/maritima/FQXX41MM.xml';
 
+// --- Server-Side Cache ---
+interface Cache<T> {
+  data: T | null;
+  timestamp: number;
+}
+const meteosCache: Cache<any> = {
+  data: null,
+  timestamp: 0,
+};
+const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
@@ -14,6 +25,15 @@ export default async function handler(
   if (request.method !== 'POST') {
     return response.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  // --- Check Cache ---
+  const now = Date.now();
+  if (meteosCache.data && (now - meteosCache.timestamp < CACHE_DURATION_MS)) {
+    console.log("Serving meteos data from cache.");
+    return response.status(200).json(meteosCache.data);
+  }
+  console.log("Fetching fresh meteos data (cache stale or empty).");
+
 
   try {
     const [mainResponse, warningsResponse, galiciaResponse, cantabricoResponse] = await Promise.all([
@@ -97,7 +117,13 @@ export default async function handler(
     });
 
     const resultText = genAIResponse.text.trim() || '{}';
-    return response.status(200).json(JSON.parse(resultText));
+    const data = JSON.parse(resultText);
+
+    // --- Update cache on success ---
+    meteosCache.data = data;
+    meteosCache.timestamp = now;
+    
+    return response.status(200).json(data);
 
   } catch (error) {
     console.error("Error in /api/meteos:", error);

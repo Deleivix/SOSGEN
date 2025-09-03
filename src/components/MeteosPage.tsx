@@ -78,7 +78,7 @@ const renderMeteosHTML = (bulletin: any) => {
     `;
 };
 
-const skeletonHTML = `
+const loadingHTML = `
     <div class="meteos-header">
         <div class="meteos-header-text">
             <div class="skeleton skeleton-title" style="width: 70%; height: 1.8em; margin-bottom: 0.5rem;"></div>
@@ -86,15 +86,12 @@ const skeletonHTML = `
         </div>
         <div class="skeleton" style="width: 120px; height: 40px; border-radius: 6px; flex-shrink: 0;"></div>
     </div>
-    <div class="bulletins-container">
-        <div class="language-column">
-            <div class="skeleton skeleton-box" style="height: 400px;"></div>
-            <div class="skeleton skeleton-box" style="height: 300px;"></div>
-        </div>
-        <div class="language-column">
-            <div class="skeleton skeleton-box" style="height: 400px;"></div>
-            <div class="skeleton skeleton-box" style="height: 300px;"></div>
-        </div>
+    <div class="loader-container" style="flex-direction: column; gap: 1rem; min-height: 400px;">
+        <div class="loader"></div>
+        <p style="color: var(--text-secondary); text-align: center;">
+            Consultando fuentes oficiales y procesando los últimos boletines con IA.<br>
+            Este proceso puede tardar un momento...
+        </p>
     </div>
 `;
 
@@ -130,7 +127,7 @@ export function renderMeteos(container: HTMLElement) {
     if (meteosCache) {
         container.innerHTML = renderMeteosHTML(meteosCache);
     } else {
-        container.innerHTML = skeletonHTML;
+        container.innerHTML = loadingHTML;
         fetchMeteosData()
             .then(data => {
                 if (data && document.body.contains(container)) {

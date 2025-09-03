@@ -31,15 +31,45 @@ function renderPressureTrendIcon(trend: string): string {
     return icons[trend] || '';
 }
 
+// --- Client-side cache for dashboard data ---
+let forecastCache: { data: any, timestamp: number } | null = null;
+let warningsCache: { data: any, timestamp: number } | null = null;
+const DASHBOARD_CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
+
 /**
- * Fetches and renders the coastal weather warnings.
+ * Renders the warnings content into the card.
+ * @param data - The data object containing the warnings summary.
+ */
+function renderWarningsContent(data: any) {
+    const warningsCard = document.getElementById('dashboard-warnings-card');
+    if (!warningsCard) return;
+    const warningsContent = warningsCard.querySelector('.dashboard-card-content');
+    if (!warningsContent) return;
+
+    if (data && data.summary && data.summary.trim() !== '') {
+        warningsContent.innerHTML = `<pre class="warnings-card-content">${data.summary}</pre>`;
+        warningsCard.classList.add('has-warnings');
+    } else {
+        warningsContent.innerHTML = '<p class="drill-placeholder" style="padding: 1rem 0;">No hay avisos costeros en vigor.</p>';
+        warningsCard.classList.remove('has-warnings');
+    }
+}
+
+/**
+ * Fetches and renders the coastal weather warnings, using a client-side cache.
  */
 async function initializeWarnings() {
     const warningsCard = document.getElementById('dashboard-warnings-card');
     if (!warningsCard) return;
-
     const warningsContent = warningsCard.querySelector('.dashboard-card-content');
     if (!warningsContent) return;
+
+    const now = Date.now();
+    if (warningsCache && (now - warningsCache.timestamp < DASHBOARD_CACHE_DURATION_MS)) {
+        renderWarningsContent(warningsCache.data);
+        return;
+    }
 
     const skeletonHtml = `
         <div class="skeleton skeleton-text" style="width: 80%;"></div>
@@ -56,12 +86,8 @@ async function initializeWarnings() {
         }
 
         const data = await response.json();
-        if (data.summary && data.summary.trim() !== '') {
-            warningsContent.innerHTML = `<pre class="warnings-card-content">${data.summary}</pre>`;
-            warningsCard.classList.add('has-warnings');
-        } else {
-            warningsContent.innerHTML = '<p class="drill-placeholder" style="padding: 1rem 0;">No hay avisos costeros en vigor.</p>';
-        }
+        warningsCache = { data, timestamp: now }; // Update cache
+        renderWarningsContent(data);
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Error al cargar avisos.";
@@ -70,14 +96,75 @@ async function initializeWarnings() {
 }
 
 /**
- * Fetches and renders the point forecasts table.
+ * Renders the forecast table into its card.
+ * @param data - The array of forecast data.
+ */
+function renderForecastContent(data: any) {
+    const forecastCard = document.getElementById('dashboard-forecast-card');
+    if (!forecastCard) return;
+    const forecastContent = forecastCard.querySelector('.dashboard-card-content');
+    if (!forecastContent) return;
+
+    if (Array.isArray(data) && data.length > 0) {
+        const tableHtml = `
+            <table class="forecast-table">
+                <thead>
+                    <tr>
+                        <th>Ubicación</th>
+                        <th style="text-align: center;">Viento (Bft)</th>
+                        <th style="text-align: center;">Olas (m)</th>
+                        <th style="text-align: center;">Visib. (km)</th>
+                        <th style="text-align: center;">Presión</th>
+                        <th style="text-align: center;">T. Aire</th>
+                        <th style="text-align: center;">T. Mar</th>
+                        <th style="text-align: center;">Tiempo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(f => `
+                        <tr>
+                            <td><strong>${f.locationName}</strong></td>
+                            <td style="text-align: center;">
+                                <svg class="wind-icon" style="transform: rotate(${getWindDirectionAngle(f.windDirection)}deg);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V3M7 8l5-5 5 5"/></svg>
+                                ${f.windForceBft}
+                            </td>
+                            <td style="text-align: center;">${f.waveHeightMeters.toFixed(1)}</td>
+                            <td style="text-align: center;">${f.visibilityKm}</td>
+                            <td style="text-align: center;" class="pressure-cell">
+                                <span>${f.pressureHpa}</span>
+                                ${renderPressureTrendIcon(f.pressureTrend)}
+                            </td>
+                            <td style="text-align: center;">${f.airTemperatureCelsius}°C</td>
+                            <td style="text-align: center;">${f.seaTemperatureCelsius}°C</td>
+                            <td style="text-align: center;">
+                                <div class="weather-icon" title="${f.weatherSummary || ''}">${renderWeatherIcon(f.weatherIcon)}</div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        forecastContent.innerHTML = tableHtml;
+    } else {
+        forecastContent.innerHTML = '<p class="drill-placeholder">No se pudo obtener la previsión.</p>';
+    }
+}
+
+
+/**
+ * Fetches and renders the point forecasts table, using a client-side cache.
  */
 async function initializeForecast() {
     const forecastCard = document.getElementById('dashboard-forecast-card');
     if (!forecastCard) return;
-
     const forecastContent = forecastCard.querySelector('.dashboard-card-content');
     if (!forecastContent) return;
+    
+    const now = Date.now();
+    if (forecastCache && (now - forecastCache.timestamp < DASHBOARD_CACHE_DURATION_MS)) {
+        renderForecastContent(forecastCache.data);
+        return;
+    }
     
     const skeletonHtml = Array(8).fill(`<div class="skeleton skeleton-text" style="height: 2.5em; margin-bottom: 0.5rem;"></div>`).join('');
     forecastContent.innerHTML = skeletonHtml;
@@ -90,49 +177,8 @@ async function initializeForecast() {
         }
 
         const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-            const tableHtml = `
-                <table class="forecast-table">
-                    <thead>
-                        <tr>
-                            <th>Ubicación</th>
-                            <th style="text-align: center;">Viento (Bft)</th>
-                            <th style="text-align: center;">Olas (m)</th>
-                            <th style="text-align: center;">Visib. (km)</th>
-                            <th style="text-align: center;">Presión</th>
-                            <th style="text-align: center;">T. Aire</th>
-                            <th style="text-align: center;">T. Mar</th>
-                            <th style="text-align: center;">Tiempo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.map(f => `
-                            <tr>
-                                <td><strong>${f.locationName}</strong></td>
-                                <td style="text-align: center;">
-                                    <svg class="wind-icon" style="transform: rotate(${getWindDirectionAngle(f.windDirection)}deg);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V3M7 8l5-5 5 5"/></svg>
-                                    ${f.windForceBft}
-                                </td>
-                                <td style="text-align: center;">${f.waveHeightMeters.toFixed(1)}</td>
-                                <td style="text-align: center;">${f.visibilityKm}</td>
-                                <td style="text-align: center;" class="pressure-cell">
-                                    <span>${f.pressureHpa}</span>
-                                    ${renderPressureTrendIcon(f.pressureTrend)}
-                                </td>
-                                <td style="text-align: center;">${f.airTemperatureCelsius}°C</td>
-                                <td style="text-align: center;">${f.seaTemperatureCelsius}°C</td>
-                                <td style="text-align: center;">
-                                    <div class="weather-icon" title="${f.weatherSummary || ''}">${renderWeatherIcon(f.weatherIcon)}</div>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-            forecastContent.innerHTML = tableHtml;
-        } else {
-            forecastContent.innerHTML = '<p class="drill-placeholder">No se pudo obtener la previsión.</p>';
-        }
+        forecastCache = { data, timestamp: now }; // Update cache
+        renderForecastContent(data);
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Error al cargar la previsión.";

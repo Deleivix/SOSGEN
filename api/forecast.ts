@@ -1,6 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
 
+// --- Server-Side Cache ---
+interface Cache<T> {
+  data: T | null;
+  timestamp: number;
+}
+const forecastCache: Cache<any> = {
+  data: null,
+  timestamp: 0,
+};
+const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
@@ -8,6 +20,14 @@ export default async function handler(
   if (request.method !== 'POST') {
     return response.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  // --- Check Cache ---
+  const now = Date.now();
+  if (forecastCache.data && (now - forecastCache.timestamp < CACHE_DURATION_MS)) {
+    console.log("Serving forecast data from cache.");
+    return response.status(200).json(forecastCache.data);
+  }
+  console.log("Fetching fresh forecast data (cache stale or empty).");
 
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
@@ -76,7 +96,13 @@ export default async function handler(
     });
 
     const resultText = genAIResponse.text.trim() || '[]';
-    return response.status(200).json(JSON.parse(resultText));
+    const data = JSON.parse(resultText);
+
+    // --- Update cache on success ---
+    forecastCache.data = data;
+    forecastCache.timestamp = now;
+
+    return response.status(200).json(data);
 
   } catch (error) {
     console.error("Error in /api/forecast:", error);

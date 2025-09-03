@@ -5,6 +5,17 @@ import { GoogleGenAI, Type } from '@google/genai';
 const AEMET_GALICIA_COASTAL_URL = 'https://www.aemet.es/xml/maritima/FQXX40MM.xml';
 const AEMET_CANTABRICO_COASTAL_URL = 'https://www.aemet.es/xml/maritima/FQXX41MM.xml';
 
+// --- Server-Side Cache ---
+interface Cache<T> {
+  data: T | null;
+  timestamp: number;
+}
+const warningsCache: Cache<{ summary: string }> = {
+  data: null,
+  timestamp: 0,
+};
+const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
@@ -12,6 +23,14 @@ export default async function handler(
   if (request.method !== 'GET') {
     return response.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  // --- Check Cache ---
+  const now = Date.now();
+  if (warningsCache.data && (now - warningsCache.timestamp < CACHE_DURATION_MS)) {
+    console.log("Serving warnings data from cache.");
+    return response.status(200).json(warningsCache.data);
+  }
+  console.log("Fetching fresh warnings data (cache stale or empty).");
 
   try {
     const [galiciaResponse, cantabricoResponse] = await Promise.all([
@@ -72,7 +91,13 @@ export default async function handler(
     });
 
     const resultText = genAIResponse.text.trim() || '{}';
-    return response.status(200).json(JSON.parse(resultText));
+    const data = JSON.parse(resultText);
+
+    // --- Update cache on success ---
+    warningsCache.data = data;
+    warningsCache.timestamp = now;
+
+    return response.status(200).json(data);
 
   } catch (error) {
     console.error("Error in /api/warnings:", error);
