@@ -1,29 +1,5 @@
 import { DAILY_TIPS } from "../data";
 
-// --- LOGGING ---
-export function logSosgenEvent(type: string, content: object): object | null {
-    try {
-        let logbook = JSON.parse(localStorage.getItem('sosgen_logbook') || '[]');
-        const newEntry = {
-            id: Date.now().toString(),
-            timestamp: new Date().toISOString(),
-            type,
-            content
-        };
-        logbook.push(newEntry);
-
-        if (logbook.length > 5) {
-            logbook = logbook.slice(-5);
-        }
-
-        localStorage.setItem('sosgen_logbook', JSON.stringify(logbook));
-        return newEntry;
-    } catch (e) {
-        console.error("Failed to write to logbook:", e);
-        return null;
-    }
-}
-
 // --- EVENT HANDLERS & LOGIC ---
 /**
  * Debounce function to limit the rate at which a function gets called.

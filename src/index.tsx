@@ -11,7 +11,6 @@ import { renderProtocolo } from './components/ProtocoloPage';
 import { renderMaritimeSignalsSimulator } from './components/SenalesPage';
 import { renderSimulacro } from './components/SimulacroPage';
 import { renderInfo } from './components/InfoPage';
-import { renderBitacora } from './components/BitacoraPage';
 import { renderMeteos } from './components/MeteosPage';
 import { renderRadioavisos } from './components/RadioavisosPage';
 
@@ -31,7 +30,6 @@ const pageRenderers = [
     renderMaritimeSignalsSimulator,
     renderSimulacro,
     renderInfo,
-    renderBitacora,
 ];
 
 function switchToPage(pageIndex: number, subTabId?: string) {
