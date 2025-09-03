@@ -19,51 +19,36 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    **ROLE:** You are an automated information extraction system.
+    **ROLE:** Eres un analista experto en inteligencia de fuentes abiertas (OSINT) especializado en el sector marítimo.
 
-    **TASK:** Your only task is to find information for the maritime station with MMSI "${mmsi}" and return it as a JSON object. For example, the MMSI 224013350 belongs to "Salvamar Altair".
+    **MISSION:** Tu misión es investigar el MMSI "${mmsi}" utilizando la herramienta de búsqueda de Google y compilar un informe estructurado en JSON.
 
-    **CRITICAL INSTRUCTIONS:**
-    1.  **SEARCH:** Use the provided search tool to find any public information about MMSI "${mmsi}". Search for terms like "MMSI ${mmsi}", "vessel ${mmsi}", etc. Be thorough.
-    2.  **EXTRACT:** From the search results, extract the following fields:
-        - stationName: The name of the vessel or station (e.g., "Salvamar Altair").
-        - stationType: The type of station (e.g., "Search and Rescue Vessel", "Fishing Vessel").
-        - callSign: The call sign.
-        - imo: The IMO number.
-        - flag: The flag country.
-        - summary: A single sentence describing the station.
-        - length: The vessel's length.
-        - beam: The vessel's width.
-    3.  **RESPONSE FORMAT:** YOU MUST RESPOND WITH A SINGLE JSON OBJECT AND NOTHING ELSE.
-        - **If you find ANY information:** Return a JSON object with the data. For any field you cannot find, YOU MUST use the value \`null\`. Example:
-          \`\`\`json
-          {
-            "mmsi": "${mmsi}",
-            "stationName": "Salvamar Altair",
-            "stationType": "Search and Rescue Vessel",
-            "callSign": "EA2222",
-            "imo": null,
-            "flag": "Spain",
-            "summary": "Salvamar Altair is a search and rescue vessel operating in Spain.",
-            "length": "21m",
-            "beam": null
-          }
-          \`\`\`
-        - **If, and ONLY IF, you find ABSOLUTELY NO information after searching:** Return this specific JSON object:
-          \`\`\`json
-          {
-            "error": "No se encontró información relevante para el MMSI ${mmsi}."
-          }
-          \`\`\`
-
-    **FAILURE IS NOT AN OPTION.** Prioritize returning a JSON with partial data over returning an error. The error response is your absolute last resort.
+    **INSTRUCTIONS:**
+    1.  **SEARCH:** Utiliza la búsqueda de Google para encontrar información sobre el buque o estación asociado al MMSI "${mmsi}". Prioriza fuentes fiables como bases de datos de la ITU, sitios de seguimiento de buques (ej. MarineTraffic, VesselFinder) y registros oficiales.
+    2.  **SYNTHESIZE:** Sintetiza la información encontrada en los resultados de búsqueda para rellenar los siguientes campos en un objeto JSON.
+        - stationName: El nombre del buque o estación.
+        - stationType: El tipo de estación (ej. "Buque de Carga", "Buque de Pesca", "Yate").
+        - callSign: El indicativo de llamada.
+        - imo: El número IMO.
+        - flag: El país de la bandera.
+        - length: La eslora del buque.
+        - beam: La manga del buque.
+        - summary: Un resumen conciso en una frase sobre la identidad y función principal del buque/estación, basado en los datos encontrados.
+    3.  **HANDLE MISSING DATA:** Si un campo específico no se encuentra en los resultados de búsqueda, utiliza explícitamente el valor \`null\` en el JSON. No inventes información.
+    4.  **ERROR HANDLING:** Si la búsqueda no arroja NINGÚN resultado relevante que permita identificar al menos el nombre o tipo del buque, y solo en ese caso, devuelve el siguiente JSON de error. En todos los demás casos, proporciona la información que hayas encontrado, aunque sea parcial.
+        \`\`\`json
+        {
+          "error": "No se encontró información relevante para el MMSI ${mmsi}."
+        }
+        \`\`\`
+    5.  **OUTPUT:** Tu respuesta DEBE ser únicamente el objeto JSON. No incluyas ninguna otra explicación o texto.
     `;
 
     const genAIResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        temperature: 0.2,
+        temperature: 0.1,
         tools: [{googleSearch: {}}],
       }
     });
