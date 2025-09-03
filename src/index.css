@@ -585,10 +585,28 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 
 /* --- METEOS Page --- */
 .meteos-header {
-    text-align: center;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid var(--border-color);
+}
+.meteos-header-text {
+    flex-grow: 1;
+}
+#meteos-refresh-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+#meteos-refresh-btn .spinner {
+    animation: spin 1s linear infinite;
+    width: 16px;
+    height: 16px;
 }
 .bulletins-container {
     display: grid;
