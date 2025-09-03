@@ -12,13 +12,17 @@ export default async function handler(
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
+    // Lista de ubicaciones filtrada para la costa norte de España (Galicia, Asturias, Cantabria, País Vasco)
+    // con una distancia mínima de 50km entre ellas.
     const locations = [
+        { name: 'Pasajes', lat: 43.34, lon: -1.85 },
         { name: 'Bilbao', lat: 43.37, lon: -2.76 },
-        { name: 'A Coruña', lat: 43.45, lon: -8.28 },
-        { name: 'Tarifa', lat: 36.12, lon: -5.76 },
-        { name: 'Valencia', lat: 39.47, lon: -0.37 },
-        { name: 'Palma', lat: 39.73, lon: 2.71 },
-        { name: 'Las Palmas', lat: 28.10, lon: -15.40 }
+        { name: 'Santander', lat: 43.29, lon: -4.14 },
+        { name: 'Cabo Peñas', lat: 43.49, lon: -5.94 },
+        { name: 'Navia', lat: 43.45, lon: -6.82 },
+        { name: 'Cabo Ortegal', lat: 43.71, lon: -7.89 },
+        { name: 'Finisterre', lat: 43.07, lon: -9.22 },
+        { name: 'Vigo', lat: 42.31, lon: -8.70 }
     ];
     
     const locationList = locations.map(l => `- ${l.name} (Lat: ${l.lat}, Lon: ${l.lon})`).join('\n');
