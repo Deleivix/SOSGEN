@@ -19,61 +19,67 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    **ROLE:** Actúa como un analista de élite en Inteligencia de Fuentes Abiertas (OSINT) con especialización en el sector marítimo. Eres meticuloso, preciso y experto en agregar datos de múltiples fuentes.
+    **ROLE:** You are an expert OSINT maritime analyst. Your mission is to find detailed, accurate information about a vessel using its MMSI.
 
-    **MISSION:** Tu misión es realizar una investigación exhaustiva del MMSI "${mmsi}" utilizando la herramienta de búsqueda de Google. Debes recopilar la mayor cantidad de información pública disponible y consolidarla en un informe estructurado en formato JSON. No te rindas fácilmente; la información suele estar disponible si buscas en las fuentes correctas.
+    **MISSION:** Conduct a thorough investigation for MMSI "${mmsi}". You MUST use the provided search tool. The information is public and findable on standard maritime websites. Failure to find basic information like the vessel's name is not an option.
 
-    **DATA SOURCES TO PRIORITIZE:**
-    -   Registros oficiales de la ITU.
-    -   Sitios de seguimiento de buques AIS (MarineTraffic, VesselFinder, MyShipTracking, etc.).
-    -   Bases de datos marítimas (Equasis, FleetMon, etc.).
-    -   Registros de empresas y noticias del sector.
+    **STRATEGIC SEARCH PROTOCOL (Follow these steps meticulously):**
+    1.  **Formulate & Execute Search Queries:** Start with the most direct query. If needed, use variations.
+        *   Primary Query: \`"${mmsi}" vessel name IMO\`
+        *   Secondary Query: \`MMSI ${mmsi} MarineTraffic\`
+        *   Tertiary Query: \`MMSI ${mmsi} VesselFinder\`
+    2.  **Analyze Search Results:** Prioritize results from well-known maritime sources: MarineTraffic, VesselFinder, MyShipTracking, FleetMon, Equasis. These sites almost always contain the primary identification data.
+    3.  **Extract Core Data:** Scrutinize the search results to extract the following key information.
+        *   \`stationName\`: The vessel's name. This is the most critical piece of information.
+        *   \`imo\`: IMO number.
+        *   \`callSign\`: Call sign.
+        *   \`flag\`: Flag country.
+        *   \`stationType\`: Vessel type (e.g., "General Cargo", "Oil Tanker").
+    4.  **Extract Detailed Data:** Once core data is identified, search for supplementary details:
+        *   \`length\` and \`beam\`: Dimensions (include units, e.g., "132 m").
+        *   \`grossTonnage\`: Gross Tonnage (GT).
+        *   \`lastPosition\`, \`positionTimestamp\`, and \`currentVoyage\` details (destination, eta, status).
+    5.  **Synthesize Summary:** Create a brief, informative summary based on the collected data.
+    6.  **Populate JSON:** Fill the JSON structure below with all extracted information. **USE \`null\` FOR ANY FIELD YOU CANNOT FIND.** Do not omit fields or invent data.
 
-    **INFORMATION TO EXTRACT (Compila todo lo que encuentres):**
-    1.  **Identificación Básica:**
-        -   \`stationName\`: Nombre del buque.
-        -   \`stationType\`: Tipo de buque (sé específico, ej. "Crude Oil Tanker", "Container Ship", "Fishing Vessel").
-        -   \`mmsi\`: El MMSI proporcionado ("${mmsi}").
-        -   \`callSign\`: Indicativo de llamada.
-        -   \`imo\`: Número IMO.
-        -   \`flag\`: País de la bandera.
-    2.  **Características Físicas:**
-        -   \`length\`: Eslora (longitud total), con unidades.
-        -   \`beam\`: Manga (anchura), con unidades.
-        -   \`grossTonnage\`: Arqueo Bruto (GT).
-    3.  **Datos de Viaje y Posición (si están disponibles):**
-        -   \`lastPosition\`: Última posición conocida (texto descriptivo o coordenadas).
-        -   \`positionTimestamp\`: Fecha y hora de la última posición.
-        -   \`currentVoyage.destination\`: Puerto de destino.
-        -   \`currentVoyage.eta\`: Fecha y hora estimada de llegada.
-        -   \`currentVoyage.status\`: Estado actual (ej. "Under way using engine", "Moored").
-    4.  **Resumen Analítico:**
-        -   \`summary\`: Basado en toda la información recopilada, escribe un resumen conciso (2-3 frases) que describa la identidad del buque y su actividad reciente o estado actual.
-
-    **CRITICAL INSTRUCTIONS & OUTPUT FORMAT:**
-    -   **ALWAYS RETURN DATA STRUCTURE:** Tu respuesta DEBE ser SIEMPRE un único objeto JSON válido. Este objeto debe contener una clave principal \`vesselInfo\`.
-    -   **NO DATA, USE NULL:** Si no puedes encontrar un dato específico para un campo, DEBES usar el valor \`null\`. NO omitas la clave ni inventes información.
-    -   **CONSIDER ANY FINDING A SUCCESS:** Si encuentras CUALQUIER dato (incluso solo el nombre del barco o su bandera), considéralo un éxito. Rellena los datos que encuentres y usa \`null\` para el resto.
-    -   **FINAL CHECK:** Asegúrate de que tu respuesta final sea un JSON válido envuelto en un bloque de código markdown JSON, sin ningún texto o explicación adicional fuera del bloque.
+    **EXAMPLE OF A SUCCESSFUL ANALYSIS (for a different MMSI):**
+    *   **Input MMSI:** \`224097470\`
+    *   **AI's Internal Process:**
+        1. Search \`"224097470" vessel name IMO\`.
+        2. Top results are for "PUNTA SALINAS" on VesselFinder and MarineTraffic.
+        3. Open VesselFinder page. Extract IMO \`9286983\`, Call Sign \`EADF\`, Flag \`Spain\`, Type \`Tug\`.
+        4. Open MarineTraffic. Confirm details and find dimensions: 30m x 10m.
+        5. Synthesize summary.
+        6. Populate JSON.
+    *   **AI's JSON Output for the example:**
         \`\`\`json
         {
           "vesselInfo": {
-            "stationName": "Example Vessel",
-            "stationType": "Cargo Ship",
-            "mmsi": "${mmsi}",
-            "callSign": null,
-            "imo": null,
-            "flag": null,
-            "length": null,
-            "beam": null,
-            "grossTonnage": null,
-            "lastPosition": null,
-            "positionTimestamp": null,
-            "currentVoyage": null,
-            "summary": null
+            "stationName": "PUNTA SALINAS",
+            "stationType": "Tug",
+            "mmsi": "224097470",
+            "callSign": "EADF",
+            "imo": "9286983",
+            "flag": "Spain",
+            "length": "30 m",
+            "beam": "10 m",
+            "grossTonnage": "350",
+            "lastPosition": "In port at Ferrol",
+            "positionTimestamp": "2024-07-29 10:00 UTC",
+            "currentVoyage": {
+              "destination": "FERROL",
+              "eta": null,
+              "status": "Moored"
+            },
+            "summary": "PUNTA SALINAS is a Spanish-flagged tug boat (IMO 9286983) currently moored at the port of Ferrol."
           }
         }
         \`\`\`
+
+    **CRITICAL OUTPUT INSTRUCTIONS:**
+    -   Your final output for MMSI "${mmsi}" MUST be ONLY the JSON object, wrapped in a markdown code block (\`\`\`json ... \`\`\`).
+    -   Do not include your thought process or any other text outside the JSON block in your final response.
+    -   If you find absolutely nothing after an exhaustive search (highly unlikely), return the structure with all values as \`null\` except for the provided \`mmsi\`.
     `;
 
     const genAIResponse = await ai.models.generateContent({
