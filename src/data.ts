@@ -14,6 +14,8 @@ export const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
     // PROTOCOLO: Network/Flowchart
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>`,
+    // Radioavisos: Radio Tower
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M19.1 1.9a10 10 0 0 1 0 14.1"/><path d="M7.8 13.2a6 6 0 0 1 8.4 0"/><path d="M10.6 10.4a2 2 0 0 1 2.8 0"/><path d="M12 18v4"/><path d="m9 18 3 4 3-4"/></svg>`,
     // METEOS: Cloud
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>`,
     // SEÑALES: Lighthouse Icon
@@ -31,12 +33,20 @@ export const APP_PAGES: Page[] = [
     { name: 'SOSGEN' },
     { name: 'Registro Océano' },
     { name: 'PROTOCOLO' },
+    { name: 'Radioavisos' },
     { name: 'METEOS' },
     { name: 'SEÑALES' },
     { name: 'SIMULACRO' },
     { name: 'INFO' },
     { name: 'Bitácora' },
 ];
+
+export const STATIONS_VHF = [
+    "La Guardia VHF", "Vigo VHF", "Finisterre VHF", "Coruña VHF", "Ortegal VHF",
+    "Navia VHF", "Peñas VHF", "Santander VHF", "Bilbao VHF", "Pasajes VHF"
+];
+export const STATIONS_MF = ["Finisterre MF", "Coruña MF", "Machichaco MF"];
+export const ALL_STATIONS = [...STATIONS_VHF, ...STATIONS_MF];
 
 export const REGISTRO_OCEANO_DATA: Category[] = [
     {

@@ -1031,6 +1031,231 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 }
 .wizard-restart-btn:hover { background-color: var(--text-primary); transform: translateY(-2px); }
 
+/* --- Radioavisos Manager --- */
+.radioavisos-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.radioavisos-header {
+  background-color: var(--bg-card);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.radioavisos-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+.radioavisos-header .header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.radioavisos-header .header-btn {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+.radioavisos-header .header-btn:hover {
+  background-color: var(--bg-main);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+.radioavisos-header .user-info {
+  font-size: 0.9rem;
+  background-color: var(--bg-main);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+}
+.radioavisos-nav {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem;
+  background-color: var(--bg-main);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+.radioavisos-nav-btn {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 2px solid transparent;
+}
+.radioavisos-nav-btn:hover {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+.radioavisos-nav-btn.active {
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+.radioavisos-view-container {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: var(--bg-card);
+  border-radius: 8px;
+  box-shadow: var(--shadow-color);
+  border: 1px solid var(--border-color);
+}
+.view-header {
+  color: var(--text-primary);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.view-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.form-group label {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group input[type="time"] {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    background-color: var(--bg-main);
+    width: 100%;
+    box-sizing: border-box;
+}
+.checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--bg-main);
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+.button-container {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+.station-tables {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+.station-table-container {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--bg-card);
+}
+.station-table-container h3 {
+    background-color: var(--table-header-bg);
+    color: var(--text-primary);
+    padding: 0.75rem;
+    margin: 0;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 500;
+}
+.table-wrapper {
+    overflow-x: auto;
+}
+.station-table.horizontal-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.station-table.horizontal-table th, .station-table.horizontal-table td {
+    text-align: center;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.5rem;
+    border: 1px solid var(--border-color);
+}
+.station-table.horizontal-table thead {
+    background-color: var(--table-header-bg);
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+.stat-card {
+    background: var(--bg-main);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+.stat-card .label { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.stat-card .value { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); }
+.stat-card .value.red { color: var(--danger-color); }
+.stat-card .value.green { color: var(--accent-color-dark); }
+.user-prompt-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); display: flex;
+    justify-content: center; align-items: center; z-index: 2000;
+}
+.user-prompt-box {
+    background: var(--bg-card); padding: 2rem; border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center;
+    width: 90%; max-width: 400px;
+}
+.warning-box {
+    background-color: var(--danger-color-bg); border: 1px solid var(--danger-color);
+    color: var(--danger-color); padding: 1rem; border-radius: 8px;
+    text-align: center; margin: 1.5rem 0;
+}
+body.dark-theme .warning-box {
+    background-color: var(--danger-color-dark-bg); color: var(--danger-color-dark);
+}
+.warning-box h3 { color: inherit; margin-top: 0; }
+.data-table .true-cell { color: var(--accent-color-dark); font-weight: bold; }
+.data-table .false-cell { color: var(--text-secondary); opacity: 0.7; }
 
 /* Tip of the Day Modal */
 .modal-overlay {
