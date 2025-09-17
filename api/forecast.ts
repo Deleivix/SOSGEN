@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 
@@ -47,25 +46,27 @@ export default async function handler(
     `;
 
     const prompt = `
-    Eres un experto meteorólogo marítimo. Tu tarea es proporcionar una previsión marítima para las próximas 24 horas para los siguientes 8 puntos costeros clave de España. Debes utilizar la herramienta de búsqueda para obtener datos meteorológicos actualizados y fiables.
+    Eres un experto meteorólogo marítimo. Tu tarea es proporcionar una previsión marítima para las próximas 24 horas para los siguientes 10 puntos costeros clave del norte de España. Debes utilizar la herramienta de búsqueda para obtener datos meteorológicos actualizados y fiables de servicios como AEMET, Windy, Windguru, etc.
 
-    **Ubicaciones:**
-    1.  Finisterre (Galicia)
-    2.  Estaca de Bares (Galicia)
-    3.  Cabo Peñas (Asturias)
-    4.  Santander (Cantabria)
-    5.  Bilbao (País Vasco)
-    6.  Tarifa (Estrecho de Gibraltar)
-    7.  Cabo de Gata (Almería)
-    8.  Palma (Baleares)
+    **Ubicaciones (con coordenadas de referencia):**
+    1.  La Guardia (Lat: 41.90, Lon: -8.87)
+    2.  Vigo (Lat: 42.24, Lon: -8.72)
+    3.  Finisterre (Lat: 42.91, Lon: -9.26)
+    4.  A Coruña (Lat: 43.37, Lon: -8.39)
+    5.  Cabo Ortegal (Lat: 43.77, Lon: -7.87)
+    6.  Navia (Lat: 43.54, Lon: -6.72)
+    7.  Cabo Peñas (Lat: 43.66, Lon: -5.85)
+    8.  Santander (Lat: 43.46, Lon: -3.80)
+    9.  Bilbao (costa) (Lat: 43.35, Lon: -3.03)
+    10. Pasajes (Pasaia) (Lat: 43.32, Lon: -1.91)
 
     **Instrucciones:**
-    -   Para cada ubicación, proporciona la previsión más representativa para las próximas 24 horas.
-    -   **Viento:** Dirección predominante y fuerza media en la escala Beaufort.
+    -   Para CADA UNA de las 10 ubicaciones, proporciona la previsión más representativa para las próximas 24 horas.
+    -   **Viento:** Dirección predominante (ej. NW, S) y fuerza media en la escala Beaufort.
     -   **Olas:** Altura media de las olas en metros.
     -   **Visibilidad:** Visibilidad general en kilómetros (ej: 10 para buena, 5 para regular, 1 para mala).
     -   **Tiempo:** Un resumen corto y un icono correspondiente.
-    -   **CRÍTICO:** Tu respuesta DEBE ser exclusivamente un bloque de código JSON markdown que contenga un array de 8 objetos, siguiendo esta estructura exacta:
+    -   **CRÍTICO:** Tu respuesta DEBE ser exclusivamente un bloque de código JSON markdown que contenga un array de 10 objetos, uno por cada ubicación en el orden solicitado, siguiendo esta estructura exacta:
     \`\`\`json
     ${schemaForPrompt}
     \`\`\`
@@ -87,7 +88,6 @@ export default async function handler(
     if (jsonMatch && jsonMatch[1]) {
         resultText = jsonMatch[1];
     } else {
-        // Fallback for cases where the model might not use markdown
         const firstBracket = resultText.indexOf('[');
         const lastBracket = resultText.lastIndexOf(']');
         if (firstBracket !== -1 && lastBracket > firstBracket) {
@@ -103,12 +103,10 @@ export default async function handler(
     
     const forecastData = JSON.parse(resultText);
 
-    // Basic validation
     if (!Array.isArray(forecastData) || forecastData.length === 0) {
       throw new Error("La respuesta de la IA no es un array válido o está vacío.");
     }
 
-    // Update cache
     forecastCache.data = forecastData;
     forecastCache.timestamp = now;
 
