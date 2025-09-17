@@ -59,8 +59,6 @@ const translationDictionary: { [key: string]: string } = {
 function translateBulletin(spanishText: string): string {
     if (!spanishText) return '';
     let englishText = spanishText;
-    // Use a regex with word boundaries to avoid replacing parts of words.
-    // Sort keys by length descending to match longer phrases first (e.g., "FUERTE MAREJADA" before "MAR").
     const sortedKeys = Object.keys(translationDictionary).sort((a, b) => b.length - a.length);
     for (const key of sortedKeys) {
         const regex = new RegExp(`\\b${key}\\b`, 'gi');
@@ -92,51 +90,88 @@ function numberToWords(num: number): string {
 
 function parseMainBulletin(xmlText: string): string {
     if (!xmlText) return "No se recibieron datos para el boletín principal.";
-    // Use regex for robustness against parsing/encoding errors
-    const apartados = xmlText.match(/<apartado>[\s\S]*?<\/apartado>/g) || [];
-    if (apartados.length === 0) return "No se encontraron secciones ('apartado') en el boletín.";
+
+    const apartados = xmlText.match(/<apartado[^>]*>[\s\S]*?<\/apartado>/g) || [];
+    if (apartados.length === 0) {
+        const bodyMatch = xmlText.match(/<texto>([\s\S]*?)<\/texto>/);
+        if (bodyMatch && bodyMatch[1].trim()) {
+            return optimizeForTTS(bodyMatch[1].trim());
+        }
+        return "Error: No se encontraron secciones ('apartado') en el boletín.";
+    }
     
     let fullText = '';
     apartados.forEach(apartadoStr => {
-        const tituloMatch = apartadoStr.match(/<titulo>([\s\S]*?)<\/titulo>/);
-        const textoMatch = apartadoStr.match(/<texto>([\s\S]*?)<\/texto>/);
+        const tituloMatch = apartadoStr.match(/<titulo[^>]*>([\s\S]*?)<\/titulo>/);
+        const textoMatch = apartadoStr.match(/<texto[^>]*>([\s\S]*?)<\/texto>/);
         
-        const titulo = tituloMatch ? tituloMatch[1].trim().replace(/&lt;/g, "<").replace(/&gt;/g, ">") : '';
-        const texto = textoMatch ? textoMatch[1].trim().replace(/&lt;/g, "<").replace(/&gt;/g, ">") : '';
+        const cleanText = (text: string | null) => text ? text.trim().replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") : '';
+
+        const titulo = cleanText(tituloMatch ? tituloMatch[1] : null);
+        const texto = cleanText(textoMatch ? textoMatch[1] : null);
         
         if (titulo && texto) {
             fullText += `${titulo.toUpperCase()}\n\n${texto}\n\n`;
+        } else if (texto) {
+            fullText += `${texto}\n\n`;
         }
     });
 
-    if (!fullText.trim()) return "El contenido del boletín principal está vacío.";
+    if (!fullText.trim()) return "El contenido del boletín principal está vacío o no pudo ser analizado.";
     return optimizeForTTS(fullText.trim());
 }
 
 function parseCoastalBulletin(xmlText: string): string {
     if (!xmlText) return "No se recibieron datos para el boletín costero.";
     
-    const nombreMatch = xmlText.match(/<nombre>([\s\S]*?)<\/nombre>/);
-    const avisoMatch = xmlText.match(/<aviso>([\s\S]*?)<\/aviso>/);
+    const cleanText = (text: string | null) => text ? text.trim().replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") : '';
 
-    let content = (nombreMatch ? nombreMatch[1].trim().toUpperCase() : 'BOLETÍN COSTERO') + '\n\n';
-    content += 'AVISO: ' + (avisoMatch ? avisoMatch[1].trim() : 'NO HAY AVISOS EN VIGOR.') + '\n\n';
+    const nombreMatch = xmlText.match(/<nombre[^>]*>([\s\S]*?)<\/nombre>/);
+    const avisoMatch = xmlText.match(/<aviso[^>]*>([\s\S]*?)<\/aviso>/);
+
+    let content = (cleanText(nombreMatch ? nombreMatch[1] : null) || 'BOLETÍN COSTERO').toUpperCase() + '\n\n';
+    content += 'AVISO: ' + (cleanText(avisoMatch ? avisoMatch[1] : null) || 'NO HAY AVISOS EN VIGOR.') + '\n\n';
     
-    const zonas = xmlText.match(/<zona[\s\S]*?<\/zona>/g) || [];
-    if (zonas.length === 0) return "No se encontraron zonas de predicción en el boletín costero.";
+    const zonas = xmlText.match(/<zona[^>]*>[\s\S]*?<\/zona>/g) || [];
+    if (zonas.length === 0) return content + "No se encontraron zonas de predicción en el boletín costero.";
 
     zonas.forEach(zonaStr => {
         const nombreZonaMatch = zonaStr.match(/nombre="([^"]+)"/);
-        const situacionMatch = zonaStr.match(/<situacion>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/situacion>/);
-        const prediccionMatch = zonaStr.match(/<prediccion>[\s\S]*?<mar>([\s\S]*?)<\/mar>[\s\S]*?<\/prediccion>/);
-
         const nombreZona = nombreZonaMatch ? nombreZonaMatch[1].trim() : '';
-        const situacion = situacionMatch ? situacionMatch[1].trim() : '';
-        const prediccionMar = prediccionMatch ? prediccionMatch[1].trim() : '';
+
+        const getNestedText = (outerTag: string, innerTag: string) => {
+            const outerRegex = new RegExp(`<${outerTag}[^>]*>([\\s\\S]*?)</${outerTag}>`);
+            const outerMatch = zonaStr.match(outerRegex);
+            if (!outerMatch) return '';
+            const innerRegex = new RegExp(`<${innerTag}[^>]*>([\\s\\S]*?)</${innerTag}>`);
+            const innerMatch = outerMatch[1].match(innerRegex);
+            return cleanText(innerMatch ? innerMatch[1] : null);
+        };
+        
+        const situacion = getNestedText('situacion', 'texto');
+        const viento = getNestedText('prediccion', 'viento');
+        const mar = getNestedText('prediccion', 'mar');
+        const mar_de_fondo = getNestedText('prediccion', 'mar_de_fondo');
+        const aguaceros = getNestedText('prediccion', 'aguaceros');
+        const visibilidad = getNestedText('prediccion', 'visibilidad');
         
         content += `${nombreZona.toUpperCase()}:\n`;
-        if (situacion) content += `SITUACIÓN: ${situacion}\n`;
-        if (prediccionMar) content += `PREDICCIÓN: ${prediccionMar}\n\n`;
+        if (situacion) {
+            content += `SITUACIÓN: ${situacion}\n`;
+        }
+        
+        let predictionParts = [];
+        if (viento) predictionParts.push(viento);
+        if (mar) predictionParts.push(mar);
+        if (mar_de_fondo) predictionParts.push(`Mar de fondo ${mar_de_fondo}`);
+        if (visibilidad) predictionParts.push(visibilidad);
+        if (aguaceros) predictionParts.push(aguaceros);
+
+        if (predictionParts.length > 0) {
+             content += 'PREDICCIÓN: ' + predictionParts.join('. ') + '.\n\n';
+        } else {
+             content += '\n';
+        }
     });
     
     return optimizeForTTS(content.trim());
@@ -226,8 +261,8 @@ async function fetchAndProcessData(stateKey: string, url: string, parser: (xml: 
         if (!xmlText) throw new Error("Respuesta de AEMET vacía.");
 
         const spanishContent = parser(xmlText);
-        if(spanishContent.toLowerCase().includes("no se pudo") || spanishContent.toLowerCase().includes("no se encontraron")) {
-            throw new Error(spanishContent);
+        if(spanishContent.toLowerCase().includes("error:")) {
+            throw new Error(spanishContent.replace('Error: ', ''));
         }
 
         const englishContent = translateBulletin(spanishContent);
