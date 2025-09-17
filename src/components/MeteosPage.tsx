@@ -91,40 +91,57 @@ function numberToWords(num: number): string {
 }
 
 function parseMainBulletin(xmlText: string): string {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-    const apartados = xmlDoc.querySelectorAll('apartado');
+    if (!xmlText) return "No se recibieron datos para el boletín principal.";
+    // Use regex for robustness against parsing/encoding errors
+    const apartados = xmlText.match(/<apartado>[\s\S]*?<\/apartado>/g) || [];
+    if (apartados.length === 0) return "No se encontraron secciones ('apartado') en el boletín.";
+    
     let fullText = '';
-    apartados.forEach(apartado => {
-        const titulo = apartado.querySelector('titulo')?.textContent?.trim() || '';
-        const texto = apartado.querySelector('texto')?.textContent?.trim() || '';
+    apartados.forEach(apartadoStr => {
+        const tituloMatch = apartadoStr.match(/<titulo>([\s\S]*?)<\/titulo>/);
+        const textoMatch = apartadoStr.match(/<texto>([\s\S]*?)<\/texto>/);
+        
+        const titulo = tituloMatch ? tituloMatch[1].trim().replace(/&lt;/g, "<").replace(/&gt;/g, ">") : '';
+        const texto = textoMatch ? textoMatch[1].trim().replace(/&lt;/g, "<").replace(/&gt;/g, ">") : '';
+        
         if (titulo && texto) {
             fullText += `${titulo.toUpperCase()}\n\n${texto}\n\n`;
         }
     });
-    return optimizeForTTS(fullText);
+
+    if (!fullText.trim()) return "El contenido del boletín principal está vacío.";
+    return optimizeForTTS(fullText.trim());
 }
 
 function parseCoastalBulletin(xmlText: string): string {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-    const prediccion = xmlDoc.querySelector('prediccion_costera');
-    if (!prediccion) return "No se pudo analizar el boletín costero.";
-    const titulo = prediccion.querySelector('nombre')?.textContent || '';
-    const aviso = prediccion.querySelector('aviso')?.textContent || '';
-    let content = `${titulo.toUpperCase()}\n\n`;
-    if (aviso.trim() !== 'NO HAY AVISOS EN VIGOR.') {
-        content += `AVISO: ${aviso}\n\n`;
-    }
-    const zonas = prediccion.querySelectorAll('zona');
-    zonas.forEach(zona => {
-        const nombreZona = zona.getAttribute('nombre') || '';
-        const situacion = zona.querySelector('situacion > texto')?.textContent || '';
-        const prediccionMar = zona.querySelector('prediccion > mar')?.textContent || '';
-        content += `${nombreZona.toUpperCase()}:\nSITUACIÓN: ${situacion}\nPREDICCIÓN: ${prediccionMar}\n\n`;
+    if (!xmlText) return "No se recibieron datos para el boletín costero.";
+    
+    const nombreMatch = xmlText.match(/<nombre>([\s\S]*?)<\/nombre>/);
+    const avisoMatch = xmlText.match(/<aviso>([\s\S]*?)<\/aviso>/);
+
+    let content = (nombreMatch ? nombreMatch[1].trim().toUpperCase() : 'BOLETÍN COSTERO') + '\n\n';
+    content += 'AVISO: ' + (avisoMatch ? avisoMatch[1].trim() : 'NO HAY AVISOS EN VIGOR.') + '\n\n';
+    
+    const zonas = xmlText.match(/<zona[\s\S]*?<\/zona>/g) || [];
+    if (zonas.length === 0) return "No se encontraron zonas de predicción en el boletín costero.";
+
+    zonas.forEach(zonaStr => {
+        const nombreZonaMatch = zonaStr.match(/nombre="([^"]+)"/);
+        const situacionMatch = zonaStr.match(/<situacion>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/situacion>/);
+        const prediccionMatch = zonaStr.match(/<prediccion>[\s\S]*?<mar>([\s\S]*?)<\/mar>[\s\S]*?<\/prediccion>/);
+
+        const nombreZona = nombreZonaMatch ? nombreZonaMatch[1].trim() : '';
+        const situacion = situacionMatch ? situacionMatch[1].trim() : '';
+        const prediccionMar = prediccionMatch ? prediccionMatch[1].trim() : '';
+        
+        content += `${nombreZona.toUpperCase()}:\n`;
+        if (situacion) content += `SITUACIÓN: ${situacion}\n`;
+        if (prediccionMar) content += `PREDICCIÓN: ${prediccionMar}\n\n`;
     });
-    return optimizeForTTS(content);
+    
+    return optimizeForTTS(content.trim());
 }
+
 
 // --- RENDERING LOGIC ---
 
@@ -141,8 +158,6 @@ const renderBulletinCard = (state: BulletinState) => {
         }
         return content || 'No disponible.';
     };
-
-    const hasContent = state.spanishContent && state.englishContent;
 
     return `
         <div class="bulletin-card" id="card-${state.id}">
@@ -211,6 +226,10 @@ async function fetchAndProcessData(stateKey: string, url: string, parser: (xml: 
         if (!xmlText) throw new Error("Respuesta de AEMET vacía.");
 
         const spanishContent = parser(xmlText);
+        if(spanishContent.toLowerCase().includes("no se pudo") || spanishContent.toLowerCase().includes("no se encontraron")) {
+            throw new Error(spanishContent);
+        }
+
         const englishContent = translateBulletin(spanishContent);
 
         bulletinStates[stateKey].spanishContent = spanishContent;
@@ -232,7 +251,12 @@ async function fetchMeteosData() {
     document.querySelector<HTMLButtonElement>('#meteos-refresh-btn')?.setAttribute('disabled', 'true');
     const contentEl = document.getElementById('meteos-content');
     if (contentEl) {
-        Object.keys(bulletinStates).forEach(k => { bulletinStates[k].status = 'loading'; });
+        Object.keys(bulletinStates).forEach(k => { 
+            bulletinStates[k].status = 'loading'; 
+            bulletinStates[k].spanishContent = null;
+            bulletinStates[k].englishContent = null;
+            bulletinStates[k].error = null;
+        });
         contentEl.innerHTML = renderMeteosLayout();
     }
     
