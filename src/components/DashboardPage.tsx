@@ -17,20 +17,6 @@ function renderWeatherIcon(iconName: string): string {
     return icons[iconName] || icons['cloudy']; // Default to cloudy
 }
 
-/**
- * Renders an SVG icon representing the atmospheric pressure trend.
- * @param trend - The pressure trend ('rising', 'falling', or 'steady').
- * @returns An SVG string for the trend icon.
- */
-function renderPressureTrendIcon(trend: string): string {
-    const icons: { [key: string]: string } = {
-        'rising': `<svg class="pressure-trend-icon rising" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg>`,
-        'falling': `<svg class="pressure-trend-icon falling" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l8-8h-6V4h-4v8H4z"/></svg>`,
-        'steady': `<svg class="pressure-trend-icon steady" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`
-    };
-    return icons[trend] || '';
-}
-
 // --- Client-side cache for dashboard data ---
 let forecastCache: { data: any, timestamp: number } | null = null;
 let warningsCache: { data: any, timestamp: number } | null = null;
@@ -114,9 +100,6 @@ function renderForecastContent(data: any) {
                         <th style="text-align: center;">Viento (Bft)</th>
                         <th style="text-align: center;">Olas (m)</th>
                         <th style="text-align: center;">Visib. (km)</th>
-                        <th style="text-align: center;">Presión</th>
-                        <th style="text-align: center;">T. Aire</th>
-                        <th style="text-align: center;">T. Mar</th>
                         <th style="text-align: center;">Tiempo</th>
                     </tr>
                 </thead>
@@ -130,12 +113,6 @@ function renderForecastContent(data: any) {
                             </td>
                             <td style="text-align: center;">${f.waveHeightMeters.toFixed(1)}</td>
                             <td style="text-align: center;">${f.visibilityKm}</td>
-                            <td style="text-align: center;" class="pressure-cell">
-                                <span>${f.pressureHpa}</span>
-                                ${renderPressureTrendIcon(f.pressureTrend)}
-                            </td>
-                            <td style="text-align: center;">${f.airTemperatureCelsius}°C</td>
-                            <td style="text-align: center;">${f.seaTemperatureCelsius}°C</td>
                             <td style="text-align: center;">
                                 <div class="weather-icon" title="${f.weatherSummary || ''}">${renderWeatherIcon(f.weatherIcon)}</div>
                             </td>
@@ -190,10 +167,10 @@ function getWindDirectionAngle(direction: string): number {
     const angles: {[key: string]: number} = {
         'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
         'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
-        'S': 180, 'SSO': 202.5, 'SO': 225, 'OSO': 247.5,
+        'S': 180, 'SSO': 202.5, 'SO': 225, 'OSO': 247.5, 'SSW': 202.5, 'SW': 225,
         'O': 270, 'ONO': 292.5, 'NO': 315, 'NNO': 337.5,
         'W': 270, 'WNW': 292.5, 'NW': 315, 'NNW': 337.5,
-        'SW': 225, 'SSW': 202.5
+        'VAR': 0,
     };
     return angles[direction.toUpperCase()] || 0;
 }
