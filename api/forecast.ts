@@ -16,6 +16,21 @@ const AEMET_URLS = {
     CANTABRICO: 'https://www.aemet.es/xml/maritima/FQXX41MM.xml',
 };
 
+// --- Mapping from the desired station name to the AEMET zone name ---
+const STATION_ZONE_MAPPING: { [key: string]: string } = {
+    'La Guardia': 'Pontevedra',
+    'Vigo': 'Pontevedra',
+    'Finisterre': 'A Coruña',
+    'A Coruña': 'A Coruña',
+    'Ortegal': 'Lugo', // Although geographically in A Coruña, its forecast is often with Lugo's section.
+    'Navia': 'Asturias',
+    'Cabo Peñas': 'Asturias',
+    'Santander': 'Cantabria',
+    'Bilbao': 'Bizkaia',
+    'Pasajes': 'Gipuzkoa',
+};
+
+
 // --- Helper function to parse forecast from bulletin text ---
 function parseForecastFromText(text: string) {
     const forecast = {
@@ -27,11 +42,9 @@ function parseForecastFromText(text: string) {
         weatherIcon: 'sunny'
     };
     
-    // Normalize text for easier parsing
     const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
 
-    // 1. Wind
-    // Regex to find wind descriptions like "COMPONENTE OESTE 3 O 4", "VARIABLE 1 A 3", "NW 4" etc.
+    // Wind
     const windMatch = normalizedText.match(/(?:VIENTO|ARRECIANDO A|ROLANDO A|TENDIENDO A)\s+([A-Z\s/O]+?)\s+(\d+)(?:\s*[A-Z]\s+(\d+))?/);
     if (windMatch) {
         const directions = windMatch[1].replace(/COMPONENTE/i, '').trim().split(/\s+O\s+|\s*\/\s*/);
@@ -45,7 +58,7 @@ function parseForecastFromText(text: string) {
         }
     }
 
-    // 2. Waves
+    // Waves
     const waveMatch = normalizedText.match(/(?:MAR DE FONDO|OLAS)\s+.*?(\d+(?:\.\d+)?)(?:\s+A\s+(\d+(?:\.\d+)?))?\s+METROS?/);
     if (waveMatch) {
         forecast.waveHeightMeters = parseFloat(waveMatch[2] || waveMatch[1]);
@@ -56,7 +69,7 @@ function parseForecastFromText(text: string) {
         else if (normalizedText.includes('RIZADA')) forecast.waveHeightMeters = 0.1;
     }
     
-    // 3. Visibility & Weather
+    // Visibility & Weather
     if (normalizedText.includes('NIEBLA') || normalizedText.includes('BRUMA') || normalizedText.includes('MALA')) {
         forecast.visibilityKm = 2;
         forecast.weatherSummary = 'Niebla o bruma';
@@ -116,21 +129,28 @@ export default async function handler(
     
     const allXml = galiciaXml + cantabricoXml;
     
-    // Use regex to parse XML in Node.js environment, avoiding DOMParser.
-    const forecastData = [];
+    // 1. Parse all bulletins and store forecasts by zone name (province)
+    const zoneForecasts = new Map<string, any>();
     const zoneRegex = /<zona[^>]*nombre="([^"]+)"[^>]*>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/zona>/gi;
     let match;
     while ((match = zoneRegex.exec(allXml)) !== null) {
-        const locationName = match[1].replace(/AGUAS COSTERAS DE /i, '').trim();
+        const zoneName = match[1].replace(/AGUAS COSTERAS DE /i, '').trim();
         const textContent = match[2] || '';
         const forecast = parseForecastFromText(textContent);
-        
-        forecastData.push({
-            locationName,
-            ...forecast
-        });
+        zoneForecasts.set(zoneName, forecast);
     }
 
+    // 2. Create the final forecast list by mapping stations to their zone's forecast
+    const forecastData = [];
+    for (const [stationName, zoneName] of Object.entries(STATION_ZONE_MAPPING)) {
+        const zoneForecast = zoneForecasts.get(zoneName);
+        if (zoneForecast) {
+            forecastData.push({
+                locationName: stationName,
+                ...zoneForecast
+            });
+        }
+    }
 
     if (forecastData.length === 0) {
         throw new Error("No se pudo extraer la información de los boletines de AEMET.");
