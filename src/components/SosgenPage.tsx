@@ -381,21 +381,51 @@ function renderSilenceFiniModal(entry: SosgenHistoryEntry) {
     
     const generateMessages = () => {
         const selectedEnglishReason = englishReasons[selectedReason];
-        
+
+        // Extract station name
         const esStationMatch = entry.spanishMessage.match(/AQUI\s(.*?)\s\(x3\)/);
-        const enStationMatch = entry.englishMessage.match(/THIS IS\s(.*?)\s\(x3\)/);
-        const esVesselMatch = entry.spanishMessage.match(/(?:Buque|Embarcación)\s+'([^']+)'/i);
-        const enVesselMatch = entry.englishMessage.match(/Vessel\s+'([^']+)'/i);
+        const stationName = esStationMatch ? esStationMatch[1].trim() : '____________________';
+        
+        // Extract description from MAYDAY RELAY
+        const descriptionMatchEs = entry.spanishMessage.match(/UTC\.\n\n([\s\S]*?)\n\nSE REQUIERE/);
+        const spanishDescription = descriptionMatchEs ? descriptionMatchEs[1].trim() : '';
+        
+        const descriptionMatchEn = entry.englishMessage.match(/UTC\.\n\n([\s\S]*?)\n\nALL VESSELS/);
+        const englishDescription = descriptionMatchEn ? descriptionMatchEn[1].trim() : '';
 
-        const stationName = esStationMatch ? esStationMatch[1].trim() : '_____________';
-        const vesselName = esVesselMatch ? esVesselMatch[1] : '[NOMBRE DEL BUQUE]';
-        const vesselNameEn = enVesselMatch ? enVesselMatch[1] : '[VESSEL NAME]';
+        // Create the reference line for Spanish
+        const esVesselMatch = spanishDescription.match(/(?:Buque|Embarcación)\s+'([^']+)'/i);
+        let referenceLineEs = '';
+        if (esVesselMatch && esVesselMatch[1]) {
+            referenceLineEs = `REFERENTE A MENSAJE DE SOCORRO DEL BUQUE ${esVesselMatch[1]}.`;
+        } else {
+            const summary = spanishDescription.charAt(0).toLowerCase() + spanishDescription.slice(1);
+            referenceLineEs = `REFERENTE A MENSAJE DE SOCORRO SOBRE ${summary}`;
+            if (!referenceLineEs.endsWith('.')) {
+                referenceLineEs += '.';
+            }
+        }
 
+        // Create the reference line for English
+        const enVesselMatch = englishDescription.match(/Vessel\s+'([^']+)'/i);
+        let referenceLineEn = '';
+        if (enVesselMatch && enVesselMatch[1]) {
+            referenceLineEn = `REGARDING DISTRESS MESSAGE FROM THE VESSEL ${enVesselMatch[1]}.`;
+        } else {
+            const summary = englishDescription.charAt(0).toLowerCase() + englishDescription.slice(1);
+            referenceLineEn = `REGARDING DISTRESS MESSAGE ABOUT ${summary}`;
+            if (!referenceLineEn.endsWith('.')) {
+                referenceLineEn += '.';
+            }
+        }
+        
+        // Get current time
         const now = new Date();
         const currentTimeUTC = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}`;
 
-        esResultDiv.innerText = `MAYDAY\nLLAMADA GENERAL (x3)\nAQUI ${stationName} A ${currentTimeUTC} UTC.\nREFERENTE A MENSAJE DE SOCORRO DEL BUQUE ${vesselName}.\n${selectedReason}\nSILENCE FINI.`;
-        enResultDiv.innerText = `MAYDAY\nALL SHIPS (x3)\nTHIS IS ${stationName} AT ${currentTimeUTC} UTC.\nREGARDING DISTRESS MESSAGE FROM THE VESSEL ${vesselNameEn}.\n${selectedEnglishReason}\nSILENCE FINI.`;
+        // Assemble the final messages
+        esResultDiv.innerText = `MAYDAY\nLLAMADA GENERAL (x3)\nAQUI ${stationName} A ${currentTimeUTC} UTC.\n${referenceLineEs}\n${selectedReason}\nSILENCE FINI.`;
+        enResultDiv.innerText = `MAYDAY\nALL SHIPS (x3)\nTHIS IS ${stationName} AT ${currentTimeUTC} UTC.\n${referenceLineEn}\n${selectedEnglishReason}\nSILENCE FINI.`;
     };
     
     reasonButtonsContainer.addEventListener('click', (e) => {
