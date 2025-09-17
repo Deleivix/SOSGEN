@@ -555,6 +555,14 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 @media (min-width: 768px) {
     .history-entry-content { grid-template-columns: 1fr 1fr; }
 }
+.history-entry-silence-fini {
+    padding: 1.5rem;
+    padding-top: 0;
+}
+.history-entry-content .editable-message[data-lang^="silence-"] {
+    background-color: var(--bg-main);
+    min-height: 150px;
+}
 
 
 /* --- Registro Oceano --- */
@@ -1236,6 +1244,10 @@ body.dark-theme .warning-box {
 }
 .modal-content .simulator-input {
     width: 100%;
+}
+.modal-content .buoy-selector-group {
+    justify-content: flex-start;
+    margin-bottom: 1.5rem;
 }
 
 

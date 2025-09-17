@@ -8,6 +8,8 @@ type SosgenHistoryEntry = {
     timestamp: string;
     spanishMessage: string;
     englishMessage: string;
+    silenceFiniSpanish?: string;
+    silenceFiniEnglish?: string;
 };
 
 let sosgenHistory: SosgenHistoryEntry[] = [];
@@ -35,15 +37,33 @@ function addToHistory(spanishMessage: string, englishMessage: string): void {
     saveHistory();
 }
 
-function updateHistoryEntry(id: string, newSpanish: string, newEnglish: string): void {
+function updateHistoryEntry(id: string, newSpanish: string, newEnglish: string, newSilenceSpanish?: string, newSilenceEnglish?: string): void {
     const index = sosgenHistory.findIndex(entry => entry.id === id);
     if (index > -1) {
         sosgenHistory[index].spanishMessage = newSpanish;
         sosgenHistory[index].englishMessage = newEnglish;
+        if (newSilenceSpanish !== undefined) {
+            sosgenHistory[index].silenceFiniSpanish = newSilenceSpanish;
+        }
+        if (newSilenceEnglish !== undefined) {
+            sosgenHistory[index].silenceFiniEnglish = newSilenceEnglish;
+        }
         saveHistory();
         showToast('Entrada del historial guardada.', 'success');
     }
 }
+
+function addSilenceFiniToHistory(id: string, silenceFiniSpanish: string, silenceFiniEnglish: string): void {
+    const index = sosgenHistory.findIndex(entry => entry.id === id);
+    if (index > -1) {
+        sosgenHistory[index].silenceFiniSpanish = silenceFiniSpanish;
+        sosgenHistory[index].silenceFiniEnglish = silenceFiniEnglish;
+        saveHistory();
+        showToast('SILENCE FINI guardado en el historial.', 'success');
+        renderHistory(); // Re-render the history list
+    }
+}
+
 
 function deleteHistoryEntry(id: string): void {
     sosgenHistory = sosgenHistory.filter(entry => entry.id !== id);
@@ -227,7 +247,7 @@ function renderHistory() {
                     ${new Date(entry.timestamp).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <div style="display: flex; gap: 0.75rem;">
-                     <button class="primary-btn-small" data-action="generate-silence-fini" data-id="${entry.id}">Generar SILENCE FINI</button>
+                     ${!entry.silenceFiniSpanish ? `<button class="primary-btn-small" data-action="generate-silence-fini" data-id="${entry.id}">Generar SILENCE FINI</button>` : ''}
                      <button class="secondary-btn" data-action="save" data-id="${entry.id}">Guardar</button>
                      <button class="tertiary-btn" data-action="delete" data-id="${entry.id}">Borrar</button>
                 </div>
@@ -242,6 +262,21 @@ function renderHistory() {
                     <div contenteditable="true" class="editable-message" data-lang="en">${entry.englishMessage.replace(/\n/g, '<br>')}</div>
                 </div>
             </div>
+            ${entry.silenceFiniSpanish ? `
+                <div class="history-entry-silence-fini">
+                    <h5 style="margin-bottom: 1rem; color: var(--accent-color-dark);">SILENCE FINI Generado:</h5>
+                    <div class="history-entry-content" style="padding-top: 1rem; border-top: 1px dashed var(--border-color); margin-top: 1rem;">
+                        <div>
+                            <div class="history-entry-lang-header"><h4>Español</h4></div>
+                            <div contenteditable="true" class="editable-message" data-lang="silence-es">${entry.silenceFiniSpanish.replace(/\n/g, '<br>')}</div>
+                        </div>
+                        <div>
+                            <div class="history-entry-lang-header"><h4>Inglés</h4></div>
+                            <div contenteditable="true" class="editable-message" data-lang="silence-en">${entry.silenceFiniEnglish.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
         </div>
     `).join('');
 }
@@ -263,8 +298,13 @@ function handleHistoryAction(e: MouseEvent) {
         case 'save': {
             const spanishDiv = entryElement.querySelector<HTMLDivElement>('[data-lang="es"]');
             const englishDiv = entryElement.querySelector<HTMLDivElement>('[data-lang="en"]');
+            const silenceSpanishDiv = entryElement.querySelector<HTMLDivElement>('[data-lang="silence-es"]');
+            const silenceEnglishDiv = entryElement.querySelector<HTMLDivElement>('[data-lang="silence-en"]');
+            
             if (spanishDiv && englishDiv) {
-                updateHistoryEntry(id, spanishDiv.innerText, englishDiv.innerText);
+                const silenceEsText = silenceSpanishDiv ? silenceSpanishDiv.innerText : undefined;
+                const silenceEnText = silenceEnglishDiv ? silenceEnglishDiv.innerText : undefined;
+                updateHistoryEntry(id, spanishDiv.innerText, englishDiv.innerText, silenceEsText, silenceEnText);
             }
             break;
         }
@@ -286,36 +326,27 @@ function handleHistoryAction(e: MouseEvent) {
 
 function renderSilenceFiniModal(entry: SosgenHistoryEntry) {
     const modalId = `silence-fini-modal-${entry.id}`;
-    if (document.getElementById(modalId)) return; // Avoid opening multiple modals
+    if (document.getElementById(modalId)) return;
 
     const modalOverlay = document.createElement('div');
     modalOverlay.className = 'modal-overlay';
     modalOverlay.id = modalId;
 
-    const reasons = [
-        "La Alerta DSC fue una Falsa Alerta.",
-        "El área de socorro ha sido completamente rastreada sin resultados.",
-        "El buque en peligro ha solucionado la emergencia.",
-        "El buque en peligro ha sido rescatado.",
-        "Se cancela la alerta a petición del MRCC coordinador."
-    ];
-    
+    const reasons = ["FALSA ALERTA", "PERSONAS ENCONTRADAS", "FIN DE LA ALERTA"];
     const englishReasons: { [key: string]: string } = {
-        "La Alerta DSC fue una Falsa Alerta.": "The DSC Alert was a False Alert.",
-        "El área de socorro ha sido completamente rastreada sin resultados.": "The distress area has been fully searched with negative results.",
-        "El buque en peligro ha solucionado la emergencia.": "The vessel in distress has solved the emergency.",
-        "El buque en peligro ha sido rescatado.": "The vessel in distress has been rescued.",
-        "Se cancela la alerta a petición del MRCC coordinador.": "The alert is cancelled at the request of the coordinating MRCC."
+        "FALSA ALERTA": "FALSE ALERT",
+        "PERSONAS ENCONTRADAS": "PERSONS FOUND",
+        "FIN DE LA ALERTA": "ALERT FINISHED"
     };
 
     modalOverlay.innerHTML = `
         <div class="modal-content" style="max-width: 800px; text-align: left;">
             <h2 class="modal-title">Generar SILENCE FINI para NR de ${new Date(entry.timestamp).toLocaleTimeString('es-ES')}</h2>
             <div class="form-group">
-                <label for="silence-reason">Causa de Finalización del Socorro</label>
-                <select id="silence-reason" class="simulator-input">
-                    ${reasons.map(r => `<option value="${r}">${r}</option>`).join('')}
-                </select>
+                <label>Causa de Finalización del Socorro</label>
+                <div id="silence-reason-buttons" class="buoy-selector-group">
+                    ${reasons.map(r => `<button class="buoy-selector-btn" data-reason="${r}">${r}</button>`).join('')}
+                </div>
             </div>
             <div class="history-entry-content" style="margin-top: 1.5rem;">
                 <div>
@@ -333,53 +364,73 @@ function renderSilenceFiniModal(entry: SosgenHistoryEntry) {
                     <div id="silence-en" contenteditable="true" class="editable-message" style="min-height: 200px;"></div>
                 </div>
             </div>
-            <button class="primary-btn modal-close-btn" style="margin-top: 2rem;">Cerrar</button>
+            <div class="button-container" style="justify-content: flex-end; margin-top: 2rem; border-top: none; padding-top: 0;">
+                <button class="secondary-btn modal-cancel-btn">Cancelar</button>
+                <button class="primary-btn modal-save-btn" style="margin-top: 0; width: auto;">Guardar y Cerrar</button>
+            </div>
         </div>
     `;
     
     document.body.appendChild(modalOverlay);
-    const reasonSelect = modalOverlay.querySelector('#silence-reason') as HTMLSelectElement;
+
+    const reasonButtonsContainer = modalOverlay.querySelector('#silence-reason-buttons') as HTMLElement;
     const esResultDiv = modalOverlay.querySelector('#silence-es') as HTMLDivElement;
     const enResultDiv = modalOverlay.querySelector('#silence-en') as HTMLDivElement;
     
+    let selectedReason = reasons[0]; // Default to the first reason
+    
     const generateMessages = () => {
-        const selectedReason = reasonSelect.value;
         const selectedEnglishReason = englishReasons[selectedReason];
         
-        // Extract info from original messages
         const esStationMatch = entry.spanishMessage.match(/AQUI\s(.*?)\s\(x3\)/);
         const enStationMatch = entry.englishMessage.match(/THIS IS\s(.*?)\s\(x3\)/);
-        const esDescMatch = entry.spanishMessage.match(/UTC\.\n\n([\s\S]*?)\n\nSE REQUIERE/);
-        const enDescMatch = entry.englishMessage.match(/UTC\.\n\n([\s\S]*?)\n\nALL VESSELS/);
+        const esVesselMatch = entry.spanishMessage.match(/(?:Buque|Embarcación)\s+'([^']+)'/i);
+        const enVesselMatch = entry.englishMessage.match(/Vessel\s+'([^']+)'/i);
 
-        const stationNameEs = esStationMatch ? esStationMatch[1].trim() : 'ESTACION COSTERA';
-        const stationNameEn = enStationMatch ? enStationMatch[1].trim() : 'COAST RADIO STATION';
-        const distressDescEs = esDescMatch ? esDescMatch[1].trim() : '...';
-        const distressDescEn = enDescMatch ? enDescMatch[1].trim() : '...';
+        const stationName = esStationMatch ? esStationMatch[1].trim() : '_____________';
+        const vesselName = esVesselMatch ? esVesselMatch[1] : '[NOMBRE DEL BUQUE]';
+        const vesselNameEn = enVesselMatch ? enVesselMatch[1] : '[VESSEL NAME]';
+
         const now = new Date();
         const currentTimeUTC = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}`;
 
-        esResultDiv.innerText = `MAYDAY\nAQUI ${stationNameEs}\n${currentTimeUTC} UTC\n${distressDescEs}\nSILENCE FINI\n${selectedReason}\nAQUI ${stationNameEs} ${currentTimeUTC} UTC.`;
-        enResultDiv.innerText = `MAYDAY\nTHIS IS ${stationNameEn}\n${currentTimeUTC} UTC\n${distressDescEn}\nSILENCE FINI\n${selectedEnglishReason}\nTHIS IS ${stationNameEn} ${currentTimeUTC} UTC.`;
+        esResultDiv.innerText = `MAYDAY\nLLAMADA GENERAL (x3)\nAQUI ${stationName} A ${currentTimeUTC} UTC.\nREFERENTE A MENSAJE DE SOCORRO DEL BUQUE ${vesselName}.\n${selectedReason}\nSILENCE FINI.`;
+        enResultDiv.innerText = `MAYDAY\nALL SHIPS (x3)\nTHIS IS ${stationName} AT ${currentTimeUTC} UTC.\nREGARDING DISTRESS MESSAGE FROM THE VESSEL ${vesselNameEn}.\n${selectedEnglishReason}\nSILENCE FINI.`;
     };
+    
+    reasonButtonsContainer.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const button = target.closest<HTMLButtonElement>('.buoy-selector-btn');
+        if (button) {
+            reasonButtonsContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            button.classList.add('active');
+            selectedReason = button.dataset.reason || reasons[0];
+            generateMessages();
+        }
+    });
 
-    reasonSelect.addEventListener('change', generateMessages);
+    (reasonButtonsContainer.querySelector('button') as HTMLButtonElement)?.click();
     
     modalOverlay.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
-        if (target === modalOverlay || target.closest('.modal-close-btn')) {
+        if (target === modalOverlay || target.closest('.modal-cancel-btn')) {
             modalOverlay.remove();
         }
+        
+        const saveBtn = target.closest('.modal-save-btn');
+        if (saveBtn) {
+            addSilenceFiniToHistory(entry.id, esResultDiv.innerText, enResultDiv.innerText);
+            modalOverlay.remove();
+        }
+        
         const copyBtn = target.closest('.copy-btn');
         if (copyBtn) {
             const targetId = copyBtn.getAttribute('data-target');
             if (!targetId) return;
             const contentDiv = modalOverlay.querySelector<HTMLElement>(`#${targetId}`);
             if (contentDiv) {
-                handleCopy(contentDiv.textContent || '');
+                handleCopy(contentDiv.innerText || '');
             }
         }
     });
-
-    generateMessages(); // Initial generation
 }
