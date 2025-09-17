@@ -27,7 +27,7 @@ const translationDictionary: { [key: string]: string } = {
     'AVISO': 'WARNING', 'SITUACIÓN': 'SITUATION', 'PREDICCIÓN': 'FORECAST', 'TENDENCIA': 'TREND',
     // General Terms
     'NO HAY AVISOS EN VIGOR': 'NO WARNINGS IN FORCE', 'FUERZA': 'FORCE', 'HORAS': 'HOURS',
-    'VISIBILIDAD': 'VISIBILITY', 'MAR': 'SEA', 'VIENTO': 'WIND',
+    'VISIBILIDAD': 'VISIBILITY', 'MAR': 'SEA', 'VIENTO': 'WIND', 'No hay aviso': 'No warning',
     // Directions
     'NORTE': 'NORTH', 'SUR': 'SOUTH', 'ESTE': 'EAST', 'OESTE': 'WEST',
     'NORESTE': 'NORTHEAST', 'NOROESTE': 'NORTHWEST', 'SUDESTE': 'SOUTHEAST', 'SUDOESTE': 'SOUTHWEST',
@@ -89,76 +89,80 @@ function numberToWords(num: number): string {
 }
 
 function parseMainBulletin(xmlText: string): string {
-    if (!xmlText) return "No se recibieron datos para el boletín principal.";
+    if (!xmlText) return "No se recibieron datos para el boletín.";
 
-    const apartados = xmlText.match(/<apartado[^>]*>[\s\S]*?<\/apartado>/g) || [];
-    if (apartados.length === 0) {
-        const bodyMatch = xmlText.match(/<texto>([\s\S]*?)<\/texto>/);
-        if (bodyMatch && bodyMatch[1].trim()) {
-            return optimizeForTTS(bodyMatch[1].trim());
-        }
-        return "Error: No se encontraron secciones ('apartado') en el boletín.";
+    const cleanText = (text: string | null) => text ? text.trim().replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim() : '';
+
+    const apartados = xmlText.match(/<apartado[^>]*>[\s\S]*?<\/apartado>/g);
+
+    if (apartados && apartados.length > 0) {
+        let fullText = '';
+        apartados.forEach(apartadoStr => {
+            const tituloMatch = apartadoStr.match(/<titulo[^>]*>([\s\S]*?)<\/titulo>/);
+            const textoMatch = apartadoStr.match(/<texto[^>]*>([\s\S]*?)<\/texto>/);
+            
+            const titulo = cleanText(tituloMatch ? tituloMatch[1] : null);
+            const texto = cleanText(textoMatch ? textoMatch[1] : null);
+            
+            if (titulo && texto) {
+                fullText += `${titulo.toUpperCase()}\n\n${texto}\n\n`;
+            } else if (texto) {
+                fullText += `${texto}\n\n`;
+            }
+        });
+        if (fullText.trim()) return optimizeForTTS(fullText.trim());
     }
     
-    let fullText = '';
-    apartados.forEach(apartadoStr => {
-        const tituloMatch = apartadoStr.match(/<titulo[^>]*>([\s\S]*?)<\/titulo>/);
-        const textoMatch = apartadoStr.match(/<texto[^>]*>([\s\S]*?)<\/texto>/);
-        
-        const cleanText = (text: string | null) => text ? text.trim().replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") : '';
-
-        const titulo = cleanText(tituloMatch ? tituloMatch[1] : null);
-        const texto = cleanText(textoMatch ? textoMatch[1] : null);
-        
-        if (titulo && texto) {
-            fullText += `${titulo.toUpperCase()}\n\n${texto}\n\n`;
-        } else if (texto) {
-            fullText += `${texto}\n\n`;
-        }
-    });
-
-    if (!fullText.trim()) return "El contenido del boletín principal está vacío o no pudo ser analizado.";
-    return optimizeForTTS(fullText.trim());
+    // Fallback for bulletins without <apartado> like WONT40MM (Avisos)
+    const textoMatch = xmlText.match(/<texto[^>]*>([\s\S]*?)<\/texto>/);
+    const mainText = cleanText(textoMatch ? textoMatch[1] : null);
+    if (mainText) {
+        return optimizeForTTS(mainText);
+    }
+    
+    return "Error: No se encontraron secciones ('apartado') o texto principal en el boletín.";
 }
+
 
 function parseCoastalBulletin(xmlText: string): string {
     if (!xmlText) return "No se recibieron datos para el boletín costero.";
     
-    const cleanText = (text: string | null) => text ? text.trim().replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") : '';
+    const cleanHtml = (text: string | null) => text ? text.trim().replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim() : '';
 
     const nombreMatch = xmlText.match(/<nombre[^>]*>([\s\S]*?)<\/nombre>/);
     const avisoMatch = xmlText.match(/<aviso[^>]*>([\s\S]*?)<\/aviso>/);
 
-    let content = (cleanText(nombreMatch ? nombreMatch[1] : null) || 'BOLETÍN COSTERO').toUpperCase() + '\n\n';
-    content += 'AVISO: ' + (cleanText(avisoMatch ? avisoMatch[1] : null) || 'NO HAY AVISOS EN VIGOR.') + '\n\n';
+    let content = (cleanHtml(nombreMatch ? nombreMatch[1] : null) || 'BOLETÍN COSTERO').toUpperCase() + '\n\n';
+    
+    const avisoText = cleanHtml(avisoMatch ? avisoMatch[1] : null) || 'NO HAY AVISOS EN VIGOR.';
+    // Handle specific date format in warnings by adding newlines
+    const formattedAviso = avisoText.replace(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g, '\n$1');
+    content += 'AVISO: ' + formattedAviso + '\n\n';
     
     const zonas = xmlText.match(/<zona[^>]*>[\s\S]*?<\/zona>/g) || [];
-    if (zonas.length === 0) return content + "No se encontraron zonas de predicción en el boletín costero.";
+    if (zonas.length === 0) return content + "No se encontraron zonas de predicción.";
 
     zonas.forEach(zonaStr => {
         const nombreZonaMatch = zonaStr.match(/nombre="([^"]+)"/);
-        const nombreZona = nombreZonaMatch ? nombreZonaMatch[1].trim() : '';
+        const nombreZona = nombreZonaMatch ? nombreZonaMatch[1].trim() : 'Zona desconocida';
 
-        const getNestedText = (outerTag: string, innerTag: string) => {
-            const outerRegex = new RegExp(`<${outerTag}[^>]*>([\\s\\S]*?)</${outerTag}>`);
-            const outerMatch = zonaStr.match(outerRegex);
-            if (!outerMatch) return '';
-            const innerRegex = new RegExp(`<${innerTag}[^>]*>([\\s\\S]*?)</${innerTag}>`);
-            const innerMatch = outerMatch[1].match(innerRegex);
-            return cleanText(innerMatch ? innerMatch[1] : null);
+        // Corrected helper to extract text from a direct child tag within a given XML string
+        const getTagContent = (xml: string, tagName: string): string => {
+            const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`);
+            const match = xml.match(regex);
+            return cleanHtml(match ? match[1] : null);
         };
         
-        const situacion = getNestedText('situacion', 'texto');
-        const viento = getNestedText('prediccion', 'viento');
-        const mar = getNestedText('prediccion', 'mar');
-        const mar_de_fondo = getNestedText('prediccion', 'mar_de_fondo');
-        const aguaceros = getNestedText('prediccion', 'aguaceros');
-        const visibilidad = getNestedText('prediccion', 'visibilidad');
+        const prediccionMatch = zonaStr.match(/<prediccion[^>]*>([\s\S]*?)<\/prediccion>/);
+        const prediccionXml = prediccionMatch ? prediccionMatch[1] : '';
+
+        const viento = getTagContent(prediccionXml, 'viento');
+        const mar = getTagContent(prediccionXml, 'mar');
+        const mar_de_fondo = getTagContent(prediccionXml, 'mar_de_fondo');
+        const aguaceros = getTagContent(prediccionXml, 'aguaceros');
+        const visibilidad = getTagContent(prediccionXml, 'visibilidad');
         
         content += `${nombreZona.toUpperCase()}:\n`;
-        if (situacion) {
-            content += `SITUACIÓN: ${situacion}\n`;
-        }
         
         let predictionParts = [];
         if (viento) predictionParts.push(viento);
@@ -168,9 +172,9 @@ function parseCoastalBulletin(xmlText: string): string {
         if (aguaceros) predictionParts.push(aguaceros);
 
         if (predictionParts.length > 0) {
-             content += 'PREDICCIÓN: ' + predictionParts.join('. ') + '.\n\n';
+             content += predictionParts.join('. ') + '.\n\n';
         } else {
-             content += '\n';
+             content += 'Sin datos de predicción.\n\n';
         }
     });
     
