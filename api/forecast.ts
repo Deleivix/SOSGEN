@@ -26,15 +26,19 @@ function parseForecastFromText(text: string) {
         weatherSummary: 'Despejado',
         weatherIcon: 'sunny'
     };
+    
+    // Normalize text for easier parsing
+    const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
 
     // 1. Wind
-    const windMatch = text.match(/(?:VIENTO|ARRECIANDO A|ROLANDO A|TENDIENDO A)\s+([A-Z\s/O]+?)\s+(\d+)(?:\s*[A-Z]\s+(\d+))?/i);
+    // Regex to find wind descriptions like "COMPONENTE OESTE 3 O 4", "VARIABLE 1 A 3", "NW 4" etc.
+    const windMatch = normalizedText.match(/(?:VIENTO|ARRECIANDO A|ROLANDO A|TENDIENDO A)\s+([A-Z\s/O]+?)\s+(\d+)(?:\s*[A-Z]\s+(\d+))?/);
     if (windMatch) {
         const directions = windMatch[1].replace(/COMPONENTE/i, '').trim().split(/\s+O\s+|\s*\/\s*/);
-        forecast.windDirection = directions[0];
+        forecast.windDirection = directions[0].trim();
         forecast.windForceBft = parseInt(windMatch[3] || windMatch[2], 10);
     } else {
-        const variableMatch = text.match(/VARIABLE\s+(\d+)(?:\s+A\s+(\d+))?/i);
+        const variableMatch = normalizedText.match(/VARIABLE\s+(\d+)(?:\s+A\s+(\d+))?/);
         if(variableMatch) {
             forecast.windDirection = 'VAR';
             forecast.windForceBft = parseInt(variableMatch[2] || variableMatch[1], 10);
@@ -42,31 +46,32 @@ function parseForecastFromText(text: string) {
     }
 
     // 2. Waves
-    const waveMatch = text.match(/(?:MAR DE FONDO|OLAS)\s+.*?(\d+(?:\.\d+)?)(?:\s+A\s+(\d+(?:\.\d+)?))?\s+METROS/i);
+    const waveMatch = normalizedText.match(/(?:MAR DE FONDO|OLAS)\s+.*?(\d+(?:\.\d+)?)(?:\s+A\s+(\d+(?:\.\d+)?))?\s+METROS?/);
     if (waveMatch) {
         forecast.waveHeightMeters = parseFloat(waveMatch[2] || waveMatch[1]);
     } else {
-        if (/FUERTE MAREJADA/i.test(text)) forecast.waveHeightMeters = 3.0;
-        else if (/MAREJADA/i.test(text)) forecast.waveHeightMeters = 1.8;
-        else if (/MAREJADILLA/i.test(text)) forecast.waveHeightMeters = 0.8;
+        if (normalizedText.includes('FUERTE MAREJADA')) forecast.waveHeightMeters = 3.0;
+        else if (normalizedText.includes('MAREJADA')) forecast.waveHeightMeters = 1.8;
+        else if (normalizedText.includes('MAREJADILLA')) forecast.waveHeightMeters = 0.8;
+        else if (normalizedText.includes('RIZADA')) forecast.waveHeightMeters = 0.1;
     }
     
     // 3. Visibility & Weather
-    if (/NIEBLA|BRUMA|MALA/i.test(text)) {
+    if (normalizedText.includes('NIEBLA') || normalizedText.includes('BRUMA') || normalizedText.includes('MALA')) {
         forecast.visibilityKm = 2;
         forecast.weatherSummary = 'Niebla o bruma';
         forecast.weatherIcon = 'fog';
-    } else if (/REGULAR/i.test(text)) {
+    } else if (normalizedText.includes('REGULAR')) {
         forecast.visibilityKm = 8;
     }
 
-    if (/AGUACEROS|LLUVIA/i.test(text)) {
+    if (normalizedText.includes('AGUACEROS') || normalizedText.includes('LLUVIA')) {
         forecast.weatherSummary = 'Aguaceros';
         forecast.weatherIcon = 'rain';
-    } else if (/TORMENTAS/i.test(text)) {
+    } else if (normalizedText.includes('TORMENTAS')) {
         forecast.weatherSummary = 'Tormentas';
         forecast.weatherIcon = 'thunderstorm';
-    } else if (/NUBO/i.test(text)) {
+    } else if (normalizedText.includes('NUBO')) {
         forecast.weatherSummary = 'Nuboso';
         forecast.weatherIcon = 'cloudy';
     }
@@ -110,20 +115,22 @@ export default async function handler(
     const cantabricoXml = decoder.decode(cantabricoBuffer);
     
     const allXml = galiciaXml + cantabricoXml;
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(allXml, "application/xml");
-
-    const zones = xmlDoc.querySelectorAll("prediccion > zona");
-    const forecastData = Array.from(zones).map(zone => {
-        const locationName = zone.getAttribute('nombre')?.replace(/AGUAS COSTERAS DE /i, '') || 'Desconocido';
-        const textContent = zone.querySelector('texto')?.textContent || '';
+    
+    // Use regex to parse XML in Node.js environment, avoiding DOMParser.
+    const forecastData = [];
+    const zoneRegex = /<zona[^>]*nombre="([^"]+)"[^>]*>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/zona>/gi;
+    let match;
+    while ((match = zoneRegex.exec(allXml)) !== null) {
+        const locationName = match[1].replace(/AGUAS COSTERAS DE /i, '').trim();
+        const textContent = match[2] || '';
         const forecast = parseForecastFromText(textContent);
         
-        return {
+        forecastData.push({
             locationName,
             ...forecast
-        };
-    }).filter(f => f.locationName !== 'Desconocido');
+        });
+    }
+
 
     if (forecastData.length === 0) {
         throw new Error("No se pudo extraer la información de los boletines de AEMET.");
