@@ -200,6 +200,8 @@ let isFetchingMeteos = false;
 let meteosIntervalId: number | undefined;
 const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
 
+let processedSpanishTexts: { [key: string]: { spanish: string, error?: string } } = {};
+
 const bulletinProcessors: { [key: string]: (doc: XMLDocument) => string } = {
     'FQNT42MM': formatAltaMar,
     'WONT40MM': formatAviso,
@@ -234,15 +236,14 @@ async function fetchAndProcessBulletins() {
     meteosContent.innerHTML = renderMeteoSkeleton();
 
     const bulletinIds = ['FQNT42MM', 'WONT40MM', 'FQXX40MM', 'FQXX41MM'];
+    processedSpanishTexts = {}; // Clear previous data
 
     try {
         const xmlResponses = await Promise.allSettled(
             bulletinIds.map(id => fetch(`/api/get-bulletin?id=${id}`).then(res => res.json()))
         );
 
-        const processedSpanishTexts: { [key: string]: { spanish: string, error?: string } } = {};
-
-        // 1. Process all Spanish texts first
+        // 1. Process all Spanish texts
         xmlResponses.forEach((result, index) => {
             const id = bulletinIds[index];
             if (result.status === 'fulfilled' && result.value.xml) {
@@ -258,36 +259,8 @@ async function fetchAndProcessBulletins() {
             }
         });
 
-        // 2. Render initial layout with Spanish text and loaders for English
-        renderInitialLayout(processedSpanishTexts);
-
-        // 3. Start translations for non-coastal bulletins
-        const bulletinsToTranslate = ['FQNT42MM', 'WONT40MM'];
-        bulletinsToTranslate.forEach(id => {
-            const data = processedSpanishTexts[id];
-            if (data && data.spanish && !data.error) {
-                startProgressBar(id, 8); // 8 seconds estimate
-
-                fetch('/api/translate-bulletin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bulletinText: data.spanish })
-                })
-                .then(res => res.ok ? res.json() : Promise.reject('API Error'))
-                .then(result => {
-                    const englishContentEl = document.getElementById(`en-content-${id}`);
-                    if (englishContentEl) {
-                        englishContentEl.innerHTML = `<pre class="bulletin-content">${result.translation}</pre>`;
-                    }
-                })
-                .catch(() => {
-                    const englishContentEl = document.getElementById(`en-content-${id}`);
-                    if (englishContentEl) {
-                        englishContentEl.innerHTML = `<p class="error">Error al traducir.</p>`;
-                    }
-                });
-            }
-        });
+        // 2. Render layout with Spanish text
+        renderFinalLayout(processedSpanishTexts);
 
     } catch (error) {
         meteosContent.innerHTML = `<p class="error">Error general al cargar los boletines.</p>`;
@@ -303,45 +276,49 @@ async function fetchAndProcessBulletins() {
     }
 }
 
-function startProgressBar(id: string, durationSeconds: number) {
-    const fillEl = document.getElementById(`progress-fill-${id}`) as HTMLElement;
-    const timeEl = document.querySelector(`#progress-container-${id} .progress-time`) as HTMLElement;
-    if (!fillEl || !timeEl) return;
+async function handleTranslate(button: HTMLButtonElement) {
+    const id = button.dataset.bulletinId;
+    if (!id) return;
 
-    fillEl.style.transition = `width ${durationSeconds}s linear`;
-    requestAnimationFrame(() => {
-        fillEl.style.width = '95%';
-    });
+    const spanishData = processedSpanishTexts[id];
+    if (!spanishData || !spanishData.spanish) {
+        showToast("No hay texto en español para traducir.", "error");
+        return;
+    }
     
-    let timeLeft = durationSeconds;
-    const timer = setInterval(() => {
-        timeLeft--;
-        if (timeLeft >= 0 && timeEl) {
-            timeEl.textContent = `${timeLeft}s`;
-        } else {
-            clearInterval(timer);
+    const englishContentEl = document.getElementById(`en-content-${id}`);
+    if (!englishContentEl) return;
+
+    englishContentEl.innerHTML = `<div class="loader-container" style="padding: 1rem;"><div class="loader"></div></div>`;
+    button.disabled = true;
+
+    try {
+        const response = await fetch('/api/translate-bulletin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bulletinText: spanishData.spanish })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || "La API de traducción falló.");
         }
-    }, 1000);
+        
+        const result = await response.json();
+        englishContentEl.innerHTML = `<pre class="bulletin-content">${result.translation}</pre>`;
 
-    (fillEl as any).timer = timer;
-}
-
-function getProgressBarHtml(id: string, estimatedTime: number): string {
-    return `
-        <div class="meteos-progress-container" id="progress-container-${id}">
-            <div class="meteos-progress-text">Traduciendo... (tiempo estimado: <span class="progress-time">${estimatedTime}s</span>)</div>
-            <div class="meteos-progress-track">
-                <div class="meteos-progress-fill" id="progress-fill-${id}"></div>
-            </div>
-        </div>`;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Error desconocido";
+        englishContentEl.innerHTML = `<div class="error" style="padding: 1rem;">Error al traducir: ${message}</div>`;
+        showToast(message, "error");
+        button.disabled = false; // Re-enable on error
+    }
 }
 
 
-function renderInitialLayout(data: { [key: string]: { spanish: string, error?: string } }) {
+function renderFinalLayout(data: { [key: string]: { spanish: string, error?: string } }) {
     const meteosContent = document.getElementById('meteos-content');
     if (!meteosContent) return;
-    
-    const allProcessedData = { ...data };
 
     const copyButtonHTML = (cardId: string, lang: 'es' | 'en') => `
         <button class="copy-btn bulletin-copy-btn" data-card-id="${cardId}" data-lang="${lang}" aria-label="Copiar boletín">
@@ -352,7 +329,13 @@ function renderInitialLayout(data: { [key: string]: { spanish: string, error?: s
     const getHtmlForTranslatedBulletin = (id: string, title: string) => {
         const bulletinData = data[id];
         const esContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : `<pre class="bulletin-content">${bulletinData.spanish || 'No disponible.'}</pre>`;
-        const enContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : getProgressBarHtml(id, 8);
+        const enPlaceholder = `
+            <div class="meteos-progress-container" style="gap: 1rem;">
+                <p class="translator-desc" style="margin-bottom: 0;">Haga clic para traducir el boletín a inglés usando IA.</p>
+                <button class="secondary-btn translate-btn" data-bulletin-id="${id}">Traducir con IA</button>
+            </div>
+        `;
+        const enContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : enPlaceholder;
         
         return `
             <div class="bulletin-card" style="grid-column: 1 / -1;">
@@ -412,25 +395,6 @@ function renderInitialLayout(data: { [key: string]: { spanish: string, error?: s
             </div>
         </div>
     `;
-
-    meteosContent.querySelectorAll('.bulletin-copy-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const cardId = (btn as HTMLElement).dataset.cardId;
-            const lang = (btn as HTMLElement).dataset.lang as 'es' | 'en';
-            if (!cardId || !lang) return;
-
-            let textToCopy = '';
-            if (lang === 'es') {
-                textToCopy = allProcessedData[cardId]?.spanish || '';
-            } else {
-                const enContentEl = document.getElementById(`en-content-${cardId}`);
-                textToCopy = enContentEl?.querySelector('pre')?.textContent || '';
-            }
-            
-            showToast(textToCopy ? '¡Copiado!' : 'No hay contenido para copiar.', textToCopy ? 'success' : 'error');
-            if (textToCopy) await navigator.clipboard.writeText(textToCopy);
-        });
-    });
 }
 
 export function renderMeteos(container: HTMLElement) {
@@ -446,6 +410,33 @@ export function renderMeteos(container: HTMLElement) {
         const refreshBtn = target.closest('#meteos-refresh-btn');
         if (refreshBtn && !isFetchingMeteos) {
             fetchAndProcessBulletins();
+        }
+        
+        const translateBtn = target.closest('.translate-btn');
+        if (translateBtn instanceof HTMLButtonElement) {
+            handleTranslate(translateBtn);
+        }
+
+        const copyBtn = target.closest('.bulletin-copy-btn');
+        if(copyBtn instanceof HTMLButtonElement) {
+            const cardId = copyBtn.dataset.cardId;
+            const lang = copyBtn.dataset.lang as 'es' | 'en';
+            if (!cardId || !lang) return;
+
+            let textToCopy = '';
+            if (lang === 'es') {
+                textToCopy = processedSpanishTexts[cardId]?.spanish || '';
+            } else {
+                const enContentEl = document.getElementById(`en-content-${cardId}`);
+                textToCopy = enContentEl?.querySelector('pre')?.textContent || '';
+            }
+            
+            if (textToCopy) {
+                navigator.clipboard.writeText(textToCopy);
+                showToast('¡Copiado!', 'success');
+            } else {
+                showToast('No hay contenido para copiar.', 'info');
+            }
         }
     });
 }
