@@ -57,8 +57,8 @@ export default async function handler(
     6.  Navia (Lat: 43.54, Lon: -6.72)
     7.  Cabo Peñas (Lat: 43.66, Lon: -5.85)
     8.  Santander (Lat: 43.46, Lon: -3.80)
-    9.  Bilbao (costa) (Lat: 43.35, Lon: -3.03)
-    10. Pasajes (Pasaia) (Lat: 43.32, Lon: -1.91)
+    9.  Bilbao (Lat: 43.35, Lon: -3.03)
+    10. Pasajes (Lat: 43.32, Lon: -1.91)
 
     **Instrucciones:**
     -   Para CADA UNA de las 10 ubicaciones, proporciona la previsión más representativa para las próximas 24 horas.
