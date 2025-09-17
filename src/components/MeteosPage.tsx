@@ -8,217 +8,49 @@ let isFetchingMeteos: boolean = false;
 interface BulletinState {
     id: string;
     title: string;
-    spanishContent: string | null;
-    englishContent: string | null;
+    rawContent: string | null;
     status: 'idle' | 'loading' | 'done' | 'error';
     error: string | null;
 }
 
 let bulletinStates: Record<string, BulletinState> = {
-    'main': { id: 'main', title: 'Boletín Atlántico', spanishContent: null, englishContent: null, status: 'idle', error: null },
-    'warnings': { id: 'warnings', title: 'Avisos Marítimos', spanishContent: null, englishContent: null, status: 'idle', error: null },
-    'coastal_galicia': { id: 'coastal_galicia', title: 'Costero Galicia', spanishContent: null, englishContent: null, status: 'idle', error: null },
-    'coastal_cantabrico': { id: 'coastal_cantabrico', title: 'Costero Cantábrico', spanishContent: null, englishContent: null, status: 'idle', error: null },
+    'main': { id: 'main', title: 'Boletín Atlántico (FQNT42MM)', rawContent: null, status: 'idle', error: null },
+    'warnings': { id: 'warnings', title: 'Avisos Marítimos (WONT40MM)', rawContent: null, status: 'idle', error: null },
+    'coastal_galicia': { id: 'coastal_galicia', title: 'Costero Galicia (FQXX40MM)', rawContent: null, status: 'idle', error: null },
+    'coastal_cantabrico': { id: 'coastal_cantabrico', title: 'Costero Cantábrico (FQXX41MM)', rawContent: null, status: 'idle', error: null },
 };
-
-// --- TRANSLATION & PARSING DICTIONARY AND LOGIC ---
-const translationDictionary: { [key: string]: string } = {
-    // Titles and Sections
-    'AVISO': 'WARNING', 'SITUACIÓN': 'SITUATION', 'PREDICCIÓN': 'FORECAST', 'TENDENCIA': 'TREND',
-    // General Terms
-    'NO HAY AVISOS EN VIGOR': 'NO WARNINGS IN FORCE', 'FUERZA': 'FORCE', 'HORAS': 'HOURS',
-    'VISIBILIDAD': 'VISIBILITY', 'MAR': 'SEA', 'VIENTO': 'WIND', 'No hay aviso': 'No warning',
-    // Directions
-    'NORTE': 'NORTH', 'SUR': 'SOUTH', 'ESTE': 'EAST', 'OESTE': 'WEST',
-    'NORESTE': 'NORTHEAST', 'NOROESTE': 'NORTHWEST', 'SUDESTE': 'SOUTHEAST', 'SUDOESTE': 'SOUTHWEST',
-    'NORNORDESTE': 'NORTH-NORTHEAST', 'NORNOROESTE': 'NORTH-NORTHWEST',
-    'ESTENORDESTE': 'EAST-NORTHEAST', 'ESTESUDESTE': 'EAST-SOUTHEAST',
-    'SUDSUDESTE': 'SOUTH-SOUTHEAST', 'SUDSUROESTE': 'SOUTH-SOUTHWEST',
-    'OESTESUROESTE': 'WEST-SOUTHWEST', 'OESTENOROESTE': 'WEST-NORTHWEST',
-    'VARIABLE': 'VARIABLE', ' rolando a ': ' veering ', ' rolando al ': ' veering to ',
-    // Sea States
-    'RIZADA': 'RIPPLED', 'MAREJADILLA': 'SLIGHT SEA', 'MAREJADA': 'MODERATE SEA',
-    'FUERTE MAREJADA': 'ROUGH SEA', 'GRUESA': 'VERY ROUGH SEA', 'MUY GRUESA': 'HIGH SEA',
-    'ARBOLADA': 'VERY HIGH SEA', 'MAR DE FONDO': 'SWELL',
-    // Visibility
-    'BUENA': 'GOOD', 'REGULAR': 'MODERATE', 'MALA': 'POOR', 'NIEBLA': 'FOG',
-    // Weather phenomena
-    'DESPEJADO': 'CLEAR', 'NUBOSO': 'CLOUDY', 'CUBIERTO': 'OVERCAST',
-    'LLUVIA': 'RAIN', 'LLOVIZNA': 'DRIZZLE', 'CHUBASCOS': 'SHOWERS', 'TORMENTA': 'THUNDERSTORM',
-    // Actions & Trends
-    'DISMINUYENDO': 'DECREASING', 'AUMENTANDO': 'INCREASING', 'ARRECIANDO': 'FRESHENING', 'AMAINANDO': 'ABATING',
-    ' rolando ': ' veering ', ' fijándose ': ' becoming ',
-    // Units
-    'METROS': 'METERS',
-    // Numbers for TTS style replacement
-    'uno': 'one', 'dos': 'two', 'tres': 'three', 'cuatro': 'four', 'cinco': 'five',
-    'seis': 'six', 'siete': 'seven', 'ocho': 'eight', 'nueve': 'nine', 'cero': 'zero',
-    'con': 'point'
-};
-
-function translateBulletin(spanishText: string): string {
-    if (!spanishText) return '';
-    let englishText = spanishText;
-    const sortedKeys = Object.keys(translationDictionary).sort((a, b) => b.length - a.length);
-    for (const key of sortedKeys) {
-        const regex = new RegExp(`\\b${key}\\b`, 'gi');
-        englishText = englishText.replace(regex, translationDictionary[key]);
-    }
-    return englishText;
-}
-
-
-function optimizeForTTS(text: string): string {
-    if (!text) return '';
-    let optimizedText = text;
-    const replacements: Record<string, string> = {
-        'N': 'Norte', 'S': 'Sur', 'E': 'Este', 'W': 'Oeste',
-        'NE': 'Noreste', 'NW': 'Noroeste', 'SE': 'Sudeste', 'SW': 'Sudoeste',
-        'REG': 'Regular', 'VIS': 'Visibilidad',
-    };
-    optimizedText = optimizedText.replace(/\b(N|S|E|W|NE|NW|SE|SW|REG|VIS)\b/g, (match) => replacements[match] || match);
-    optimizedText = optimizedText.replace(/Fuerza (\d)/g, (_, num) => `fuerza ${numberToWords(parseInt(num, 10))}`);
-    optimizedText = optimizedText.replace(/(\d)\s*a\s*(\d)\s*m/g, (_, n1, n2) => `${numberToWords(parseInt(n1, 10))} a ${numberToWords(parseInt(n2, 10))} metros`);
-    optimizedText = optimizedText.replace(/(\d)\.(\d)\s*m/g, (_, i, d) => `${numberToWords(parseInt(i, 10))} con ${numberToWords(parseInt(d, 10))} metros`);
-    return optimizedText;
-}
-
-function numberToWords(num: number): string {
-    const units = ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
-    return units[num] || String(num);
-}
-
-function parseMainBulletin(xmlText: string): string {
-    if (!xmlText) return "No se recibieron datos para el boletín.";
-
-    const cleanText = (text: string | null) => text ? text.trim().replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim() : '';
-
-    const apartados = xmlText.match(/<apartado[^>]*>[\s\S]*?<\/apartado>/g);
-
-    if (apartados && apartados.length > 0) {
-        let fullText = '';
-        apartados.forEach(apartadoStr => {
-            const tituloMatch = apartadoStr.match(/<titulo[^>]*>([\s\S]*?)<\/titulo>/);
-            const textoMatch = apartadoStr.match(/<texto[^>]*>([\s\S]*?)<\/texto>/);
-            
-            const titulo = cleanText(tituloMatch ? tituloMatch[1] : null);
-            const texto = cleanText(textoMatch ? textoMatch[1] : null);
-            
-            if (titulo && texto) {
-                fullText += `${titulo.toUpperCase()}\n\n${texto}\n\n`;
-            } else if (texto) {
-                fullText += `${texto}\n\n`;
-            }
-        });
-        if (fullText.trim()) return optimizeForTTS(fullText.trim());
-    }
-    
-    // Fallback for bulletins without <apartado> like WONT40MM (Avisos)
-    const textoMatch = xmlText.match(/<texto[^>]*>([\s\S]*?)<\/texto>/);
-    const mainText = cleanText(textoMatch ? textoMatch[1] : null);
-    if (mainText) {
-        return optimizeForTTS(mainText);
-    }
-    
-    return "Error: No se encontraron secciones ('apartado') o texto principal en el boletín.";
-}
-
-
-function parseCoastalBulletin(xmlText: string): string {
-    if (!xmlText) return "No se recibieron datos para el boletín costero.";
-    
-    const cleanHtml = (text: string | null) => text ? text.trim().replace(/<[^>]+>/g, '').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim() : '';
-
-    const nombreMatch = xmlText.match(/<nombre[^>]*>([\s\S]*?)<\/nombre>/);
-    const avisoMatch = xmlText.match(/<aviso[^>]*>([\s\S]*?)<\/aviso>/);
-
-    let content = (cleanHtml(nombreMatch ? nombreMatch[1] : null) || 'BOLETÍN COSTERO').toUpperCase() + '\n\n';
-    
-    const avisoText = cleanHtml(avisoMatch ? avisoMatch[1] : null) || 'NO HAY AVISOS EN VIGOR.';
-    // Handle specific date format in warnings by adding newlines
-    const formattedAviso = avisoText.replace(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g, '\n$1');
-    content += 'AVISO: ' + formattedAviso + '\n\n';
-    
-    const zonas = xmlText.match(/<zona[^>]*>[\s\S]*?<\/zona>/g) || [];
-    if (zonas.length === 0) return content + "No se encontraron zonas de predicción.";
-
-    zonas.forEach(zonaStr => {
-        const nombreZonaMatch = zonaStr.match(/nombre="([^"]+)"/);
-        const nombreZona = nombreZonaMatch ? nombreZonaMatch[1].trim() : 'Zona desconocida';
-
-        // Corrected helper to extract text from a direct child tag within a given XML string
-        const getTagContent = (xml: string, tagName: string): string => {
-            const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`);
-            const match = xml.match(regex);
-            return cleanHtml(match ? match[1] : null);
-        };
-        
-        const prediccionMatch = zonaStr.match(/<prediccion[^>]*>([\s\S]*?)<\/prediccion>/);
-        const prediccionXml = prediccionMatch ? prediccionMatch[1] : '';
-
-        const viento = getTagContent(prediccionXml, 'viento');
-        const mar = getTagContent(prediccionXml, 'mar');
-        const mar_de_fondo = getTagContent(prediccionXml, 'mar_de_fondo');
-        const aguaceros = getTagContent(prediccionXml, 'aguaceros');
-        const visibilidad = getTagContent(prediccionXml, 'visibilidad');
-        
-        content += `${nombreZona.toUpperCase()}:\n`;
-        
-        let predictionParts = [];
-        if (viento) predictionParts.push(viento);
-        if (mar) predictionParts.push(mar);
-        if (mar_de_fondo) predictionParts.push(`Mar de fondo ${mar_de_fondo}`);
-        if (visibilidad) predictionParts.push(visibilidad);
-        if (aguaceros) predictionParts.push(aguaceros);
-
-        if (predictionParts.length > 0) {
-             content += predictionParts.join('. ') + '.\n\n';
-        } else {
-             content += 'Sin datos de predicción.\n\n';
-        }
-    });
-    
-    return optimizeForTTS(content.trim());
-}
-
 
 // --- RENDERING LOGIC ---
 
 const renderBulletinCard = (state: BulletinState) => {
-    const renderContent = (content: string | null, lang: 'es' | 'en') => {
-        if (state.status === 'loading') {
-            return `<div class="skeleton skeleton-text" style="height: 10em;"></div>`;
-        }
-        if (state.status === 'error' && lang === 'es') {
-             return `<span style="color: var(--danger-color)">Error: ${state.error}</span>`;
-        }
-        if (state.status === 'error' && lang === 'en') {
-            return ``;
-        }
-        return content || 'No disponible.';
-    };
+    let contentHtml = '';
+    switch (state.status) {
+        case 'loading':
+            contentHtml = `<div class="skeleton skeleton-text" style="height: 15em;"></div>`;
+            break;
+        case 'error':
+            contentHtml = `<span style="color: var(--danger-color)">Error: ${state.error}</span>`;
+            break;
+        case 'done':
+            // Basic XML escaping for display
+            const escapedContent = state.rawContent
+                ? state.rawContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                : 'No disponible.';
+            contentHtml = escapedContent;
+            break;
+        default:
+            contentHtml = 'Esperando para cargar...';
+    }
 
     return `
         <div class="bulletin-card" id="card-${state.id}">
             <div class="bulletin-card-header">
                 <h3>${state.title}</h3>
+                <button class="copy-btn bulletin-copy-btn" data-card-id="${state.id}" aria-label="Copiar ${state.title}" ${!state.rawContent ? 'disabled' : ''}>
+                    Copiar
+                </button>
             </div>
-            <div class="bulletins-container" style="padding: 1rem; gap: 1rem;">
-                <div class="language-column">
-                    <div class="bulletin-card-header" style="padding: 0 0 0.5rem 0; border: none; background: transparent;">
-                        <h4>Español (TTS)</h4>
-                        <button class="copy-btn bulletin-copy-btn" data-card-id="${state.id}" data-lang="es" aria-label="Copiar ${state.title} en Español" ${!state.spanishContent ? 'disabled' : ''}>Copiar</button>
-                    </div>
-                    <pre class="bulletin-content" style="padding: 0;">${renderContent(state.spanishContent, 'es')}</pre>
-                </div>
-                <div class="language-column">
-                     <div class="bulletin-card-header" style="padding: 0 0 0.5rem 0; border: none; background: transparent;">
-                        <h4>Inglés</h4>
-                        <button class="copy-btn bulletin-copy-btn" data-card-id="${state.id}" data-lang="en" aria-label="Copiar ${state.title} en Inglés" ${!state.englishContent ? 'disabled' : ''}>Copiar</button>
-                    </div>
-                    <pre class="bulletin-content" style="padding: 0;">${renderContent(state.englishContent, 'en')}</pre>
-                </div>
-            </div>
+            <pre class="bulletin-content">${contentHtml}</pre>
         </div>`;
 };
 
@@ -226,18 +58,16 @@ const renderMeteosLayout = () => `
     <div class="meteos-header">
         <div class="meteos-header-text">
             <h2 class="content-card-title" style="margin-bottom: 0.5rem; border: none; padding: 0;">Boletines Meteorológicos Marítimos de AEMET</h2>
-            <p class="translator-desc" style="margin-bottom: 0;">Boletines formateados, traducidos y optimizados. La información se actualiza automáticamente.</p>
+            <p class="translator-desc" style="margin-bottom: 0;">Contenido XML en crudo obtenido directamente de AEMET. La información se actualiza automáticamente.</p>
         </div>
         <button id="meteos-refresh-btn" class="secondary-btn">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>
             <span>Actualizar</span>
         </button>
     </div>
-    ${renderBulletinCard(bulletinStates.main)}
-    <div style="margin-top: 2rem"></div>
-    ${renderBulletinCard(bulletinStates.warnings)}
-    <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Boletines Costeros</h3>
-    <div class="coastal-container">
+    <div class="bulletins-container" style="grid-template-columns: 1fr; gap: 1.5rem;">
+        ${renderBulletinCard(bulletinStates.main)}
+        ${renderBulletinCard(bulletinStates.warnings)}
         ${renderBulletinCard(bulletinStates.coastal_galicia)}
         ${renderBulletinCard(bulletinStates.coastal_cantabrico)}
     </div>
@@ -251,7 +81,7 @@ const updateCard = (id: string) => {
     }
 };
 
-async function fetchAndProcessData(stateKey: string, url: string, parser: (xml: string) => string, rawDataKey?: string) {
+async function fetchRawData(stateKey: string, url: string, rawDataKey: string) {
     try {
         bulletinStates[stateKey].status = 'loading';
         updateCard(stateKey);
@@ -260,19 +90,11 @@ async function fetchAndProcessData(stateKey: string, url: string, parser: (xml: 
         if (!response.ok) throw new Error(`Error ${response.status} de AEMET`);
         
         const data = await response.json();
-        const xmlText = rawDataKey ? data[rawDataKey] : data.rawXml;
+        const xmlText = data[rawDataKey];
 
         if (!xmlText) throw new Error("Respuesta de AEMET vacía.");
 
-        const spanishContent = parser(xmlText);
-        if(spanishContent.toLowerCase().includes("error:")) {
-            throw new Error(spanishContent.replace('Error: ', ''));
-        }
-
-        const englishContent = translateBulletin(spanishContent);
-
-        bulletinStates[stateKey].spanishContent = spanishContent;
-        bulletinStates[stateKey].englishContent = englishContent;
+        bulletinStates[stateKey].rawContent = xmlText;
         bulletinStates[stateKey].status = 'done';
 
     } catch (e) {
@@ -287,27 +109,29 @@ async function fetchMeteosData() {
     if (isFetchingMeteos) return;
     isFetchingMeteos = true;
     
-    document.querySelector<HTMLButtonElement>('#meteos-refresh-btn')?.setAttribute('disabled', 'true');
+    const refreshBtn = document.querySelector<HTMLButtonElement>('#meteos-refresh-btn');
+    if(refreshBtn) refreshBtn.disabled = true;
+
     const contentEl = document.getElementById('meteos-content');
     if (contentEl) {
         Object.keys(bulletinStates).forEach(k => { 
             bulletinStates[k].status = 'loading'; 
-            bulletinStates[k].spanishContent = null;
-            bulletinStates[k].englishContent = null;
+            bulletinStates[k].rawContent = null;
             bulletinStates[k].error = null;
         });
         contentEl.innerHTML = renderMeteosLayout();
     }
     
     await Promise.allSettled([
-        fetchAndProcessData('main', '/api/meteos', parseMainBulletin),
-        fetchAndProcessData('warnings', '/api/main-warnings', parseMainBulletin),
-        fetchAndProcessData('coastal_galicia', '/api/warnings', parseCoastalBulletin, 'rawGalicia'),
-        fetchAndProcessData('coastal_cantabrico', '/api/warnings', parseCoastalBulletin, 'rawCantabrico')
+        fetchRawData('main', '/api/meteos', 'rawXml'),
+        fetchRawData('warnings', '/api/main-warnings', 'rawXml'),
+        fetchRawData('coastal_galicia', '/api/warnings', 'rawGalicia'),
+        fetchRawData('coastal_cantabrico', '/api/warnings', 'rawCantabrico')
     ]);
 
     isFetchingMeteos = false;
-    document.querySelector<HTMLButtonElement>('#meteos-refresh-btn')?.removeAttribute('disabled');
+    const finalRefreshBtn = document.querySelector<HTMLButtonElement>('#meteos-refresh-btn');
+    if(finalRefreshBtn) finalRefreshBtn.disabled = false;
 }
 
 
@@ -330,9 +154,8 @@ export function renderMeteos(container: HTMLElement) {
 
         if (copyBtn) {
             const cardId = copyBtn.dataset.cardId as string;
-            const lang = copyBtn.dataset.lang as 'es' | 'en';
             if (cardId && bulletinStates[cardId]) {
-                const contentToCopy = lang === 'es' ? bulletinStates[cardId].spanishContent : bulletinStates[cardId].englishContent;
+                const contentToCopy = bulletinStates[cardId].rawContent;
                 if (contentToCopy) {
                     handleCopy(contentToCopy);
                 } else {
