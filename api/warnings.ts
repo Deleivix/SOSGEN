@@ -10,7 +10,7 @@ interface Cache<T> {
   data: T | null;
   timestamp: number;
 }
-const warningsCache: Cache<{ summary: string }> = {
+const warningsCache: Cache<any> = {
   data: null,
   timestamp: 0,
 };
@@ -27,10 +27,10 @@ export default async function handler(
   // --- Check Cache ---
   const now = Date.now();
   if (warningsCache.data && (now - warningsCache.timestamp < CACHE_DURATION_MS)) {
-    console.log("Serving warnings data from cache.");
+    console.log("Serving coastal warnings data from cache.");
     return response.status(200).json(warningsCache.data);
   }
-  console.log("Fetching fresh warnings data (cache stale or empty).");
+  console.log("Fetching fresh coastal warnings data (cache stale or empty).");
 
   try {
     const [galiciaResponse, cantabricoResponse] = await Promise.all([
@@ -48,7 +48,7 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-        Eres un experto meteorólogo marítimo. Tu única tarea es analizar dos boletines costeros en formato XML y extraer un resumen de los avisos en vigor.
+        Eres un experto meteorólogo marítimo. Analiza dos boletines costeros en XML y extrae información específica.
 
         **Boletín Costero de Galicia (FQXX40MM.xml):**
         \`\`\`xml
@@ -61,15 +61,19 @@ export default async function handler(
         \`\`\`
 
         **Instrucciones Estrictas:**
-        1.  **Identifica Avisos:** Revisa ambos boletines para encontrar secciones explícitas de "AVISOS" o predicciones que indiquen condiciones peligrosas (viento de fuerza 7 o superior, mar muy gruesa, etc.).
-        2.  **Extrae y Resume:** Extrae el texto exacto de CADA aviso encontrado.
-        3.  **Formatea la Salida:**
-            *   Si encuentras uno o más avisos, combínalos en un único bloque de texto en español.
-            *   Cada aviso debe estar claramente separado. Usa un título claro para la zona (ej. "GALICIA:") y luego el texto del aviso.
-            *   Separa los avisos de diferentes zonas con dos saltos de línea.
-            *   Limpia cualquier artefacto XML o texto innecesario, presentando solo la información del aviso.
-        4.  **Manejo de Ausencia de Avisos:** Si después de analizar AMBOS boletines no encuentras NINGÚN aviso en vigor, devuelve una cadena vacía.
-        5.  **JSON de Salida:** Devuelve tu resultado en un objeto JSON con una única clave: \`summary\`.
+        1.  **Resumen de Avisos (summary):**
+            *   Identifica y extrae el texto exacto de CADA aviso en vigor de AMBOS boletines.
+            *   Combina todos los avisos en un único bloque de texto. Si no hay avisos, devuelve una cadena vacía.
+            *   Formatea el resumen de forma clara, indicando la zona de cada aviso (ej. "GALICIA: ...").
+        2.  **Texto Completo - Galicia (galicia_coastal):**
+            *   Extrae el contenido completo del boletín de Galicia.
+            *   Limpia todo el XML y formatea el texto para que sea legible.
+            *   **Optimiza este texto para Texto-a-Voz (TTS):** reescribe abreviaturas, números y códigos a su forma de palabra completa en español (ej. 'NW' -> 'Noroeste', 'Fuerza 4' -> 'fuerza cuatro').
+        3.  **Texto Completo - Cantábrico (cantabrico_coastal):**
+            *   Extrae el contenido completo del boletín del Cantábrico.
+            *   Limpia todo el XML y formatea el texto para que sea legible.
+            *   **Optimiza este texto para TTS** de la misma manera que el de Galicia.
+        4.  **JSON de Salida:** Devuelve tu resultado en un objeto JSON con tres claves: \`summary\`, \`galicia_coastal\`, \`cantabrico_coastal\`.
     `;
     
     const genAIResponse = await ai.models.generateContent({
@@ -82,10 +86,18 @@ export default async function handler(
                 properties: {
                     summary: { 
                         type: Type.STRING, 
-                        description: "Un resumen de texto de todos los avisos costeros activos para Galicia y Cantábrico, o una cadena vacía si no hay ninguno." 
+                        description: "A text summary of all active coastal warnings for Galicia and Cantábrico, or an empty string if there are none." 
+                    },
+                    galicia_coastal: {
+                        type: Type.STRING,
+                        description: "The full, formatted, and TTS-optimized coastal bulletin for Galicia in Spanish."
+                    },
+                    cantabrico_coastal: {
+                        type: Type.STRING,
+                        description: "The full, formatted, and TTS-optimized coastal bulletin for Cantábrico in Spanish."
                     }
                 },
-                required: ["summary"],
+                required: ["summary", "galicia_coastal", "cantabrico_coastal"],
             },
         },
     });
