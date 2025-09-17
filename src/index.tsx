@@ -1,134 +1,171 @@
-// Fix: Implement the main application entry point to set up the layout, navigation, and render pages.
-import { APP_PAGES, APP_PAGE_ICONS } from './data';
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+import { APP_PAGE_ICONS, APP_PAGES } from './data';
+import { showTipOfTheDay } from './utils/helpers';
 import { renderDashboard } from './components/DashboardPage';
 import { renderSosgen } from './components/SosgenPage';
 import { renderRegistroOceano } from './components/RegistroOceanoPage';
 import { renderProtocolo } from './components/ProtocoloPage';
-import { renderRadioavisos } from './components/RadioavisosPage';
-import { renderMeteos } from './components/MeteosPage';
 import { renderMaritimeSignalsSimulator } from './components/SenalesPage';
 import { renderSimulacro } from './components/SimulacroPage';
 import { renderInfo } from './components/InfoPage';
-import { showTipOfTheDay } from './utils/helpers';
+import { renderMeteos } from './components/MeteosPage';
+import { renderRadioavisos } from './components/RadioavisosPage';
 
-// Mapping page names to their render functions
-const pageRenderers: { [key: string]: (container: HTMLElement) => void } = {
-    'Dashboard': renderDashboard,
-    'SOSGEN': renderSosgen,
-    'Registro Océano': renderRegistroOceano,
-    'PROTOCOLO': renderProtocolo,
-    'Radioavisos': renderRadioavisos,
-    'METEOS': renderMeteos,
-    'SEÑALES': renderMaritimeSignalsSimulator,
-    'SIMULACRO': renderSimulacro,
-    'INFO': renderInfo,
-};
+const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
+const pageRenderStatus: { [key: number]: boolean } = {};
 
-function App() {
-    const appContainer = document.getElementById('app');
-    if (!appContainer) return;
+let isTransitioning = false;
+const animationDuration = 400; // ms, should match CSS animation duration
 
-    // Create main layout
-    appContainer.innerHTML = `
-        <div class="app-layout">
-            <nav class="sidebar">
-                <div class="sidebar-header">
-                    <div class="sidebar-logo">SOSGEN</div>
-                    <span class="sidebar-version">v1.2</span>
-                </div>
-                <ul class="nav-list">
-                    ${APP_PAGES.map((page, index) => `
-                        <li class="nav-item">
-                            <a href="#${page.name.toLowerCase().replace(/\s+/g, '-')}" class="nav-link" data-page="${page.name}">
-                                ${APP_PAGE_ICONS[index]}
-                                <span class="nav-text">${page.name}</span>
-                            </a>
-                        </li>
-                    `).join('')}
-                </ul>
-                <div class="sidebar-footer">
-                    <div class="theme-switcher">
-                        <label for="theme-toggle" class="theme-toggle-label">Modo Oscuro</label>
-                        <input type="checkbox" id="theme-toggle" class="theme-toggle-input">
-                    </div>
-                </div>
-            </nav>
-            <main id="main-content" class="main-content"></main>
-        </div>
-    `;
+const pageRenderers = [
+    renderDashboard,
+    renderSosgen,
+    renderRegistroOceano,
+    renderProtocolo,
+    renderRadioavisos,
+    renderMeteos,
+    renderMaritimeSignalsSimulator,
+    renderSimulacro,
+    renderInfo,
+];
 
-    const mainContent = document.getElementById('main-content') as HTMLElement;
-    const navLinks = document.querySelectorAll('.nav-link');
-    const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
+function switchToPage(pageIndex: number, subTabId?: string) {
+    if (isTransitioning) return;
 
-    function navigate(pageName: string) {
-        // Update URL hash
-        window.location.hash = pageName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        
-        // Update active link
-        navLinks.forEach(link => {
-            if (link.getAttribute('data-page') === pageName) {
-                link.classList.add('active');
-            } else {
-                link.classList.remove('active');
-            }
-        });
+    const outgoingPanel = document.querySelector('.page-panel.active') as HTMLElement | null;
+    const incomingPanel = document.getElementById(`page-${pageIndex}`) as HTMLElement | null;
 
-        // Render page content
-        const renderer = pageRenderers[pageName];
-        if (renderer) {
-            mainContent.innerHTML = ''; // Clear previous content
-            renderer(mainContent);
-        } else {
-            mainContent.innerHTML = `<h2>Page not found: ${pageName}</h2>`;
-        }
+    if (!incomingPanel || incomingPanel === outgoingPanel) {
+        return;
     }
 
-    // Handle navigation via clicks
-    appContainer.addEventListener('click', (e) => {
-        const target = e.target as HTMLElement;
-        // Handle direct nav link clicks
-        const navLink = target.closest('.nav-link');
-        if (navLink) {
-            e.preventDefault();
-            const pageName = navLink.getAttribute('data-page');
-            if (pageName) navigate(pageName);
-        }
-        // Handle quick link clicks from the dashboard
-        const quickLink = target.closest('.quick-link-item');
-        if (quickLink) {
-            e.preventDefault();
-            const pageName = quickLink.getAttribute('data-page');
-            if (pageName) navigate(pageName);
-        }
-    });
-    
-    // Handle theme switching
-    const applyTheme = (isDark: boolean) => {
-        document.body.classList.toggle('dark-theme', isDark);
-        localStorage.setItem('sosgen_theme', isDark ? 'dark' : 'light');
-        if (themeToggle) themeToggle.checked = isDark;
-    };
-    
-    if (themeToggle) {
-        themeToggle.addEventListener('change', () => {
-            applyTheme(themeToggle.checked);
-        });
+    isTransitioning = true;
+
+    document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.nav-link[data-page-index="${pageIndex}"]`)?.classList.add('active');
+
+    if (outgoingPanel) {
+        outgoingPanel.classList.add('is-exiting');
+        outgoingPanel.classList.remove('active');
     }
 
-    // Initial page load from hash or default
-    const initialHash = window.location.hash.substring(1);
-    const pageNameFromHash = APP_PAGES.find(p => p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === initialHash)?.name || 'Dashboard';
-    navigate(pageNameFromHash);
-    
-    // Set initial theme based on saved preference or system setting
-    const savedTheme = localStorage.getItem('sosgen_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    applyTheme(savedTheme === 'dark' || (savedTheme === null && prefersDark));
+    incomingPanel.classList.add('active');
 
-    // Show tip of the day on first visit
-    showTipOfTheDay();
+    if (!pageRenderStatus[pageIndex]) {
+        pageRenderers[pageIndex](incomingPanel);
+        pageRenderStatus[pageIndex] = true;
+    }
+
+    if (subTabId) {
+        // Use timeout to ensure the tab content is rendered and its own scripts are initialized
+        setTimeout(() => {
+            const subTabButton = incomingPanel?.querySelector<HTMLButtonElement>(`[data-target="${subTabId}"]`);
+            subTabButton?.click();
+        }, 0);
+    }
+
+    setTimeout(() => {
+        if (outgoingPanel) {
+            outgoingPanel.classList.remove('is-exiting');
+        }
+        isTransitioning = false;
+    }, animationDuration);
 }
 
-// Start the app when the DOM is ready
-document.addEventListener('DOMContentLoaded', App);
+// Expose to window for use in dashboard quick links
+(window as any).switchToPage = switchToPage;
+
+function renderApp(container: HTMLElement) {
+    const navHtml = `
+        <nav>
+            <div class="nav-top"></div>
+            <div class="nav-bottom">
+                <div class="nav-brand" style="cursor: pointer;" title="Ir al Dashboard">
+                    ${NEW_LOGO_SVG}
+                    <span>SOSGEN</span>
+                </div>
+                <div class="nav-links-container">
+                    ${APP_PAGES.map((page, index) => `
+                        <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
+                            ${APP_PAGE_ICONS[index]}
+                            <span class="nav-link-text">${page.name}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="theme-switcher">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/></svg>
+                    <input type="checkbox" id="theme-toggle">
+                    <label for="theme-toggle" class="theme-switcher-label"></label>
+                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg>
+                </div>
+            </div>
+        </nav>
+    `;
+
+    const mainContentHtml = `<main>${APP_PAGES.map((_, index) => `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`).join('')}</main>`;
+    container.innerHTML = navHtml + mainContentHtml;
+    
+    const initialActivePanel = container.querySelector<HTMLElement>('.page-panel.active');
+    if(initialActivePanel) {
+        pageRenderers[0](initialActivePanel);
+        pageRenderStatus[0] = true;
+    }
+}
+
+
+function addEventListeners(appContainer: HTMLElement) {
+    appContainer.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        const navLink = target.closest('.nav-link');
+        const brandLink = target.closest('.nav-brand');
+
+        if (brandLink) {
+            switchToPage(0);
+            return;
+        }
+        if (navLink) {
+            const pageIndex = parseInt(navLink.getAttribute('data-page-index')!, 10);
+            switchToPage(pageIndex);
+            return;
+        }
+    });
+
+    const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
+    if (themeToggle) {
+        themeToggle.addEventListener('change', () => {
+            if (themeToggle.checked) {
+                document.body.classList.add('dark-theme');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-theme');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+    }
+}
+
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        if (themeToggle) themeToggle.checked = true;
+    } else {
+        document.body.classList.remove('dark-theme');
+        if (themeToggle) themeToggle.checked = false;
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+        renderApp(appContainer);
+        addEventListeners(appContainer);
+        initializeTheme();
+        showTipOfTheDay();
+    }
+});
