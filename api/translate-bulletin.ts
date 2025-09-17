@@ -21,37 +21,42 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    You are an expert marine weather forecaster and coastal radio operator, fluent in both Spanish and English maritime terminology. Your task is to translate the following Spanish AEMET weather bulletin into English.
+    You are an expert translator specializing in maritime and meteorological texts, working for the Spanish Maritime Safety Agency. Your task is to translate the following Spanish weather bulletin into professional, accurate English.
 
-    **Translation Rules:**
-    1.  Maintain the original structure and formatting as much as possible.
-    2.  Use standard international maritime meteorological terminology in English.
-        *   "Marejadilla" -> "Slight sea"
-        *   "Marejada" -> "Moderate sea"
-        *   "Fuerte marejada" -> "Rough sea"
-        *   "Viento fuerza 5" -> "Wind force 5"
-        *   "Aguaceros" -> "Showers"
-        *   "Mar de fondo del NW de 2 metros" -> "NW swell of 2 meters"
-    3.  Translate all parts of the bulletin, including headers, general situation, and predictions for each zone.
+    **Key Translation Instructions:**
+    -   Maintain the original structure and formatting (line breaks, capitalization of headers).
+    -   Use standard international maritime terminology. For example:
+        -   "Marejadilla" -> "Slight sea"
+        -   "Marejada" -> "Moderate sea"
+        -   "Fuerte marejada" -> "Rough sea"
+        -   "Mar de fondo del NW de 2 metros" -> "NW swell of 2 meters"
+        -   "Viento fuerza 5" -> "Wind force 5"
+        -   "Aguaceros" -> "Showers"
+        -   "Variable 1 a 3" -> "Variable 1 to 3"
+        -   "Arreciando a..." -> "Increasing to..."
+        -   "Aminando a..." -> "Decreasing to..."
+        -   "Rolando a..." -> "Veering to..."
+    -   Translate all content, including headers, general situation, predictions, and trend information.
+    -   Ensure the final translation is clear, concise, and ready for official broadcast.
 
-    **Bulletin to Translate:**
+    **Spanish Bulletin to Translate:**
     \`\`\`
     ${bulletinText}
     \`\`\`
 
-    Provide ONLY the English translation.
+    Provide ONLY the English translation, without any additional comments or explanations.
     `;
 
     const genAIResponse = await ai.models.generateContent({
-      model: 'gem-2.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         temperature: 0.1,
       }
     });
 
-    const result = genAIResponse.text.trim();
-    return response.status(200).json({ result });
+    const translation = genAIResponse.text.trim();
+    return response.status(200).json({ translation });
 
   } catch (error) {
     console.error(error);
