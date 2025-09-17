@@ -399,8 +399,9 @@ function renderSilenceFiniModal(entry: SosgenHistoryEntry) {
         if (esVesselMatch && esVesselMatch[1]) {
             referenceLineEs = `REFERENTE A MENSAJE DE SOCORRO DEL BUQUE ${esVesselMatch[1]}.`;
         } else {
-            const summary = spanishDescription.charAt(0).toLowerCase() + spanishDescription.slice(1);
-            referenceLineEs = `REFERENTE A MENSAJE DE SOCORRO SOBRE ${summary}`;
+            let summaryEs = spanishDescription.replace(/\s*,?\s*(se encuentra|se encuentran|reporta|reportan|informa|informan|está|están)\s+/i, ' ').trim();
+            summaryEs = summaryEs.charAt(0).toLowerCase() + summaryEs.slice(1);
+            referenceLineEs = `REFERENTE A MENSAJE DE SOCORRO SOBRE ${summaryEs}`;
             if (!referenceLineEs.endsWith('.')) {
                 referenceLineEs += '.';
             }
@@ -412,8 +413,9 @@ function renderSilenceFiniModal(entry: SosgenHistoryEntry) {
         if (enVesselMatch && enVesselMatch[1]) {
             referenceLineEn = `REGARDING DISTRESS MESSAGE FROM THE VESSEL ${enVesselMatch[1]}.`;
         } else {
-            const summary = englishDescription.charAt(0).toLowerCase() + englishDescription.slice(1);
-            referenceLineEn = `REGARDING DISTRESS MESSAGE ABOUT ${summary}`;
+            let summaryEn = englishDescription.replace(/\s*,?\s*(reports|report|is|are)\s+/i, ' ').trim();
+            summaryEn = summaryEn.charAt(0).toLowerCase() + summaryEn.slice(1);
+            referenceLineEn = `REGARDING DISTRESS MESSAGE ABOUT ${summaryEn}`;
             if (!referenceLineEn.endsWith('.')) {
                 referenceLineEn += '.';
             }
