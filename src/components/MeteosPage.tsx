@@ -54,6 +54,7 @@ function expandMar(t: string): string {
         .replace(/\b(\d+)\s*m\b/gi, "$1 metros")
         .replace(/[º°]\s*([NS])/gi, "° $1")
         .replace(/\báreas de mala\b/gi, "áreas de mala visibilidad")
+        .replace(/\b(localmente|ocasionalmente)\s+mala\b/gi, "$1 visibilidad mala")
         .replace(/anticiclón/gi, "anticiclón");
 }
 
@@ -91,7 +92,7 @@ function normalizeMarine(text: string): string {
 
 function formatAltaMar(xmlDoc: XMLDocument): string {
     const root = xmlDoc.querySelector("root");
-    const nombre = (root?.getAttribute("nombre") || "").replace(/30N/i, "30° norte");
+    const nombre = (root?.getAttribute("nombre") || "").replace(/30\s*N/i, "30 grados NORTE");
     const elaborado = isoToFechaEnPalabras(xmlDoc.querySelector("origen > elaborado")?.textContent || "");
     const inicio = isoToFechaEnPalabras(xmlDoc.querySelector("origen > inicio")?.textContent || "");
     const fin = isoToFechaEnPalabras(xmlDoc.querySelector("origen > fin")?.textContent || "");
