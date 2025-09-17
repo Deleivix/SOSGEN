@@ -109,7 +109,7 @@ function formatAltaMar(xmlDoc: XMLDocument): string {
         const ztxt = normalizeMarine(z.querySelector("texto")?.textContent || "");
         out.push(`${zname}. ${ztxt}`);
     });
-    return out.join("\n\n");
+    return out.join("\n\n").toUpperCase();
 }
 
 function formatAviso(xmlDoc: XMLDocument): string {
@@ -164,8 +164,7 @@ function formatCostero(xmlDoc: XMLDocument): string {
             subs.forEach(sz => {
                 const sname = sz.getAttribute("nombre");
                 const txt = normalizeMarine(sz.querySelector("texto")?.textContent || "");
-                // Evitar duplicar el nombre de la subzona si es igual al de la zona
-                if (sname?.toUpperCase() !== zname?.toUpperCase()) {
+                if (sname?.trim().toUpperCase() !== zname?.trim().toUpperCase()) {
                      out.push(`${sname!.toUpperCase()}.`);
                 }
                 out.push(txt.toUpperCase(), "");
@@ -241,7 +240,7 @@ async function fetchAndProcessBulletins() {
             bulletinIds.map(id => fetch(`/api/get-bulletin?id=${id}`).then(res => res.json()))
         );
 
-        const processedTexts: { [key: string]: { spanish: string, english: string, error?: string } } = {};
+        const processedSpanishTexts: { [key: string]: { spanish: string, error?: string } } = {};
 
         // 1. Process all Spanish texts first
         xmlResponses.forEach((result, index) => {
@@ -249,42 +248,51 @@ async function fetchAndProcessBulletins() {
             if (result.status === 'fulfilled' && result.value.xml) {
                 try {
                     const xmlDoc = parseXml(result.value.xml);
-                    processedTexts[id] = { spanish: bulletinProcessors[id](xmlDoc), english: '' };
+                    processedSpanishTexts[id] = { spanish: bulletinProcessors[id](xmlDoc) };
                 } catch (e) {
-                    processedTexts[id] = { spanish: '', english: '', error: 'Error al analizar el boletín.' };
+                    const message = e instanceof Error ? e.message : 'Error desconocido';
+                    processedSpanishTexts[id] = { spanish: '', error: `Error al analizar el boletín: ${message}` };
                 }
             } else {
-                processedTexts[id] = { spanish: '', english: '', error: 'Error al obtener el boletín.' };
+                processedSpanishTexts[id] = { spanish: '', error: 'Error al obtener el boletín.' };
             }
         });
 
-        // 2. Translate all processed Spanish texts
-        const translationPromises = Object.entries(processedTexts)
-            .filter(([, data]) => data.spanish && !data.error)
-            .map(async ([id, data]) => {
-                const response = await fetch('/api/translate-bulletin', {
+        // 2. Render initial layout with Spanish text and loaders for English
+        renderInitialLayout(processedSpanishTexts);
+
+        // 3. Start translations for non-coastal bulletins
+        const bulletinsToTranslate = ['FQNT42MM', 'WONT40MM'];
+        bulletinsToTranslate.forEach(id => {
+            const data = processedSpanishTexts[id];
+            if (data && data.spanish && !data.error) {
+                startProgressBar(id, 8); // 8 seconds estimate
+
+                fetch('/api/translate-bulletin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ bulletinText: data.spanish })
+                })
+                .then(res => res.ok ? res.json() : Promise.reject('API Error'))
+                .then(result => {
+                    const englishContentEl = document.getElementById(`en-content-${id}`);
+                    if (englishContentEl) {
+                        englishContentEl.innerHTML = `<pre class="bulletin-content">${result.translation}</pre>`;
+                    }
+                })
+                .catch(() => {
+                    const englishContentEl = document.getElementById(`en-content-${id}`);
+                    if (englishContentEl) {
+                        englishContentEl.innerHTML = `<p class="error">Error al traducir.</p>`;
+                    }
                 });
-                if (response.ok) {
-                    const result = await response.json();
-                    processedTexts[id].english = result.translation;
-                } else {
-                    processedTexts[id].english = 'Translation failed.';
-                }
-            });
-
-        await Promise.allSettled(translationPromises);
-        
-        // 3. Render final HTML
-        renderFinalHtml(processedTexts);
+            }
+        });
 
     } catch (error) {
         meteosContent.innerHTML = `<p class="error">Error general al cargar los boletines.</p>`;
     } finally {
         isFetchingMeteos = false;
-        // FIX: Cast element to HTMLButtonElement to access 'disabled' property.
         const refreshBtn = document.getElementById('meteos-refresh-btn') as HTMLButtonElement;
         if (refreshBtn) {
             refreshBtn.disabled = false;
@@ -295,9 +303,45 @@ async function fetchAndProcessBulletins() {
     }
 }
 
-function renderFinalHtml(data: { [key: string]: { spanish: string, english: string, error?: string } }) {
+function startProgressBar(id: string, durationSeconds: number) {
+    const fillEl = document.getElementById(`progress-fill-${id}`) as HTMLElement;
+    const timeEl = document.querySelector(`#progress-container-${id} .progress-time`) as HTMLElement;
+    if (!fillEl || !timeEl) return;
+
+    fillEl.style.transition = `width ${durationSeconds}s linear`;
+    requestAnimationFrame(() => {
+        fillEl.style.width = '95%';
+    });
+    
+    let timeLeft = durationSeconds;
+    const timer = setInterval(() => {
+        timeLeft--;
+        if (timeLeft >= 0 && timeEl) {
+            timeEl.textContent = `${timeLeft}s`;
+        } else {
+            clearInterval(timer);
+        }
+    }, 1000);
+
+    (fillEl as any).timer = timer;
+}
+
+function getProgressBarHtml(id: string, estimatedTime: number): string {
+    return `
+        <div class="meteos-progress-container" id="progress-container-${id}">
+            <div class="meteos-progress-text">Traduciendo... (tiempo estimado: <span class="progress-time">${estimatedTime}s</span>)</div>
+            <div class="meteos-progress-track">
+                <div class="meteos-progress-fill" id="progress-fill-${id}"></div>
+            </div>
+        </div>`;
+}
+
+
+function renderInitialLayout(data: { [key: string]: { spanish: string, error?: string } }) {
     const meteosContent = document.getElementById('meteos-content');
     if (!meteosContent) return;
+    
+    const allProcessedData = { ...data };
 
     const copyButtonHTML = (cardId: string, lang: 'es' | 'en') => `
         <button class="copy-btn bulletin-copy-btn" data-card-id="${cardId}" data-lang="${lang}" aria-label="Copiar boletín">
@@ -305,10 +349,10 @@ function renderFinalHtml(data: { [key: string]: { spanish: string, english: stri
             <span>Copiar</span>
         </button>`;
 
-    const getHtmlForBulletin = (id: string, title: string) => {
+    const getHtmlForTranslatedBulletin = (id: string, title: string) => {
         const bulletinData = data[id];
-        const content = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : `<pre class="bulletin-content">${bulletinData.spanish || 'No disponible.'}</pre>`;
-        const enContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : `<pre class="bulletin-content">${bulletinData.english || 'No disponible.'}</pre>`;
+        const esContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : `<pre class="bulletin-content">${bulletinData.spanish || 'No disponible.'}</pre>`;
+        const enContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : getProgressBarHtml(id, 8);
         
         return `
             <div class="bulletin-card" style="grid-column: 1 / -1;">
@@ -316,31 +360,33 @@ function renderFinalHtml(data: { [key: string]: { spanish: string, english: stri
                 <div class="bulletins-container" style="padding: 1rem; gap: 1rem;">
                     <div class="language-column">
                         <div class="bulletin-card">
-                            <div class="bulletin-card-header">
-                                <h4>Español (TTS)</h4>
-                                ${copyButtonHTML(id, 'es')}
-                            </div>
-                            ${content}
+                            <div class="bulletin-card-header"><h4>Español (TTS)</h4>${copyButtonHTML(id, 'es')}</div>
+                            ${esContent}
                         </div>
                     </div>
                     <div class="language-column">
                         <div class="bulletin-card">
-                            <div class="bulletin-card-header">
-                                <h4>Inglés</h4>
-                                ${copyButtonHTML(id, 'en')}
-                            </div>
-                            ${enContent}
+                             <div class="bulletin-card-header"><h4>Inglés</h4>${copyButtonHTML(id, 'en')}</div>
+                            <div id="en-content-${id}">${enContent}</div>
                         </div>
                     </div>
                 </div>
+            </div>`;
+    };
+    
+    const getHtmlForCoastalBulletin = (id: string, title: string) => {
+        const bulletinData = data[id];
+        const content = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : `<pre class="bulletin-content">${bulletinData.spanish || 'No disponible.'}</pre>`;
+        return `
+             <div class="bulletin-card">
+                <div class="bulletin-card-header">
+                    <h4>${title}</h4>
+                    ${copyButtonHTML(id, 'es')}
+                </div>
+                ${content}
             </div>
         `;
-    };
-
-    const costeroGaliciaHtml = data['FQXX40MM'].error ? `<p class="error">${data['FQXX40MM'].error}</p>` : `<pre class="bulletin-content">${data['FQXX40MM'].spanish}</pre>`;
-    const costeroGaliciaEnHtml = data['FQXX40MM'].error ? `<p class="error">${data['FQXX40MM'].error}</p>` : `<pre class="bulletin-content">${data['FQXX40MM'].english}</pre>`;
-    const costeroCantabricoHtml = data['FQXX41MM'].error ? `<p class="error">${data['FQXX41MM'].error}</p>` : `<pre class="bulletin-content">${data['FQXX41MM'].spanish}</pre>`;
-    const costeroCantabricoEnHtml = data['FQXX41MM'].error ? `<p class="error">${data['FQXX41MM'].error}</p>` : `<pre class="bulletin-content">${data['FQXX41MM'].english}</pre>`;
+    }
 
     meteosContent.innerHTML = `
         <div class="meteos-header">
@@ -354,45 +400,35 @@ function renderFinalHtml(data: { [key: string]: { spanish: string, english: stri
             </button>
         </div>
         <div style="display: grid; gap: 2rem;">
-            ${getHtmlForBulletin('FQNT42MM', 'Boletín Atlántico (Alta Mar)')}
-            ${getHtmlForBulletin('WONT40MM', 'Avisos Marítimos (Alta Mar)')}
+            ${getHtmlForTranslatedBulletin('FQNT42MM', 'Boletín Atlántico (Alta Mar)')}
+            ${getHtmlForTranslatedBulletin('WONT40MM', 'Avisos Marítimos (Alta Mar)')}
             
             <div class="bulletin-card" style="grid-column: 1 / -1;">
                 <div class="bulletin-card-header"><h3>Boletines Costeros</h3></div>
-                <div class="bulletins-container" style="padding: 1rem; gap: 1rem;">
-                    <div class="language-column">
-                        <div class="bulletin-card">
-                            <div class="bulletin-card-header"><h4>Costero Galicia (FQXX40MM)</h4></div>
-                            <div class="bulletins-container" style="padding: 1rem; gap: 1rem;">
-                                <div class="bulletin-card"><div class="bulletin-card-header"><h5>Español (TTS)</h5>${copyButtonHTML('FQXX40MM', 'es')}</div>${costeroGaliciaHtml}</div>
-                                <div class="bulletin-card"><div class="bulletin-card-header"><h5>Inglés</h5>${copyButtonHTML('FQXX40MM', 'en')}</div>${costeroGaliciaEnHtml}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="language-column">
-                        <div class="bulletin-card">
-                            <div class="bulletin-card-header"><h4>Costero Cantábrico (FQXX41MM)</h4></div>
-                             <div class="bulletins-container" style="padding: 1rem; gap: 1rem;">
-                                <div class="bulletin-card"><div class="bulletin-card-header"><h5>Español (TTS)</h5>${copyButtonHTML('FQXX41MM', 'es')}</div>${costeroCantabricoHtml}</div>
-                                <div class="bulletin-card"><div class="bulletin-card-header"><h5>Inglés</h5>${copyButtonHTML('FQXX41MM', 'en')}</div>${costeroCantabricoEnHtml}</div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="coastal-container" style="padding: 1rem; gap: 1rem;">
+                    ${getHtmlForCoastalBulletin('FQXX40MM', 'Costero Galicia (FQXX40MM)')}
+                    ${getHtmlForCoastalBulletin('FQXX41MM', 'Costero Cantábrico (FQXX41MM)')}
                 </div>
             </div>
         </div>
     `;
 
-     // Attach copy listeners
     meteosContent.querySelectorAll('.bulletin-copy-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const cardId = (btn as HTMLElement).dataset.cardId;
             const lang = (btn as HTMLElement).dataset.lang as 'es' | 'en';
-            if (cardId && lang && data[cardId]) {
-                const textToCopy = lang === 'es' ? data[cardId].spanish : data[cardId].english;
-                showToast(textToCopy ? '¡Copiado!' : 'No hay contenido para copiar.', textToCopy ? 'success' : 'error');
-                if (textToCopy) navigator.clipboard.writeText(textToCopy);
+            if (!cardId || !lang) return;
+
+            let textToCopy = '';
+            if (lang === 'es') {
+                textToCopy = allProcessedData[cardId]?.spanish || '';
+            } else {
+                const enContentEl = document.getElementById(`en-content-${cardId}`);
+                textToCopy = enContentEl?.querySelector('pre')?.textContent || '';
             }
+            
+            showToast(textToCopy ? '¡Copiado!' : 'No hay contenido para copiar.', textToCopy ? 'success' : 'error');
+            if (textToCopy) await navigator.clipboard.writeText(textToCopy);
         });
     });
 }
@@ -402,7 +438,6 @@ export function renderMeteos(container: HTMLElement) {
     
     fetchAndProcessBulletins();
     
-    // Clear previous interval if it exists and set a new one
     if (meteosIntervalId) clearInterval(meteosIntervalId);
     meteosIntervalId = window.setInterval(fetchAndProcessBulletins, REFRESH_INTERVAL);
 

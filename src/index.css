@@ -634,7 +634,7 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
     background-color: var(--bg-card);
     border-bottom: 1px solid var(--border-color);
 }
-.bulletin-card-header h3 {
+.bulletin-card-header h3, .bulletin-card-header h4 {
     font-size: 1rem;
     font-weight: 500;
     color: var(--text-primary);
@@ -655,9 +655,37 @@ body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-
 }
 .coastal-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr; /* Changed from 1fr 1fr */
     gap: 2rem;
 }
+
+.meteos-progress-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    padding: 1rem;
+}
+.meteos-progress-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+.meteos-progress-track {
+    width: 80%;
+    height: 8px;
+    background-color: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.meteos-progress-fill {
+    width: 0%;
+    height: 100%;
+    background-color: var(--accent-color);
+    transition: width linear;
+}
+
 
 /* --- INFO Page (Reference) --- */
 .info-nav-tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border-color); margin-bottom: 2rem; flex-wrap: wrap; }
@@ -1264,7 +1292,10 @@ body.dark-theme .skeleton {
 }
 
 @media (max-width: 900px) {
-    .bulletins-container, .coastal-container {
+    .bulletins-container {
+        grid-template-columns: 1fr;
+    }
+    .coastal-container {
         grid-template-columns: 1fr;
     }
 }

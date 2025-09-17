@@ -36,6 +36,7 @@ export default async function handler(
         -   "Arreciando a..." -> "Increasing to..."
         -   "Aminando a..." -> "Decreasing to..."
         -   "Rolando a..." -> "Veering to..."
+    -   **Preserve Spoken Numbers:** Translate numbers written as words into their English word equivalents. For example, if the input is "seis cero cero UTC", the output must be "six zero zero UTC", NOT "06:00 UTC". This is critical for Text-to-Speech (TTS) systems.
     -   Translate all content, including headers, general situation, predictions, and trend information.
     -   Ensure the final translation is clear, concise, and ready for official broadcast.
 
