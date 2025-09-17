@@ -27,17 +27,17 @@ export function renderRegistroOceano(container: HTMLElement) {
                                                 </button>
                                             </div>
                                             <div class="template-card-body">
-                                                <p id="reorg-final-text" class="reorg-main-text"></p>
-                                                <div class="reorg-controls-container">
-                                                    <div class="reorg-control-group">
-                                                        <h4>CCR QUE ASUME</h4>
+                                                <p id="reorg-final-text" style="margin-bottom: 1.5rem; min-height: 4.8em;"></p>
+                                                <div class="reorg-controls">
+                                                    <div>
+                                                        <h4 class="reorg-control-title">CCR que asume</h4>
                                                         <div class="buoy-selector-group" id="reorg-ccr-selector">
                                                             <button class="buoy-selector-btn" data-value="CCR VALENCIA">CCR VALENCIA</button>
                                                             <button class="buoy-selector-btn" data-value="CCR LAS PALMAS">CCR LAS PALMAS</button>
                                                         </div>
                                                     </div>
-                                                    <div class="reorg-control-group">
-                                                        <h4>TURNO</h4>
+                                                    <div>
+                                                        <h4 class="reorg-control-title">Turno</h4>
                                                         <div class="buoy-selector-group" id="reorg-turno-selector">
                                                             <button class="buoy-selector-btn" data-value="MAÑANA">MAÑANA</button>
                                                             <button class="buoy-selector-btn" data-value="TARDE">TARDE</button>
