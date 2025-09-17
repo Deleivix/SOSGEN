@@ -2,183 +2,279 @@ import { handleCopy, showToast } from "../utils/helpers";
 
 const REFRESH_INTERVAL = 60 * 60 * 1000; // 1 hour
 let meteosIntervalId: number | null = null;
-let meteosCache: { bulletin: any; errors: string[]; timestamp: number; } | null = null;
 let isFetchingMeteos: boolean = false;
 
-const renderMeteosHTML = (bulletin: any, errors: string[] = []) => {
-    const copyButtonHTML = (cardId: keyof typeof bulletin, text: string, ariaLabel: string) => `
-        <button class="copy-btn bulletin-copy-btn" data-card-id="${String(cardId)}" aria-label="${ariaLabel}" ${!bulletin[cardId] ? 'disabled' : ''}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
-            <span>${text}</span>
-        </button>
-    `;
-    
-    const errorHtml = errors.length > 0
-        ? `<div class="warning-box" style="margin-bottom: 1rem; text-align: left;">
-             <h3 style="margin-top: 0;">Error de Carga</h3>
-             <p>No se pudo obtener la información de: <strong>${errors.join(', ')}</strong>. Los datos mostrados pueden estar incompletos o desactualizados.</p>
-           </div>`
-        : '';
+// --- STATE MANAGEMENT ---
+interface BulletinState {
+    id: string;
+    title: string;
+    spanishContent: string | null;
+    englishContent: string | null;
+    status: 'idle' | 'loading' | 'done' | 'error';
+    error: string | null;
+}
 
-    return `
-        <div class="meteos-header">
-            <div class="meteos-header-text">
-                <h2 class="content-card-title" style="margin-bottom: 0.5rem; border: none; padding: 0;">Boletines Meteorológicos Marítimos de AEMET</h2>
-                <p class="translator-desc" style="margin-bottom: 0;">Boletines formateados y traducidos mediante IA. La información se actualiza automáticamente cada hora o manualmente.</p>
-            </div>
-            <button id="meteos-refresh-btn" class="secondary-btn">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>
-                <span>Actualizar</span>
-            </button>
-        </div>
-        ${errorHtml}
-        <div class="bulletins-container">
-            <div class="language-column">
-                <div class="bulletin-card">
-                    <div class="bulletin-card-header">
-                        <h3>Boletín Atlántico</h3>
-                        ${copyButtonHTML('spanish', 'Copiar', 'Copiar boletín en español')}
-                    </div>
-                    <pre class="bulletin-content">${bulletin.spanish || 'No disponible.'}</pre>
-                </div>
-                <div class="bulletin-card">
-                    <div class="bulletin-card-header">
-                        <h3>Avisos Marítimos</h3>
-                        ${copyButtonHTML('spanish_warnings', 'Copiar', 'Copiar avisos en español')}
-                    </div>
-                    <pre class="bulletin-content">${bulletin.spanish_warnings || 'No disponible.'}</pre>
-                </div>
-            </div>
-            <div class="language-column">
-                <div class="bulletin-card">
-                    <div class="bulletin-card-header">
-                        <h3>Atlantic Bulletin</h3>
-                        ${copyButtonHTML('english', 'Copy', 'Copy English bulletin')}
-                    </div>
-                    <pre class="bulletin-content">${bulletin.english || 'Not available.'}</pre>
-                </div>
-                <div class="bulletin-card">
-                    <div class="bulletin-card-header">
-                        <h3>Maritime Warnings</h3>
-                        ${copyButtonHTML('english_warnings', 'Copy', 'Copy English warnings')}
-                    </div>
-                    <pre class="bulletin-content">${bulletin.english_warnings || 'Not available.'}</pre>
-                </div>
-            </div>
-        </div>
-        <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Boletines Costeros</h3>
-        <div class="coastal-container">
-            <div class="bulletin-card">
-                <div class="bulletin-card-header">
-                    <h3>Costero Galicia (TTS)</h3>
-                    ${copyButtonHTML('galicia_coastal', 'Copiar', 'Copiar boletín costero de Galicia')}
-                </div>
-                <pre class="bulletin-content">${bulletin.galicia_coastal || 'No disponible.'}</pre>
-            </div>
-            <div class="bulletin-card">
-                <div class="bulletin-card-header">
-                    <h3>Costero Cantábrico (TTS)</h3>
-                     ${copyButtonHTML('cantabrico_coastal', 'Copiar', 'Copiar boletín costero del Cantábrico')}
-                </div>
-                <pre class="bulletin-content">${bulletin.cantabrico_coastal || 'No disponible.'}</pre>
-            </div>
-        </div>
-    `;
+let bulletinStates: Record<string, BulletinState> = {
+    'main': { id: 'main', title: 'Boletín Atlántico', spanishContent: null, englishContent: null, status: 'idle', error: null },
+    'warnings': { id: 'warnings', title: 'Avisos Marítimos', spanishContent: null, englishContent: null, status: 'idle', error: null },
+    'coastal_galicia': { id: 'coastal_galicia', title: 'Costero Galicia', spanishContent: null, englishContent: null, status: 'idle', error: null },
+    'coastal_cantabrico': { id: 'coastal_cantabrico', title: 'Costero Cantábrico', spanishContent: null, englishContent: null, status: 'idle', error: null },
 };
 
-const renderMeteosSkeleton = () => `
+// --- TRANSLATION & PARSING DICTIONARY AND LOGIC ---
+const translationDictionary: { [key: string]: string } = {
+    // Titles and Sections
+    'AVISO': 'WARNING', 'SITUACIÓN': 'SITUATION', 'PREDICCIÓN': 'FORECAST', 'TENDENCIA': 'TREND',
+    // General Terms
+    'NO HAY AVISOS EN VIGOR': 'NO WARNINGS IN FORCE', 'FUERZA': 'FORCE', 'HORAS': 'HOURS',
+    'VISIBILIDAD': 'VISIBILITY', 'MAR': 'SEA', 'VIENTO': 'WIND',
+    // Directions
+    'NORTE': 'NORTH', 'SUR': 'SOUTH', 'ESTE': 'EAST', 'OESTE': 'WEST',
+    'NORESTE': 'NORTHEAST', 'NOROESTE': 'NORTHWEST', 'SUDESTE': 'SOUTHEAST', 'SUDOESTE': 'SOUTHWEST',
+    'NORNORDESTE': 'NORTH-NORTHEAST', 'NORNOROESTE': 'NORTH-NORTHWEST',
+    'ESTENORDESTE': 'EAST-NORTHEAST', 'ESTESUDESTE': 'EAST-SOUTHEAST',
+    'SUDSUDESTE': 'SOUTH-SOUTHEAST', 'SUDSUROESTE': 'SOUTH-SOUTHWEST',
+    'OESTESUROESTE': 'WEST-SOUTHWEST', 'OESTENOROESTE': 'WEST-NORTHWEST',
+    'VARIABLE': 'VARIABLE', ' rolando a ': ' veering ', ' rolando al ': ' veering to ',
+    // Sea States
+    'RIZADA': 'RIPPLED', 'MAREJADILLA': 'SLIGHT SEA', 'MAREJADA': 'MODERATE SEA',
+    'FUERTE MAREJADA': 'ROUGH SEA', 'GRUESA': 'VERY ROUGH SEA', 'MUY GRUESA': 'HIGH SEA',
+    'ARBOLADA': 'VERY HIGH SEA', 'MAR DE FONDO': 'SWELL',
+    // Visibility
+    'BUENA': 'GOOD', 'REGULAR': 'MODERATE', 'MALA': 'POOR', 'NIEBLA': 'FOG',
+    // Weather phenomena
+    'DESPEJADO': 'CLEAR', 'NUBOSO': 'CLOUDY', 'CUBIERTO': 'OVERCAST',
+    'LLUVIA': 'RAIN', 'LLOVIZNA': 'DRIZZLE', 'CHUBASCOS': 'SHOWERS', 'TORMENTA': 'THUNDERSTORM',
+    // Actions & Trends
+    'DISMINUYENDO': 'DECREASING', 'AUMENTANDO': 'INCREASING', 'ARRECIANDO': 'FRESHENING', 'AMAINANDO': 'ABATING',
+    ' rolando ': ' veering ', ' fijándose ': ' becoming ',
+    // Units
+    'METROS': 'METERS',
+    // Numbers for TTS style replacement
+    'uno': 'one', 'dos': 'two', 'tres': 'three', 'cuatro': 'four', 'cinco': 'five',
+    'seis': 'six', 'siete': 'seven', 'ocho': 'eight', 'nueve': 'nine', 'cero': 'zero',
+    'con': 'point'
+};
+
+function translateBulletin(spanishText: string): string {
+    if (!spanishText) return '';
+    let englishText = spanishText;
+    // Use a regex with word boundaries to avoid replacing parts of words.
+    // Sort keys by length descending to match longer phrases first (e.g., "FUERTE MAREJADA" before "MAR").
+    const sortedKeys = Object.keys(translationDictionary).sort((a, b) => b.length - a.length);
+    for (const key of sortedKeys) {
+        const regex = new RegExp(`\\b${key}\\b`, 'gi');
+        englishText = englishText.replace(regex, translationDictionary[key]);
+    }
+    return englishText;
+}
+
+
+function optimizeForTTS(text: string): string {
+    if (!text) return '';
+    let optimizedText = text;
+    const replacements: Record<string, string> = {
+        'N': 'Norte', 'S': 'Sur', 'E': 'Este', 'W': 'Oeste',
+        'NE': 'Noreste', 'NW': 'Noroeste', 'SE': 'Sudeste', 'SW': 'Sudoeste',
+        'REG': 'Regular', 'VIS': 'Visibilidad',
+    };
+    optimizedText = optimizedText.replace(/\b(N|S|E|W|NE|NW|SE|SW|REG|VIS)\b/g, (match) => replacements[match] || match);
+    optimizedText = optimizedText.replace(/Fuerza (\d)/g, (_, num) => `fuerza ${numberToWords(parseInt(num, 10))}`);
+    optimizedText = optimizedText.replace(/(\d)\s*a\s*(\d)\s*m/g, (_, n1, n2) => `${numberToWords(parseInt(n1, 10))} a ${numberToWords(parseInt(n2, 10))} metros`);
+    optimizedText = optimizedText.replace(/(\d)\.(\d)\s*m/g, (_, i, d) => `${numberToWords(parseInt(i, 10))} con ${numberToWords(parseInt(d, 10))} metros`);
+    return optimizedText;
+}
+
+function numberToWords(num: number): string {
+    const units = ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+    return units[num] || String(num);
+}
+
+function parseMainBulletin(xmlText: string): string {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+    const apartados = xmlDoc.querySelectorAll('apartado');
+    let fullText = '';
+    apartados.forEach(apartado => {
+        const titulo = apartado.querySelector('titulo')?.textContent?.trim() || '';
+        const texto = apartado.querySelector('texto')?.textContent?.trim() || '';
+        if (titulo && texto) {
+            fullText += `${titulo.toUpperCase()}\n\n${texto}\n\n`;
+        }
+    });
+    return optimizeForTTS(fullText);
+}
+
+function parseCoastalBulletin(xmlText: string): string {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+    const prediccion = xmlDoc.querySelector('prediccion_costera');
+    if (!prediccion) return "No se pudo analizar el boletín costero.";
+    const titulo = prediccion.querySelector('nombre')?.textContent || '';
+    const aviso = prediccion.querySelector('aviso')?.textContent || '';
+    let content = `${titulo.toUpperCase()}\n\n`;
+    if (aviso.trim() !== 'NO HAY AVISOS EN VIGOR.') {
+        content += `AVISO: ${aviso}\n\n`;
+    }
+    const zonas = prediccion.querySelectorAll('zona');
+    zonas.forEach(zona => {
+        const nombreZona = zona.getAttribute('nombre') || '';
+        const situacion = zona.querySelector('situacion > texto')?.textContent || '';
+        const prediccionMar = zona.querySelector('prediccion > mar')?.textContent || '';
+        content += `${nombreZona.toUpperCase()}:\nSITUACIÓN: ${situacion}\nPREDICCIÓN: ${prediccionMar}\n\n`;
+    });
+    return optimizeForTTS(content);
+}
+
+// --- RENDERING LOGIC ---
+
+const renderBulletinCard = (state: BulletinState) => {
+    const renderContent = (content: string | null, lang: 'es' | 'en') => {
+        if (state.status === 'loading') {
+            return `<div class="skeleton skeleton-text" style="height: 10em;"></div>`;
+        }
+        if (state.status === 'error' && lang === 'es') {
+             return `<span style="color: var(--danger-color)">Error: ${state.error}</span>`;
+        }
+        if (state.status === 'error' && lang === 'en') {
+            return ``;
+        }
+        return content || 'No disponible.';
+    };
+
+    const hasContent = state.spanishContent && state.englishContent;
+
+    return `
+        <div class="bulletin-card" id="card-${state.id}">
+            <div class="bulletin-card-header">
+                <h3>${state.title}</h3>
+            </div>
+            <div class="bulletins-container" style="padding: 1rem; gap: 1rem;">
+                <div class="language-column">
+                    <div class="bulletin-card-header" style="padding: 0 0 0.5rem 0; border: none; background: transparent;">
+                        <h4>Español (TTS)</h4>
+                        <button class="copy-btn bulletin-copy-btn" data-card-id="${state.id}" data-lang="es" aria-label="Copiar ${state.title} en Español" ${!state.spanishContent ? 'disabled' : ''}>Copiar</button>
+                    </div>
+                    <pre class="bulletin-content" style="padding: 0;">${renderContent(state.spanishContent, 'es')}</pre>
+                </div>
+                <div class="language-column">
+                     <div class="bulletin-card-header" style="padding: 0 0 0.5rem 0; border: none; background: transparent;">
+                        <h4>Inglés</h4>
+                        <button class="copy-btn bulletin-copy-btn" data-card-id="${state.id}" data-lang="en" aria-label="Copiar ${state.title} en Inglés" ${!state.englishContent ? 'disabled' : ''}>Copiar</button>
+                    </div>
+                    <pre class="bulletin-content" style="padding: 0;">${renderContent(state.englishContent, 'en')}</pre>
+                </div>
+            </div>
+        </div>`;
+};
+
+const renderMeteosLayout = () => `
     <div class="meteos-header">
         <div class="meteos-header-text">
             <h2 class="content-card-title" style="margin-bottom: 0.5rem; border: none; padding: 0;">Boletines Meteorológicos Marítimos de AEMET</h2>
-            <p class="translator-desc" style="margin-bottom: 0;">Boletines formateados y traducidos mediante IA. La información se actualiza automáticamente cada hora o manualmente.</p>
+            <p class="translator-desc" style="margin-bottom: 0;">Boletines formateados, traducidos y optimizados. La información se actualiza automáticamente.</p>
         </div>
-        <button id="meteos-refresh-btn" class="secondary-btn" disabled>
-             <svg class="spinner" style="animation: spin 1s linear infinite; width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            <span>Cargando...</span>
+        <button id="meteos-refresh-btn" class="secondary-btn">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>
+            <span>Actualizar</span>
         </button>
     </div>
-    <div class="skeleton skeleton-box" style="height: 250px; margin-bottom: 2rem;"></div>
-    <div class="skeleton skeleton-box" style="height: 180px;"></div>
+    ${renderBulletinCard(bulletinStates.main)}
+    <div style="margin-top: 2rem"></div>
+    ${renderBulletinCard(bulletinStates.warnings)}
+    <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Boletines Costeros</h3>
+    <div class="coastal-container">
+        ${renderBulletinCard(bulletinStates.coastal_galicia)}
+        ${renderBulletinCard(bulletinStates.coastal_cantabrico)}
+    </div>
 `;
 
-// Fetches data from all three endpoints in parallel
+
+const updateCard = (id: string) => {
+    const cardEl = document.getElementById(`card-${id}`);
+    if (cardEl) {
+        cardEl.outerHTML = renderBulletinCard(bulletinStates[id]);
+    }
+};
+
+async function fetchAndProcessData(stateKey: string, url: string, parser: (xml: string) => string, rawDataKey?: string) {
+    try {
+        bulletinStates[stateKey].status = 'loading';
+        updateCard(stateKey);
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Error ${response.status} de AEMET`);
+        
+        const data = await response.json();
+        const xmlText = rawDataKey ? data[rawDataKey] : data.rawXml;
+
+        if (!xmlText) throw new Error("Respuesta de AEMET vacía.");
+
+        const spanishContent = parser(xmlText);
+        const englishContent = translateBulletin(spanishContent);
+
+        bulletinStates[stateKey].spanishContent = spanishContent;
+        bulletinStates[stateKey].englishContent = englishContent;
+        bulletinStates[stateKey].status = 'done';
+
+    } catch (e) {
+        bulletinStates[stateKey].status = 'error';
+        bulletinStates[stateKey].error = e instanceof Error ? e.message : "Error desconocido.";
+    } finally {
+        updateCard(stateKey);
+    }
+}
+
 async function fetchMeteosData() {
     if (isFetchingMeteos) return;
     isFetchingMeteos = true;
     
-    const meteosContent = document.getElementById('meteos-content');
-    if (!meteosContent) return;
-
-    meteosContent.innerHTML = renderMeteosSkeleton();
+    document.querySelector<HTMLButtonElement>('#meteos-refresh-btn')?.setAttribute('disabled', 'true');
+    const contentEl = document.getElementById('meteos-content');
+    if (contentEl) {
+        Object.keys(bulletinStates).forEach(k => { bulletinStates[k].status = 'loading'; });
+        contentEl.innerHTML = renderMeteosLayout();
+    }
     
-    const endpoints = {
-        main: '/api/meteos',
-        main_warnings: '/api/main-warnings',
-        coastal_warnings: '/api/warnings',
-    };
-    
-    const results = await Promise.allSettled(Object.values(endpoints).map(url => fetch(url, { method: 'GET' })));
+    await Promise.allSettled([
+        fetchAndProcessData('main', '/api/meteos', parseMainBulletin),
+        fetchAndProcessData('warnings', '/api/main-warnings', parseMainBulletin),
+        fetchAndProcessData('coastal_galicia', '/api/warnings', parseCoastalBulletin, 'rawGalicia'),
+        fetchAndProcessData('coastal_cantabrico', '/api/warnings', parseCoastalBulletin, 'rawCantabrico')
+    ]);
 
-    const combinedBulletin: any = {};
-    const errors: string[] = [];
-
-    const processResponse = async (result: PromiseSettledResult<Response>, name: string) => {
-        if (result.status === 'fulfilled' && result.value.ok) {
-            try {
-                const data = await result.value.json();
-                Object.assign(combinedBulletin, data);
-            } catch (e) {
-                errors.push(name);
-            }
-        } else {
-            errors.push(name);
-        }
-    };
-    
-    await processResponse(results[0], 'Boletín Atlántico');
-    await processResponse(results[1], 'Avisos Marítimos');
-    await processResponse(results[2], 'Boletines Costeros');
-
-    meteosCache = { bulletin: combinedBulletin, errors, timestamp: Date.now() };
-    meteosContent.innerHTML = renderMeteosHTML(combinedBulletin, errors);
     isFetchingMeteos = false;
+    document.querySelector<HTMLButtonElement>('#meteos-refresh-btn')?.removeAttribute('disabled');
 }
+
 
 export function renderMeteos(container: HTMLElement) {
     container.innerHTML = `<div class="content-card" style="max-width: 1400px;" id="meteos-content"></div>`;
     
-    const contentEl = document.getElementById('meteos-content');
-    if (!contentEl) return;
+    fetchMeteosData();
     
-    const now = Date.now();
-    const lastFetch = meteosCache?.timestamp || 0;
-    
-    if (meteosCache && (now - lastFetch < REFRESH_INTERVAL)) {
-        contentEl.innerHTML = renderMeteosHTML(meteosCache.bulletin, meteosCache.errors);
-    } else {
-        fetchMeteosData();
-    }
-    
-    // Clear previous interval if it exists and set a new one
     if (meteosIntervalId) clearInterval(meteosIntervalId);
     meteosIntervalId = window.setInterval(fetchMeteosData, REFRESH_INTERVAL);
 
-    // --- Event Listeners ---
     container.addEventListener('click', e => {
         const target = e.target as HTMLElement;
         const refreshBtn = target.closest('#meteos-refresh-btn');
-        const copyBtn = target.closest('.bulletin-copy-btn');
+        const copyBtn = target.closest<HTMLButtonElement>('.bulletin-copy-btn');
 
         if (refreshBtn && !isFetchingMeteos) {
             fetchMeteosData();
         }
 
-        if (copyBtn instanceof HTMLButtonElement) {
-            const cardId = copyBtn.dataset.cardId as keyof NonNullable<(typeof meteosCache)>['bulletin'];
-            if (cardId && meteosCache?.bulletin[cardId]) {
-                handleCopy(meteosCache.bulletin[cardId]);
-            } else {
-                showToast("No hay contenido para copiar.", "error");
+        if (copyBtn) {
+            const cardId = copyBtn.dataset.cardId as string;
+            const lang = copyBtn.dataset.lang as 'es' | 'en';
+            if (cardId && bulletinStates[cardId]) {
+                const contentToCopy = lang === 'es' ? bulletinStates[cardId].spanishContent : bulletinStates[cardId].englishContent;
+                if (contentToCopy) {
+                    handleCopy(contentToCopy);
+                } else {
+                    showToast("No hay contenido para copiar.", "error");
+                }
             }
         }
     });
