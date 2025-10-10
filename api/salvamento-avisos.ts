@@ -44,7 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(cache.data);
   }
 
-  const targetUrl = 'https://radioavisos.salvamentomaritimo.es/WS/Radioavisos_V2.asmx';
+  // CORRECTED: The previous URL (Radioavisos_V2.asmx) was outdated and returning a 404.
+  const targetUrl = 'https://radioavisos.salvamentomaritimo.es/WS/Radioavisos.asmx';
   
   try {
     const response = await fetch(targetUrl, {
