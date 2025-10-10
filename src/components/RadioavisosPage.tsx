@@ -5,6 +5,15 @@ import { showToast } from "../utils/helpers";
 // --- DATA TYPES & STATE MANAGEMENT ---
 // =================================================================================
 
+type SalvamentoAviso = {
+  id: string;
+  title: string;
+  link: string;
+  pubDate: string;
+  description: string;
+  category?: string;
+};
+
 type NR = {
     id: string; // e.g., "2013/2024"
     version: number;
@@ -34,10 +43,14 @@ let user: string | null = null;
 let appData: AppData = { nrs: [], history: [] };
 let currentView: View = 'INICIO';
 let componentContainer: HTMLElement | null = null;
+// --- State for Salvamento Panel ---
+let salvamentoAvisos: SalvamentoAviso[] = [];
+let isSalvamentoLoading = false;
+let salvamentoError: string | null = null;
+let lastSalvamentoUpdate: Date | null = null;
 
 // =================================================================================
 // --- API LAYER ---
-// Abstraction for server communication.
 // =================================================================================
 
 const api = {
@@ -62,9 +75,95 @@ const api = {
 
 const getFormattedDateTime = (isoString?: string) => {
     if (!isoString) return '-';
-    const date = new Date(isoString);
-    return date.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+    try {
+        const date = new Date(isoString);
+        return date.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+    } catch {
+        return isoString;
+    }
 };
+
+// =================================================================================
+// --- SALVAMENTO MARÍTIMO PANEL ---
+// =================================================================================
+
+async function fetchAndRenderSalvamentoAvisos() {
+    isSalvamentoLoading = true;
+    salvamentoError = null;
+    
+    const panelContainer = document.getElementById('salvamento-panel-container');
+    if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
+
+    try {
+        const response = await fetch('/api/salvamento-avisos');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || 'No se pudieron cargar los avisos.');
+        }
+        salvamentoAvisos = await response.json();
+        lastSalvamentoUpdate = new Date();
+    } catch (e) {
+        salvamentoAvisos = [];
+        salvamentoError = e instanceof Error ? e.message : 'Error desconocido';
+    } finally {
+        isSalvamentoLoading = false;
+        if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
+    }
+}
+
+function renderSalvamentoPanelHTML(): string {
+    const spinnerIcon = `<svg class="spinner" style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+    const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
+
+    let content;
+    if (isSalvamentoLoading) {
+        content = `<div class="loader-container"><div class="loader"></div></div>`;
+    } else if (salvamentoError) {
+        content = `<p class="error" style="padding: 1rem;">${salvamentoError}</p>`;
+    } else if (salvamentoAvisos.length === 0) {
+        content = `<p class="drill-placeholder">No hay radioavisos disponibles en la fuente oficial.</p>`;
+    } else {
+        content = `
+            <div class="salvamento-avisos-list">
+                ${salvamentoAvisos.map(aviso => `
+                    <div class="aviso-item" data-link="${aviso.link}">
+                        <div class="aviso-item-header">
+                            <h4 class="aviso-item-title">${aviso.title}</h4>
+                            ${aviso.category ? `<span class="category-badge">${aviso.category}</span>` : ''}
+                        </div>
+                        <p class="aviso-item-desc">${aviso.description}</p>
+                        <div class="aviso-item-footer">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>
+                            <span>${getFormattedDateTime(aviso.pubDate)}</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    return `
+        <div class="salvamento-panel">
+            <div class="salvamento-panel-header">
+                <div>
+                    <h3>Radioavisos Oficiales (Salvamento Marítimo)</h3>
+                    <a href="https://radioavisos.salvamentomaritimo.es/" target="_blank" rel="noopener noreferrer">
+                        Ver fuente oficial
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/></svg>
+                    </a>
+                </div>
+                <div class="salvamento-panel-controls">
+                    ${lastSalvamentoUpdate ? `<span class="last-update-text">${getFormattedDateTime(lastSalvamentoUpdate.toISOString())}</span>` : ''}
+                    <button class="secondary-btn" data-action="refresh-salvamento" ${isSalvamentoLoading ? 'disabled' : ''}>
+                        ${isSalvamentoLoading ? spinnerIcon : refreshIcon}
+                        <span>${isSalvamentoLoading ? 'Actualizando...' : 'Actualizar'}</span>
+                    </button>
+                </div>
+            </div>
+            ${content}
+        </div>
+    `;
+}
 
 // =================================================================================
 // --- CORE RENDERING LOGIC ---
@@ -72,11 +171,10 @@ const getFormattedDateTime = (isoString?: string) => {
 
 async function reRender() {
     if (!componentContainer) return;
-    const activeElementId = document.activeElement?.id; // Save focus
+    const activeElementId = document.activeElement?.id;
     
     componentContainer.innerHTML = await renderPageContent();
 
-    // Restore focus to the previously active element if it still exists
     const activeElement = activeElementId ? document.getElementById(activeElementId) : null;
     if (activeElement instanceof HTMLElement) {
         activeElement.focus();
@@ -87,13 +185,13 @@ export async function renderRadioavisos(container: HTMLElement) {
     componentContainer = container;
     user = localStorage.getItem('nr_manager_user');
     
-    // Attach event listeners only once per component lifetime
     if (!(container as any).__radioavisosListenersAttached) {
         attachEventListeners(container);
         (container as any).__radioavisosListenersAttached = true;
     }
     
     await reRender();
+    fetchAndRenderSalvamentoAvisos();
 }
 
 async function renderPageContent(): Promise<string> {
@@ -101,7 +199,6 @@ async function renderPageContent(): Promise<string> {
         return renderUserPrompt();
     }
     
-    // Load data from server if the local state is empty
     if (appData.nrs.length === 0 && appData.history.length === 0) {
         try {
             appData = await api.getData();
@@ -118,7 +215,15 @@ async function renderPageContent(): Promise<string> {
     ];
 
     return `
-        <div class="content-card" style="max-width: 1400px;">
+        <div id="salvamento-panel-container">
+            ${renderSalvamentoPanelHTML()}
+        </div>
+
+        <div class="content-card" style="max-width: 1400px; margin-top: 2rem;">
+            <div class="form-divider" style="width: 100%; margin: -0.5rem auto 1.5rem auto;">
+                <span>Gestor Local</span>
+            </div>
+
             <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
                 <h2 class="content-card-title" style="margin: 0; padding: 0; border: none;">Gestor de Radioavisos (NR)</h2>
                 <div style="display: flex; align-items: center; gap: 1rem;">
@@ -142,33 +247,15 @@ async function renderPageContent(): Promise<string> {
     `;
 }
 
-// =================================================================================
-// --- VIEW-SPECIFIC RENDERERS ---
-// Each function returns the HTML string for a specific tab.
-// =================================================================================
-
-function renderCurrentViewContent(): string {
-    switch (currentView) {
-        case 'INICIO': return renderMainView();
-        case 'AÑADIR': return renderAddView();
-        case 'EDITAR': return renderEditView();
-        case 'BORRAR': return renderDeleteView();
-        case 'BD': return renderDbView();
-        case 'HISTORIAL': return renderHistoryView();
-        default: return `<p>Vista no encontrada</p>`;
-    }
-}
 
 // =================================================================================
 // --- EVENT HANDLING ---
 // =================================================================================
 
 function attachEventListeners(container: HTMLElement) {
-    // Main event delegation for clicks and form submissions
     container.addEventListener('click', handleDelegatedClick);
     container.addEventListener('submit', handleDelegatedSubmit);
     
-    // Delegated change listeners for specific interactive elements
     container.addEventListener('change', (e) => {
         const target = e.target as HTMLInputElement;
         if (target.id === 'add-is-versionado') {
@@ -193,13 +280,21 @@ async function handleDelegatedSubmit(e: Event) {
 
 async function handleDelegatedClick(e: Event) {
     const target = e.target as HTMLElement;
-    // Find the closest element with a data-action attribute
     const actionElement = target.closest<HTMLElement>('[data-action]');
+    
+    // Handle aviso item click
+    const avisoItem = target.closest<HTMLElement>('.aviso-item');
+    if (avisoItem && avisoItem.dataset.link) {
+        window.open(avisoItem.dataset.link, '_blank');
+        return;
+    }
+
     if (!actionElement) return;
 
     const action = actionElement.dataset.action;
 
     switch(action) {
+        case 'refresh-salvamento': fetchAndRenderSalvamentoAvisos(); break;
         case 'switch-view':
             currentView = actionElement.dataset.view as View;
             await reRender();
@@ -217,16 +312,16 @@ async function handleDelegatedClick(e: Event) {
     }
 }
 
-// --- Action Implementations ---
-
+// ... (Rest of the functions: handleUserSet, handleAddSubmit, etc. remain unchanged) ...
 async function handleUserSet(form: HTMLFormElement) {
     const input = form.querySelector('#username-input') as HTMLInputElement;
     const username = input.value.trim().toUpperCase();
     if (username) {
         user = username;
         localStorage.setItem('nr_manager_user', user);
-        appData = { nrs: [], history: [] }; // Reset data to force fetch from server
+        appData = { nrs: [], history: [] }; 
         await reRender();
+        fetchAndRenderSalvamentoAvisos();
     }
 }
 
@@ -360,7 +455,6 @@ async function handleCancelNR() {
     }
 }
 
-// --- Import/Export ---
 function handleExport() {
     const dataStr = JSON.stringify(appData, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -389,7 +483,7 @@ function handleFileChange(event: Event) {
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
             await api.saveData(parsedData);
-            appData = parsedData; // Sync local state
+            appData = parsedData;
             showToast("Datos importados y guardados.", 'success');
             await reRender();
         } catch (error) {
@@ -419,6 +513,18 @@ function renderUserPrompt(): string {
             </div>
         </div>
     `;
+}
+
+function renderCurrentViewContent(): string {
+    switch (currentView) {
+        case 'INICIO': return renderMainView();
+        case 'AÑADIR': return renderAddView();
+        case 'EDITAR': return renderEditView();
+        case 'BORRAR': return renderDeleteView();
+        case 'BD': return renderDbView();
+        case 'HISTORIAL': return renderHistoryView();
+        default: return `<p>Vista no encontrada</p>`;
+    }
 }
 
 function renderMainView(): string {
