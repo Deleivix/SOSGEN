@@ -1204,7 +1204,6 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 body.dark-theme .warning-box {
     background-color: var(--danger-color-dark-bg); color: var(--danger-color-dark);
 }
-.warning-box h3 { color: inherit; margin-top: 0; }
 .data-table .true-cell { color: var(--accent-color-dark); font-weight: bold; }
 .data-table .false-cell { color: var(--text-secondary); opacity: 0.7; }
 
@@ -1269,11 +1268,11 @@ body.dark-theme .warning-box {
 .aviso-item {
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1rem;
+  padding: 1.25rem;
   background-color: var(--bg-main);
   transition: all 0.2s ease;
   cursor: pointer;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 .aviso-item:hover {
   border-color: var(--accent-color);
@@ -1285,31 +1284,46 @@ body.dark-theme .warning-box {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   flex-wrap: wrap;
 }
 .aviso-item-title {
   margin: 0;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 700;
+  font-family: var(--font-mono);
   color: var(--text-primary);
   line-height: 1.4;
   flex: 1;
 }
 .aviso-item-desc {
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
 }
-.aviso-item-footer {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  opacity: 0.8;
-  margin-top: 0.5rem;
+.aviso-item-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+.aviso-item-details div {
+    display: flex;
+    flex-direction: column;
+}
+.aviso-item-details span {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+.aviso-item-details strong {
+    color: var(--text-primary);
+    font-weight: 500;
 }
 .category-badge {
   background-color: var(--accent-color);
@@ -1320,7 +1334,13 @@ body.dark-theme .warning-box {
   font-weight: 500;
   white-space: nowrap;
 }
-
+.category-badge.importante {
+  background-color: var(--danger-color);
+}
+body.dark-theme .category-badge.importante {
+  background-color: var(--danger-color-dark);
+  color: var(--bg-main-dark);
+}
 
 /* --- Bitacora (Logbook) --- */
 .logbook-list { display: flex; flex-direction: column; gap: 1.5rem; }

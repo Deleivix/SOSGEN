@@ -6,12 +6,15 @@ import { showToast } from "../utils/helpers";
 // =================================================================================
 
 type SalvamentoAviso = {
-  id: string;
-  title: string;
-  link: string;
-  pubDate: string;
-  description: string;
-  category?: string;
+  num: string;
+  emision: string;
+  asunto: string;
+  zona: string;
+  tipo: string;
+  subtipo: string;
+  prioridad: string;
+  caducidad: string;
+  pdfLink: string;
 };
 
 type NR = {
@@ -120,22 +123,23 @@ function renderSalvamentoPanelHTML(): string {
     if (isSalvamentoLoading) {
         content = `<div class="loader-container"><div class="loader"></div></div>`;
     } else if (salvamentoError) {
-        content = `<p class="error" style="padding: 1rem;">${salvamentoError}</p>`;
+        content = `<p class="error" style="padding: 1rem; text-align: center;">${salvamentoError}</p>`;
     } else if (salvamentoAvisos.length === 0) {
         content = `<p class="drill-placeholder">No hay radioavisos disponibles en la fuente oficial.</p>`;
     } else {
         content = `
             <div class="salvamento-avisos-list">
                 ${salvamentoAvisos.map(aviso => `
-                    <div class="aviso-item" data-link="${aviso.link}">
+                    <div class="aviso-item" data-link="${aviso.pdfLink}" title="Haz clic para ver el PDF oficial">
                         <div class="aviso-item-header">
-                            <h4 class="aviso-item-title">${aviso.title}</h4>
-                            ${aviso.category ? `<span class="category-badge">${aviso.category}</span>` : ''}
+                            <h4 class="aviso-item-title">${aviso.num}</h4>
+                            <span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span>
                         </div>
-                        <p class="aviso-item-desc">${aviso.description}</p>
-                        <div class="aviso-item-footer">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>
-                            <span>${getFormattedDateTime(aviso.pubDate)}</span>
+                        <p class="aviso-item-desc">${aviso.asunto}</p>
+                        <div class="aviso-item-details">
+                            <div><span>Zona:</span> <strong>${aviso.zona}</strong></div>
+                            <div><span>Emisión:</span> <strong>${aviso.emision}</strong></div>
+                            <div><span>Caducidad:</span> <strong>${aviso.caducidad}</strong></div>
                         </div>
                     </div>
                 `).join('')}

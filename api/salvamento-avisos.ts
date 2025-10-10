@@ -1,12 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// El nuevo tipo de dato que refleja las columnas de la tabla
 type SalvamentoAviso = {
-  id: string;
-  title: string;
-  link: string;
-  pubDate: string;
-  description: string;
-  category?: string;
+  num: string;
+  emision: string;
+  asunto: string;
+  zona: string;
+  tipo: string;
+  subtipo: string;
+  prioridad: string;
+  caducidad: string;
+  pdfLink: string;
 };
 
 // Simple in-memory cache
@@ -14,36 +18,44 @@ const cache = {
   data: null as SalvamentoAviso[] | null,
   timestamp: 0,
 };
-const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const CACHE_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
-// A simple regex-based XML parser for this specific RSS structure
-function parseRss(xmlText: string): SalvamentoAviso[] {
-  const items = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  const tagRegex = (tag: string) => new RegExp(`<${tag}>((?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?)<\/${tag}>`);
+function cleanHtml(html: string): string {
+    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+}
 
-  let match;
-  while ((match = itemRegex.exec(xmlText)) !== null) {
-    const itemContent = match[1];
-    
-    const titleMatch = itemContent.match(tagRegex('title'));
-    const linkMatch = itemContent.match(tagRegex('link'));
-    const pubDateMatch = itemContent.match(tagRegex('pubDate'));
-    const descriptionMatch = itemContent.match(tagRegex('description'));
-    const categoryMatch = itemContent.match(tagRegex('category'));
+function parseSalvamentoTable(htmlText: string): SalvamentoAviso[] {
+    const avisos: SalvamentoAviso[] = [];
+    const rowRegex = /<tr class="fila(?:im)?par"[^>]*>([\s\S]*?)<\/tr>/g;
+    const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
+    const pdfLinkRegex = /<a href="([^"]+)"/;
 
-    if (titleMatch && linkMatch && pubDateMatch && descriptionMatch) {
-      items.push({
-        id: `sm-${items.length}-${new Date(pubDateMatch[2]).getTime()}`,
-        title: titleMatch[2].trim(),
-        link: linkMatch[2].trim(),
-        pubDate: pubDateMatch[2].trim(),
-        description: descriptionMatch[2].trim(),
-        category: categoryMatch ? categoryMatch[2].trim() : undefined,
-      });
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(htmlText)) !== null) {
+        const rowContent = rowMatch[1];
+        const cells = [];
+        let cellMatch;
+        while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
+            cells.push(cellMatch[1]);
+        }
+
+        if (cells.length >= 9) { // Asegurarse de que la fila tiene suficientes celdas
+            const pdfLinkMatch = cells[9].match(pdfLinkRegex);
+            
+            avisos.push({
+                num: cleanHtml(cells[1]),
+                emision: cleanHtml(cells[2]),
+                asunto: cleanHtml(cells[3]),
+                zona: cleanHtml(cells[4]),
+                tipo: cleanHtml(cells[5]),
+                subtipo: cleanHtml(cells[6]),
+                prioridad: cleanHtml(cells[7]),
+                caducidad: cleanHtml(cells[8]),
+                pdfLink: pdfLinkMatch ? `https://radioavisos.salvamentomaritimo.es/${pdfLinkMatch[1]}` : '',
+            });
+        }
     }
-  }
-  return items;
+    return avisos;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -56,50 +68,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(cache.data);
   }
 
-  const rssUrl = 'https://radioavisos.salvamentomaritimo.es/RSS/RSS.xml';
-  const urlsToTry = [
-    { url: rssUrl, type: 'direct' },
-    { url: `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`, type: 'allorigins' },
-  ];
+  const targetUrl = 'https://radioavisos.salvamentomaritimo.es/';
+  
+  try {
+    const response = await fetch(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
+      cache: 'no-store',
+    });
 
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-  };
+    if (!response.ok) {
+      throw new Error(`Failed to fetch the page, status: ${response.status}`);
+    }
 
-  for (const [index, attempt] of urlsToTry.entries()) {
-      try {
-          const response = await fetch(attempt.url, { headers, cache: 'no-store' });
-          if (!response.ok) {
-              console.warn(`Attempt ${index + 1} (${attempt.type}) failed: ${response.statusText}`);
-              continue; // Try next URL
-          }
+    const htmlText = await response.text();
+    const avisos = parseSalvamentoTable(htmlText);
 
-          let xmlText;
-          if (attempt.type === 'allorigins') {
-              const data = await response.json();
-              xmlText = data.contents;
-              if (!xmlText) throw new Error('allorigins proxy did not return content.');
-          } else {
-              xmlText = await response.text();
-          }
-          
-          const avisos = parseRss(xmlText);
-          if (avisos.length > 0) {
-              cache.data = avisos;
-              cache.timestamp = Date.now();
-              return res.status(200).json(avisos);
-          }
-          
-          console.warn(`Attempt ${index + 1} succeeded but no items were parsed from ${attempt.url}.`);
+    if (avisos.length === 0) {
+        throw new Error("Could not parse any notices from the HTML table. The page structure might have changed.");
+    }
+    
+    cache.data = avisos;
+    cache.timestamp = now;
+    return res.status(200).json(avisos);
 
-      } catch (error) {
-          console.warn(`Attempt ${index + 1} threw an error for ${attempt.url}:`, error);
-      }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    return res.status(500).json({ 
+        error: 'Failed to fetch or parse Salvamento Marítimo page', 
+        details: errorMessage
+    });
   }
-
-  // If all attempts failed
-  return res.status(500).json({ 
-      error: 'Failed to fetch or parse Salvamento Marítimo RSS feed', 
-      details: 'All fetch attempts (direct and via proxies) failed.' 
-  });
 }
