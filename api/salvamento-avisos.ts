@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// El tipo de dato que refleja las columnas de la tabla
+// The data type that reflects the columns of the table
 type SalvamentoAviso = {
   num: string;
   emision: string;
@@ -20,13 +20,19 @@ const cache = {
 };
 const CACHE_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
-// The SOAP request body to call the official web service
 const soapRequestBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
     <ObtenerRadioavisosActivos xmlns="http://tempuri.org/" />
   </soap:Body>
 </soap:Envelope>`;
+
+/**
+ * Decodes HTML entities like &lt; and &gt; into their character equivalents.
+ */
+function decodeHtmlEntities(text: string): string {
+    return text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -57,32 +63,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const xmlText = await response.text();
 
-    // Extract the JSON string from inside the SOAP XML response
-    const jsonStringMatch = xmlText.match(/<ObtenerRadioavisosActivosResult>([\s\S]*?)<\/ObtenerRadioavisosActivosResult>/);
-    if (!jsonStringMatch || !jsonStringMatch[1]) {
+    const resultMatch = xmlText.match(/<ObtenerRadioavisosActivosResult>([\s\S]*?)<\/ObtenerRadioavisosActivosResult>/);
+    if (!resultMatch || !resultMatch[1]) {
         throw new Error("Could not find ObtenerRadioavisosActivosResult in the SOAP response.");
     }
 
-    const jsonString = jsonStringMatch[1];
-    const rawAvisos = JSON.parse(jsonString);
+    const encodedXml = resultMatch[1];
+    const decodedXml = decodeHtmlEntities(encodedXml);
+    
+    const avisos: SalvamentoAviso[] = [];
+    const avisoRegex = /<Radioaviso>([\s\S]*?)<\/Radioaviso>/g;
+    let match;
 
-    if (!Array.isArray(rawAvisos)) {
-        throw new Error("Parsed API data is not an array.");
+    while ((match = avisoRegex.exec(decodedXml)) !== null) {
+        const avisoXml = match[1];
+
+        const getValue = (tag: string): string => {
+            const tagRegex = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`);
+            const tagMatch = avisoXml.match(tagRegex);
+            return tagMatch ? tagMatch[1].trim() : '';
+        };
+
+        const fichero = getValue('fichero');
+
+        avisos.push({
+            num: getValue('id_radioaviso'),
+            emision: getValue('f_emision'),
+            asunto: getValue('asunto'),
+            zona: getValue('zona'),
+            tipo: getValue('tipo'),
+            subtipo: getValue('subtipo'),
+            prioridad: getValue('prioridad'),
+            caducidad: getValue('f_caducidad'),
+            pdfLink: fichero ? `https://radioavisos.salvamentomaritimo.es/ficheros/${fichero}` : '',
+        });
     }
 
-    // Map the raw data from the official API to our desired format
-    const avisos: SalvamentoAviso[] = rawAvisos.map((item: any) => ({
-      num: item.id_radioaviso || '',
-      emision: item.f_emision || '',
-      asunto: item.asunto || '',
-      zona: item.zona || '',
-      tipo: item.tipo || '',
-      subtipo: item.subtipo || '',
-      prioridad: item.prioridad || '',
-      caducidad: item.f_caducidad || '',
-      pdfLink: item.fichero ? `https://radioavisos.salvamentomaritimo.es/ficheros/${item.fichero}` : '',
-    }));
-    
+    if (avisos.length === 0) {
+        console.warn("Could not parse any notices from the decoded XML. The inner structure might have changed.");
+    }
+
     cache.data = avisos;
     cache.timestamp = now;
     return res.status(200).json(avisos);
@@ -90,6 +110,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error in /api/salvamento-avisos:", errorMessage);
+    // Clear cache on error to force a refetch next time
+    cache.data = null;
+    cache.timestamp = 0;
     return res.status(500).json({ 
         error: 'Failed to fetch or process data from Salvamento Marítimo API', 
         details: errorMessage
