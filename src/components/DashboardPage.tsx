@@ -65,7 +65,7 @@ async function initializeWarnings() {
     warningsContent.innerHTML = skeletonHtml;
 
     try {
-        const response = await fetch('/api/warnings');
+        const response = await fetch('/api/aemet?type=warnings');
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.details || 'No se pudieron cargar los avisos.');
@@ -147,7 +147,7 @@ async function initializeForecast() {
     forecastContent.innerHTML = skeletonHtml;
 
     try {
-        const response = await fetch('/api/forecast', { method: 'POST' });
+        const response = await fetch('/api/aemet?type=forecast');
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.details || 'No se pudo cargar la previsión.');

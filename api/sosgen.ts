@@ -64,7 +64,7 @@ export default async function handler(
       }
     });
 
-    const resultText = genAIResponse.text.trim() || '{}';
+    const resultText = genAIResponse.text?.trim() || '{}';
     return response.status(200).json(JSON.parse(resultText));
 
   } catch (error) {

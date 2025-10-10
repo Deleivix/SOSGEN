@@ -241,7 +241,7 @@ async function fetchAndProcessBulletins() {
 
     try {
         const xmlResponses = await Promise.allSettled(
-            bulletinIds.map(id => fetch(`/api/get-bulletin?id=${id}`).then(res => res.json()))
+            bulletinIds.map(id => fetch(`/api/aemet?type=bulletin&id=${id}`).then(res => res.json()))
         );
 
         // 1. Process all Spanish texts
@@ -294,10 +294,10 @@ async function handleTranslate(button: HTMLButtonElement) {
     button.disabled = true;
 
     try {
-        const response = await fetch('/api/translate-bulletin', {
+        const response = await fetch('/api/translator', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bulletinText: spanishData.spanish })
+            body: JSON.stringify({ textToTranslate: spanishData.spanish, context: 'bulletin' })
         });
 
         if (!response.ok) {

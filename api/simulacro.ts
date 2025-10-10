@@ -75,7 +75,7 @@ export default async function handler(
             config: { responseMimeType: "application/json", responseSchema: dscSchema, temperature: 0.8 }
         });
         
-        const resultText = genAIResponse.text.trim() || '{}';
+        const resultText = genAIResponse.text?.trim() || '{}';
         return response.status(200).json(JSON.parse(resultText));
 
     } else if (type === 'radiotelephony') {
@@ -152,7 +152,7 @@ export default async function handler(
             config: { responseMimeType: "application/json", responseSchema: radioSchema, temperature: 0.8 }
         });
         
-        const resultText = genAIResponse.text.trim() || '{}';
+        const resultText = genAIResponse.text?.trim() || '{}';
         return response.status(200).json(JSON.parse(resultText));
     
     } else {

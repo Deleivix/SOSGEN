@@ -92,7 +92,7 @@ export default async function handler(
     });
 
     let resultData = {};
-    let resultText = genAIResponse.text.trim();
+    let resultText = genAIResponse.text?.trim() || '';
     
     // Extract JSON from markdown code block if present
     const jsonMatch = resultText.match(/```json\s*([\s\S]*?)\s*```/);
