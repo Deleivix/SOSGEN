@@ -39,7 +39,8 @@ function parseSalvamentoTable(htmlText: string): SalvamentoAviso[] {
             cells.push(cellMatch[1]);
         }
 
-        if (cells.length >= 9) { // Asegurarse de que la fila tiene suficientes celdas
+        // CORRECTED: Check for at least 10 cells to avoid out-of-bounds errors.
+        if (cells.length >= 10) { 
             const pdfLinkMatch = cells[9].match(pdfLinkRegex);
             
             avisos.push({
@@ -86,7 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const avisos = parseSalvamentoTable(htmlText);
 
     if (avisos.length === 0) {
-        throw new Error("Could not parse any notices from the HTML table. The page structure might have changed.");
+        // This is not a fatal error; the page might genuinely have no notices.
+        // We will return an empty array and let the frontend handle the display.
+        console.warn("Could not parse any notices from the HTML table. The page structure might have changed or there are no notices.");
     }
     
     cache.data = avisos;
