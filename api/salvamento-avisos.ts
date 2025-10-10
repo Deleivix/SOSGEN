@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// El nuevo tipo de dato que refleja las columnas de la tabla
+// El tipo de dato que refleja las columnas de la tabla
 type SalvamentoAviso = {
   num: string;
   emision: string;
@@ -20,58 +20,13 @@ const cache = {
 };
 const CACHE_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
-function cleanHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
-}
-
-/**
- * Parses the HTML table from the Salvamento Maritimo page to extract notices.
- * This version uses `matchAll` for robust iteration over cells.
- * @param htmlText The raw HTML content of the page.
- * @returns An array of SalvamentoAviso objects.
- */
-function parseSalvamentoTable(htmlText: string): SalvamentoAviso[] {
-    const avisos: SalvamentoAviso[] = [];
-    
-    const tableBodyRegex = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i;
-    const bodyMatch = htmlText.match(tableBodyRegex);
-    if (!bodyMatch || !bodyMatch[1]) {
-        console.error("Parser Error: Could not find the <tbody> element of the notices table.");
-        return [];
-    }
-    const tableBodyHtml = bodyMatch[1];
-
-    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-    const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
-    const pdfLinkRegex = /<a href="([^"]+)"/;
-
-    let rowMatch;
-    while ((rowMatch = rowRegex.exec(tableBodyHtml)) !== null) {
-        const rowContent = rowMatch[1];
-        
-        // Using matchAll is more robust than a stateful exec loop for nested matches.
-        const cellMatches = [...rowContent.matchAll(cellRegex)];
-        const cells = cellMatches.map(match => match[1]);
-
-        if (cells.length >= 10 && cells[0].includes('type="checkbox"')) { 
-            const pdfLinkMatch = cells[9].match(pdfLinkRegex);
-            
-            avisos.push({
-                num: cleanHtml(cells[1]),
-                emision: cleanHtml(cells[2]),
-                asunto: cleanHtml(cells[3]),
-                zona: cleanHtml(cells[4]),
-                tipo: cleanHtml(cells[5]),
-                subtipo: cleanHtml(cells[6]),
-                prioridad: cleanHtml(cells[7]),
-                caducidad: cleanHtml(cells[8]),
-                pdfLink: pdfLinkMatch ? `https://radioavisos.salvamentomaritimo.es/${pdfLinkMatch[1]}` : '',
-            });
-        }
-    }
-    return avisos;
-}
-
+// The SOAP request body to call the official web service
+const soapRequestBody = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <ObtenerRadioavisosActivos xmlns="http://tempuri.org/" />
+  </soap:Body>
+</soap:Envelope>`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -83,27 +38,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(cache.data);
   }
 
-  const targetUrl = 'https://radioavisos.salvamentomaritimo.es/';
+  const targetUrl = 'https://radioavisos.salvamentomaritimo.es/WS/Radioavisos_V2.asmx';
   
   try {
     const response = await fetch(targetUrl, {
+      method: 'POST',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': '"http://tempuri.org/ObtenerRadioavisosActivos"',
       },
+      body: soapRequestBody,
       cache: 'no-store',
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch the page, status: ${response.status}`);
+      throw new Error(`Failed to fetch from the web service, status: ${response.status}`);
     }
 
-    const htmlText = await response.text();
-    const avisos = parseSalvamentoTable(htmlText);
+    const xmlText = await response.text();
 
-    if (avisos.length === 0) {
-        // This warning may still appear if the site has no active notices, which is legitimate.
-        console.warn("Could not parse any notices from the HTML table. The page structure might have changed or there are no notices currently listed.");
+    // Extract the JSON string from inside the SOAP XML response
+    const jsonStringMatch = xmlText.match(/<ObtenerRadioavisosActivosResult>([\s\S]*?)<\/ObtenerRadioavisosActivosResult>/);
+    if (!jsonStringMatch || !jsonStringMatch[1]) {
+        throw new Error("Could not find ObtenerRadioavisosActivosResult in the SOAP response.");
     }
+
+    const jsonString = jsonStringMatch[1];
+    const rawAvisos = JSON.parse(jsonString);
+
+    if (!Array.isArray(rawAvisos)) {
+        throw new Error("Parsed API data is not an array.");
+    }
+
+    // Map the raw data from the official API to our desired format
+    const avisos: SalvamentoAviso[] = rawAvisos.map((item: any) => ({
+      num: item.id_radioaviso || '',
+      emision: item.f_emision || '',
+      asunto: item.asunto || '',
+      zona: item.zona || '',
+      tipo: item.tipo || '',
+      subtipo: item.subtipo || '',
+      prioridad: item.prioridad || '',
+      caducidad: item.f_caducidad || '',
+      pdfLink: item.fichero ? `https://radioavisos.salvamentomaritimo.es/ficheros/${item.fichero}` : '',
+    }));
     
     cache.data = avisos;
     cache.timestamp = now;
@@ -111,8 +89,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error("Error in /api/salvamento-avisos:", errorMessage);
     return res.status(500).json({ 
-        error: 'Failed to fetch or parse Salvamento Marítimo page', 
+        error: 'Failed to fetch or process data from Salvamento Marítimo API', 
         details: errorMessage
     });
   }
