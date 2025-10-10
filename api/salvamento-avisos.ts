@@ -16,8 +16,6 @@ const cache = {
 };
 const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
-const RSS_URL = 'https://radioavisos.salvamentomaritimo.es/RSS/RSS.xml';
-
 // A simple regex-based XML parser for this specific RSS structure
 function parseRss(xmlText: string): SalvamentoAviso[] {
   const items = [];
@@ -58,30 +56,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(cache.data);
   }
 
-  try {
-    const headers = {
-      // Add a User-Agent header to mimic a browser request, preventing blocks.
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
-    };
-    
-    const response = await fetch(RSS_URL, { headers, cache: 'no-store' });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
-    }
-    const xmlText = await response.text();
-    const avisos = parseRss(xmlText);
+  const rssUrl = 'https://radioavisos.salvamentomaritimo.es/RSS/RSS.xml';
+  const urlsToTry = [
+    { url: rssUrl, type: 'direct' },
+    { url: `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`, type: 'allorigins' },
+  ];
 
-    if (avisos.length === 0) {
-        throw new Error('No items found in RSS feed. Parsing may have failed.');
-    }
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+  };
 
-    cache.data = avisos;
-    cache.timestamp = now;
+  for (const [index, attempt] of urlsToTry.entries()) {
+      try {
+          const response = await fetch(attempt.url, { headers, cache: 'no-store' });
+          if (!response.ok) {
+              console.warn(`Attempt ${index + 1} (${attempt.type}) failed: ${response.statusText}`);
+              continue; // Try next URL
+          }
 
-    return res.status(200).json(avisos);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return res.status(500).json({ error: 'Failed to fetch or parse Salvamento Marítimo RSS feed', details: message });
+          let xmlText;
+          if (attempt.type === 'allorigins') {
+              const data = await response.json();
+              xmlText = data.contents;
+              if (!xmlText) throw new Error('allorigins proxy did not return content.');
+          } else {
+              xmlText = await response.text();
+          }
+          
+          const avisos = parseRss(xmlText);
+          if (avisos.length > 0) {
+              cache.data = avisos;
+              cache.timestamp = Date.now();
+              return res.status(200).json(avisos);
+          }
+          
+          console.warn(`Attempt ${index + 1} succeeded but no items were parsed from ${attempt.url}.`);
+
+      } catch (error) {
+          console.warn(`Attempt ${index + 1} threw an error for ${attempt.url}:`, error);
+      }
   }
+
+  // If all attempts failed
+  return res.status(500).json({ 
+      error: 'Failed to fetch or parse Salvamento Marítimo RSS feed', 
+      details: 'All fetch attempts (direct and via proxies) failed.' 
+  });
 }
