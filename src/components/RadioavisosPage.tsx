@@ -98,13 +98,14 @@ async function fetchAndRenderSalvamentoAvisos() {
         const response = await fetch('/api/salvamento-avisos');
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.details || 'No se pudieron cargar los avisos.');
+            throw new Error(errorData.details || 'Respuesta no válida del servidor.');
         }
         salvamentoAvisos = await response.json();
         lastSalvamentoUpdate = new Date();
     } catch (e) {
         salvamentoAvisos = [];
-        salvamentoError = e instanceof Error ? e.message : 'Error desconocido';
+        console.error("Salvamento Fetch Error:", e);
+        salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
     } finally {
         isSalvamentoLoading = false;
         if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();

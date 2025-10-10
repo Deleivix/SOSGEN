@@ -59,7 +59,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const response = await fetch(RSS_URL, { cache: 'no-store' });
+    const headers = {
+      // Add a User-Agent header to mimic a browser request, preventing blocks.
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
+    };
+    
+    const response = await fetch(RSS_URL, { headers, cache: 'no-store' });
+    
     if (!response.ok) {
       throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
     }
