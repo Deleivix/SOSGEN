@@ -280,7 +280,6 @@ async function handleDelegatedSubmit(e: Event) {
 
 async function handleDelegatedClick(e: Event) {
     const target = e.target as HTMLElement;
-    const actionElement = target.closest<HTMLElement>('[data-action]');
     
     // Handle aviso item click
     const avisoItem = target.closest<HTMLElement>('.aviso-item');
@@ -289,6 +288,7 @@ async function handleDelegatedClick(e: Event) {
         return;
     }
 
+    const actionElement = target.closest<HTMLElement>('[data-action]');
     if (!actionElement) return;
 
     const action = actionElement.dataset.action;
@@ -312,7 +312,6 @@ async function handleDelegatedClick(e: Event) {
     }
 }
 
-// ... (Rest of the functions: handleUserSet, handleAddSubmit, etc. remain unchanged) ...
 async function handleUserSet(form: HTMLFormElement) {
     const input = form.querySelector('#username-input') as HTMLInputElement;
     const username = input.value.trim().toUpperCase();
