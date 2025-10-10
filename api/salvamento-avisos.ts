@@ -24,23 +24,40 @@ function cleanHtml(html: string): string {
     return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }
 
+/**
+ * Parses the HTML table from the Salvamento Maritimo page to extract notices.
+ * This version is more robust as it first finds the <tbody> and then parses generic <tr> elements within it.
+ * @param htmlText The raw HTML content of the page.
+ * @returns An array of SalvamentoAviso objects.
+ */
 function parseSalvamentoTable(htmlText: string): SalvamentoAviso[] {
     const avisos: SalvamentoAviso[] = [];
-    const rowRegex = /<tr class="fila(?:im)?par"[^>]*>([\s\S]*?)<\/tr>/g;
+    
+    // 1. Isolate the table body content. This is more robust than matching individual row classes.
+    const tableBodyRegex = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i;
+    const bodyMatch = htmlText.match(tableBodyRegex);
+    if (!bodyMatch || !bodyMatch[1]) {
+        console.error("Parser Error: Could not find the <tbody> element of the notices table.");
+        return []; // Return empty if we can't find the main container for rows
+    }
+    const tableBodyHtml = bodyMatch[1];
+
+    // 2. Regex for rows (more generic) and cells
+    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
     const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
     const pdfLinkRegex = /<a href="([^"]+)"/;
 
     let rowMatch;
-    while ((rowMatch = rowRegex.exec(htmlText)) !== null) {
+    while ((rowMatch = rowRegex.exec(tableBodyHtml)) !== null) {
         const rowContent = rowMatch[1];
-        const cells = [];
+        const cells: string[] = [];
         let cellMatch;
         while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
             cells.push(cellMatch[1]);
         }
 
-        // CORRECTED: Check for at least 10 cells to avoid out-of-bounds errors.
-        if (cells.length >= 10) { 
+        // We expect at least 10 cells for a valid notice row and check for a checkbox in the first cell
+        if (cells.length >= 10 && cells[0].includes('type="checkbox"')) { 
             const pdfLinkMatch = cells[9].match(pdfLinkRegex);
             
             avisos.push({
@@ -58,6 +75,7 @@ function parseSalvamentoTable(htmlText: string): SalvamentoAviso[] {
     }
     return avisos;
 }
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -87,8 +105,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const avisos = parseSalvamentoTable(htmlText);
 
     if (avisos.length === 0) {
-        // This is not a fatal error; the page might genuinely have no notices.
-        // We will return an empty array and let the frontend handle the display.
         console.warn("Could not parse any notices from the HTML table. The page structure might have changed or there are no notices.");
     }
     
