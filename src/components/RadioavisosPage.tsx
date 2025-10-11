@@ -54,6 +54,8 @@ let salvamentoAvisos: SalvamentoAviso[] = [];
 let isSalvamentoLoading = false;
 let salvamentoError: string | null = null;
 let lastSalvamentoUpdate: Date | null = null;
+let salvamentoFilterText = '';
+let salvamentoSortConfig: SortConfig<SalvamentoAviso> = { key: 'emision', direction: 'descending' };
 // --- State for Tables ---
 let nrFilterText = '';
 let historyFilterText = '';
@@ -137,29 +139,67 @@ function renderSalvamentoPanelHTML(): string {
         content = `<p class="drill-placeholder">No hay radioavisos disponibles en la fuente oficial.</p>`;
     } else {
         const ZONAS_FILTRADAS = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
-        const filteredAvisos = salvamentoAvisos.filter(aviso =>
-            ZONAS_FILTRADAS.some(zona => aviso.zona.includes(zona))
-        );
+        const searchTerm = salvamentoFilterText.toLowerCase();
 
-        if (filteredAvisos.length === 0) {
-            content = `<p class="drill-placeholder">No hay radioavisos vigentes para las zonas Costa N, NW y Coruña.</p>`;
+        const filteredAvisos = salvamentoAvisos
+            .filter(aviso => ZONAS_FILTRADAS.some(zona => aviso.zona.includes(zona)))
+            .filter(aviso => 
+                aviso.num.toLowerCase().includes(searchTerm) ||
+                aviso.asunto.toLowerCase().includes(searchTerm) ||
+                aviso.zona.toLowerCase().includes(searchTerm)
+            );
+
+        const sortedAvisos = [...filteredAvisos].sort((a, b) => {
+            const key = salvamentoSortConfig.key;
+            const aValue = a[key] || '';
+            const bValue = b[key] || '';
+            const comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
+            return salvamentoSortConfig.direction === 'ascending' ? comparison : -comparison;
+        });
+
+        const renderHeader = (key: keyof SalvamentoAviso, label: string) => {
+            const isSorted = salvamentoSortConfig.key === key;
+            const sortClass = isSorted ? `sort-${salvamentoSortConfig.direction}` : '';
+            return `<th class="${sortClass}" data-action="sort" data-sort-key="${key}" data-table="salvamento">${label}</th>`;
+        };
+
+        if (sortedAvisos.length === 0) {
+            content = `
+                <div class="filterable-table-header">
+                    <input type="search" class="filter-input" placeholder="Filtrar por número, asunto o zona..." value="${salvamentoFilterText}" data-action="filter" data-filter-target="salvamento">
+                </div>
+                <p class="drill-placeholder">No hay radioavisos para los filtros aplicados.</p>
+            `;
         } else {
             content = `
-                <div class="salvamento-avisos-list">
-                    ${filteredAvisos.map(aviso => `
-                        <div class="aviso-item" data-link="${aviso.pdfLink}" title="Haz clic para ver el PDF oficial">
-                            <div class="aviso-item-header">
-                                <h4 class="aviso-item-title">${aviso.num}</h4>
-                                <span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span>
-                            </div>
-                            <p class="aviso-item-desc">${aviso.asunto}</p>
-                            <div class="aviso-item-details">
-                                <div><span>Zona:</span> <strong>${aviso.zona}</strong></div>
-                                <div><span>Emisión:</span> <strong>${aviso.emision}</strong></div>
-                                <div><span>Caducidad:</span> <strong>${aviso.caducidad}</strong></div>
-                            </div>
-                        </div>
-                    `).join('')}
+                <div class="filterable-table-header">
+                     <input type="search" class="filter-input" placeholder="Filtrar por número, asunto o zona..." value="${salvamentoFilterText}" data-action="filter" data-filter-target="salvamento">
+                </div>
+                <div class="table-wrapper">
+                    <table class="reference-table">
+                        <thead>
+                            <tr>
+                                ${renderHeader('num', 'Num.')}
+                                ${renderHeader('emision', 'Emisión')}
+                                ${renderHeader('asunto', 'Asunto')}
+                                ${renderHeader('zona', 'Zona')}
+                                ${renderHeader('prioridad', 'Prioridad')}
+                                ${renderHeader('caducidad', 'Caducidad')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                        ${sortedAvisos.map(aviso => `
+                            <tr data-link="${aviso.pdfLink}" title="Haz clic para ver el PDF oficial">
+                                <td>${aviso.num}</td>
+                                <td>${aviso.emision}</td>
+                                <td style="white-space: normal; min-width: 250px;">${aviso.asunto}</td>
+                                <td style="min-width: 150px;">${aviso.zona}</td>
+                                <td><span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span></td>
+                                <td>${aviso.caducidad}</td>
+                            </tr>
+                        `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
         }
@@ -169,7 +209,7 @@ function renderSalvamentoPanelHTML(): string {
         <div class="salvamento-panel">
             <div class="salvamento-panel-header">
                 <div>
-                    <h3>Radioavisos Oficiales (Salvamento Marítimo)</h3>
+                    <h3>Radioavisos Oficiales (Zonas N, NW, Coruña)</h3>
                     <a href="https://radioavisos.salvamentomaritimo.es/" target="_blank" rel="noopener noreferrer">
                         Ver fuente oficial
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/></svg>
@@ -285,6 +325,8 @@ function attachEventListeners(container: HTMLElement) {
             nrFilterText = input.value;
         } else if (input.dataset.filterTarget === 'history') {
             historyFilterText = input.value;
+        } else if (input.dataset.filterTarget === 'salvamento') {
+            salvamentoFilterText = input.value;
         }
         await reRender();
     }, 300);
@@ -321,9 +363,9 @@ async function handleDelegatedSubmit(e: Event) {
 async function handleDelegatedClick(e: Event) {
     const target = e.target as HTMLElement;
     
-    const avisoItem = target.closest<HTMLElement>('.aviso-item');
-    if (avisoItem && avisoItem.dataset.link) {
-        window.open(avisoItem.dataset.link, '_blank');
+    const tableRow = target.closest<HTMLTableRowElement>('tr[data-link]');
+    if (tableRow && tableRow.dataset.link) {
+        window.open(tableRow.dataset.link, '_blank');
         return;
     }
 
@@ -353,6 +395,12 @@ async function handleDelegatedClick(e: Event) {
                     historySortConfig = {
                         key: key as keyof HistoryLog,
                         direction: isSameKey && historySortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+                    };
+                } else if (targetTable === 'salvamento') {
+                    const isSameKey = salvamentoSortConfig.key === key;
+                    salvamentoSortConfig = {
+                        key: key as keyof SalvamentoAviso,
+                        direction: isSameKey && salvamentoSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
                     };
                 }
                 await reRender();
