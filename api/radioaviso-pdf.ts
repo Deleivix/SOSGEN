@@ -1,11 +1,11 @@
+
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { URLSearchParams } from 'url';
 
 /**
  * This handler fetches the official PDF for a given radio warning.
- * It works by first scraping the main page to get necessary ASP.NET form state fields
- * (__VIEWSTATE, etc.), and then sending a POST request that mimics the JavaScript
- * `__doPostBack` function call for the specific PDF link.
+ * It now correctly handles session cookies required by the ASP.NET backend.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -19,13 +19,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const targetUrl = 'https://radioavisos.salvamentomaritimo.es/';
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
     try {
-        // Step 1: Fetch the main page to get the form state.
+        // Step 1: Fetch the main page to get form state AND the session cookie.
         const pageResponse = await fetch(targetUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            },
+            headers: { 'User-Agent': userAgent },
             cache: 'no-store',
         });
 
@@ -33,8 +32,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw new Error(`Failed to fetch main page, status: ${pageResponse.status}`);
         }
         const pageHtml = await pageResponse.text();
+        
+        // Extract the ASP.NET session cookie, which is required for postbacks.
+        const cookieHeader = pageResponse.headers.get('set-cookie');
+        let sessionIdCookie: string | null = null;
+        if (cookieHeader) {
+            const match = cookieHeader.match(/ASP.NET_SessionId=[^;]+/);
+            if (match) {
+                sessionIdCookie = match[0];
+            }
+        }
+        
+        if (!sessionIdCookie) {
+            console.warn("Could not retrieve ASP.NET session cookie.");
+        }
 
-        // Step 2: Parse the HTML to extract all hidden ASP.NET fields using a more robust regex.
+        // Step 2: Parse HTML for all hidden ASP.NET fields.
         const formData = new URLSearchParams();
         const hiddenInputRegex = /<input type="hidden"\s+name="([^"]+)"[^>]*?value="([^"]*)"/gi;
         
@@ -43,36 +56,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             formData.append(match[1], match[2]);
         }
 
-        // Step 3: Set the specific target for the PDF link we want to "click".
+        // Step 3: Set the specific target for the PDF link.
         formData.set('__EVENTTARGET', target);
         formData.set('__EVENTARGUMENT', '');
-        // Also ensure RadScriptManager is set correctly as it's part of the form post.
-        const scriptManagerMatch = pageHtml.match(/RadScriptManager1=([^&|"]*)/);
-        if (scriptManagerMatch && scriptManagerMatch[1]) {
-            formData.set('RadScriptManager1', scriptManagerMatch[1]);
-        }
-
-
-        // Step 4: Make the POST request to trigger the PDF download.
+        
+        // Step 4: Make the POST request, including the session cookie.
         const pdfResponse = await fetch(targetUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'User-Agent': userAgent,
                 'Referer': targetUrl,
+                ...(sessionIdCookie && { 'Cookie': sessionIdCookie }),
             },
             body: formData.toString()
         });
 
-        if (!pdfResponse.ok || pdfResponse.headers.get('Content-Type') !== 'application/pdf') {
-            throw new Error(`Failed to get PDF, status: ${pdfResponse.status}, content-type: ${pdfResponse.headers.get('Content-Type')}`);
+        if (!pdfResponse.ok || !pdfResponse.headers.get('Content-Type')?.includes('application/pdf')) {
+             const errorText = await pdfResponse.text().catch(() => "Could not read response body.");
+             console.error("Unexpected response from PDF endpoint:", { status: pdfResponse.status, contentType: pdfResponse.headers.get('Content-Type'), body: errorText.substring(0, 500) });
+            throw new Error(`Failed to get PDF. Server responded with status ${pdfResponse.status}.`);
         }
 
         // Step 5: Stream the PDF back to the client.
         const pdfBuffer = await pdfResponse.arrayBuffer();
 
         res.setHeader('Content-Type', 'application/pdf');
-        // 'inline' tells the browser to try and display it, rather than just downloading.
         res.setHeader('Content-Disposition', 'inline; filename="radioaviso.pdf"');
         res.send(Buffer.from(pdfBuffer));
 

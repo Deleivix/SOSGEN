@@ -1,3 +1,4 @@
+
 :root {
   --accent-color: #8BC34A;
   --accent-color-dark: #7aa841;
@@ -1252,10 +1253,10 @@ body.dark-theme .warning-box {
 .reference-table th.sort-descending::after {
     content: '▼';
 }
-.reference-table tbody tr[data-link] {
+.reference-table tbody tr[data-action="fetch-pdf"] {
     cursor: pointer;
 }
-.reference-table tbody tr[data-link]:hover {
+.reference-table tbody tr[data-action="fetch-pdf"]:hover {
     background-color: var(--bg-main);
 }
 

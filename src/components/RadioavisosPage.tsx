@@ -1,3 +1,4 @@
+
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { debounce, showToast } from "../utils/helpers";
 
@@ -189,7 +190,7 @@ function renderSalvamentoPanelHTML(): string {
                         </thead>
                         <tbody>
                         ${sortedAvisos.map(aviso => `
-                            <tr data-event-target="${aviso.eventTarget}" title="Haz clic para ver el PDF oficial">
+                            <tr data-action="fetch-pdf" data-event-target="${aviso.eventTarget}" title="Haz clic para ver el PDF oficial">
                                 <td>${aviso.num}</td>
                                 <td>${aviso.emision}</td>
                                 <td style="white-space: normal; min-width: 250px;">${aviso.asunto}</td>
@@ -362,21 +363,19 @@ async function handleDelegatedSubmit(e: Event) {
 
 async function handleDelegatedClick(e: Event) {
     const target = e.target as HTMLElement;
-    
-    const tableRow = target.closest<HTMLTableRowElement>('tr[data-event-target]');
-    if (tableRow && tableRow.dataset.eventTarget) {
-        showToast("Solicitando PDF oficial...", "info");
-        const eventTarget = tableRow.dataset.eventTarget;
-        if (eventTarget) {
-            window.open(`/api/radioaviso-pdf?target=${encodeURIComponent(eventTarget)}`, '_blank');
-        }
-        return;
-    }
 
     const actionElement = target.closest<HTMLElement>('[data-action]');
     if (!actionElement) return;
 
     const action = actionElement.dataset.action;
+
+    if (action === 'fetch-pdf') {
+        const eventTarget = actionElement.dataset.eventTarget;
+        if (eventTarget) {
+            handleFetchPdf(eventTarget);
+        }
+        return;
+    }
 
     // Handle sort clicks separately to avoid re-rendering the whole salvamento panel just for a sort
     if (action === 'sort' && actionElement.tagName === 'TH') {
@@ -429,6 +428,38 @@ async function handleDelegatedClick(e: Event) {
         case 'cancel-nr': await handleCancelNR(); break;
     }
 }
+
+async function handleFetchPdf(eventTarget: string) {
+    showToast("Solicitando PDF oficial...", "info");
+    try {
+        const response = await fetch(`/api/radioaviso-pdf?target=${encodeURIComponent(eventTarget)}`);
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ details: 'El servidor devolvió una respuesta no válida.' }));
+            throw new Error(errorData.details || `Error del servidor: ${response.status}`);
+        }
+
+        const contentType = response.headers.get('Content-Type');
+        if (!contentType || !contentType.includes('application/pdf')) {
+            throw new Error('La respuesta del servidor no fue un PDF.');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const pdfWindow = window.open(url, '_blank');
+        if (!pdfWindow) {
+            throw new Error('El navegador bloqueó la apertura de la nueva ventana. Por favor, habilite las ventanas emergentes.');
+        }
+        // Clean up the object URL after the new tab has had a chance to load it
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Error desconocido al obtener el PDF.";
+        console.error("PDF Fetch Error:", error);
+        showToast(`No se pudo generar el PDF: ${message}`, "error");
+    }
+}
+
 
 async function handleUserSet(form: HTMLFormElement) {
     const input = form.querySelector('#username-input') as HTMLInputElement;
