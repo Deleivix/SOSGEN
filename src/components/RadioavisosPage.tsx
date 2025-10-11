@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -8,67 +9,48 @@ import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
 
 // =================================================================================
-// --- DATA TYPES & STATE MANAGEMENT ---
+// --- DATA TYPES & STATE ---
 // =================================================================================
 
 type SalvamentoAviso = {
-  num: string;
-  emision: string;
-  asunto: string;
-  zona: string;
-  tipo: string;
-  subtipo: string;
-  prioridad: string;
-  caducidad: string;
-  eventTarget: string; // The ID needed to fetch the PDF
+  num: string; emision: string; asunto: string; zona: string;
+  tipo: string; subtipo: string; prioridad: string; caducidad: string;
+  eventTarget: string;
 };
-
 type NR = {
-    id: string; // e.g., "2013/2024"
-    version: number;
-    fullId: string; // e.g., "NR-2013/2024-1"
-    stations: string[];
-    expiryDate: string; // YYYY-MM-DD
-    expiryTime: string; // HH:MM in UTC
-    isAmpliado: boolean;
-    isCaducado: boolean;
+    id: string; version: number; fullId: string; stations: string[];
+    expiryDate: string; expiryTime: string; isAmpliado: boolean; isCaducado: boolean;
 };
 type HistoryLog = {
-    id: string;
-    timestamp: string;
-    user: string;
+    id: string; timestamp: string; user: string;
     action: 'AÑADIDO' | 'EDITADO' | 'BORRADO' | 'CANCELADO';
-    nrId: string; // Base ID, e.g., "2013/2024"
-    details: string;
+    nrId: string; details: string;
 };
-type AppData = {
-    nrs: NR[];
-    history: HistoryLog[];
-};
+type AppData = { nrs: NR[]; history: HistoryLog[]; };
 type View = 'INICIO' | 'AÑADIR' | 'EDITAR' | 'BORRAR' | 'BD' | 'HISTORIAL';
 type SortDirection = 'ascending' | 'descending';
 type SortConfig<T> = { key: keyof T; direction: SortDirection };
 
-
-// --- Component-level State ---
-let appData: AppData = { nrs: [], history: [] };
-let isAppDataLoading = true;
-let appDataError: string | null = null;
-let currentView: View = 'INICIO';
-let componentContainer: HTMLElement | null = null;
-// --- State for Salvamento Panel ---
-let salvamentoAvisos: SalvamentoAviso[] = [];
-let isSalvamentoLoading = false;
-let salvamentoError: string | null = null;
-let lastSalvamentoUpdate: Date | null = null;
-let salvamentoFilterText = '';
-let salvamentoSortConfig: SortConfig<SalvamentoAviso> = { key: 'emision', direction: 'descending' };
-// --- State for Tables ---
-let nrFilterText = '';
-let historyFilterText = '';
-let nrSortConfig: SortConfig<NR> = { key: 'id', direction: 'ascending' };
-let historySortConfig: SortConfig<HistoryLog> = { key: 'timestamp', direction: 'descending' };
-
+// --- Centralized Component State ---
+let state = {
+    appData: { nrs: [] as NR[], history: [] as HistoryLog[] },
+    isAppDataLoading: true,
+    appDataError: null as string | null,
+    currentView: 'INICIO' as View,
+    componentContainer: null as HTMLElement | null,
+    // Salvamento Panel State
+    salvamentoAvisos: [] as SalvamentoAviso[],
+    isSalvamentoLoading: false,
+    salvamentoError: null as string | null,
+    lastSalvamentoUpdate: null as Date | null,
+    salvamentoFilterText: '',
+    salvamentoSortConfig: { key: 'emision' as keyof SalvamentoAviso, direction: 'descending' as SortDirection },
+    // Local Tables State
+    nrFilterText: '',
+    historyFilterText: '',
+    nrSortConfig: { key: 'id' as keyof NR, direction: 'ascending' as SortDirection },
+    historySortConfig: { key: 'timestamp' as keyof HistoryLog, direction: 'descending' as SortDirection },
+};
 
 // =================================================================================
 // --- API LAYER ---
@@ -107,20 +89,11 @@ const getFormattedDateTime = (isoString?: string) => {
 const getMedioTags = (zona: string): string => {
     const upperZona = zona.toUpperCase();
     const zonasArray = upperZona.split(',').map(z => z.trim()).filter(Boolean);
-    
     const hasCoruna = zonasArray.includes('CORUÑA');
     const hasOtherZones = zonasArray.some(z => z !== 'CORUÑA');
-
     let tags = '';
-
-    if (hasCoruna) {
-        tags += `<span class="category-badge navtex" style="margin-right: 4px;">NAVTEX</span>`;
-    }
-
-    if (hasOtherZones || !hasCoruna) {
-         tags += `<span class="category-badge fonia">FONÍA</span>`;
-    }
-
+    if (hasCoruna) tags += `<span class="category-badge navtex" style="margin-right: 4px;">NAVTEX</span>`;
+    if (hasOtherZones || !hasCoruna) tags += `<span class="category-badge fonia">FONÍA</span>`;
     return tags;
 };
 
@@ -129,8 +102,8 @@ const getMedioTags = (zona: string): string => {
 // =================================================================================
 
 async function fetchAndRenderSalvamentoAvisos() {
-    isSalvamentoLoading = true;
-    salvamentoError = null;
+    state.isSalvamentoLoading = true;
+    state.salvamentoError = null;
     
     const panelContainer = document.getElementById('salvamento-panel-container');
     if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
@@ -141,14 +114,14 @@ async function fetchAndRenderSalvamentoAvisos() {
             const errorData = await response.json();
             throw new Error(errorData.details || 'Respuesta no válida del servidor.');
         }
-        salvamentoAvisos = await response.json();
-        lastSalvamentoUpdate = new Date();
+        state.salvamentoAvisos = await response.json();
+        state.lastSalvamentoUpdate = new Date();
     } catch (e) {
-        salvamentoAvisos = [];
+        state.salvamentoAvisos = [];
         console.error("Salvamento Fetch Error:", e);
-        salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
+        state.salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
     } finally {
-        isSalvamentoLoading = false;
+        state.isSalvamentoLoading = false;
         const panelContainer = document.getElementById('salvamento-panel-container');
         if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
     }
@@ -159,49 +132,47 @@ function renderSalvamentoPanelHTML(): string {
     const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
 
     let content;
-    if (isSalvamentoLoading) {
+    if (state.isSalvamentoLoading) {
         content = `<div class="loader-container"><div class="loader"></div></div>`;
-    } else if (salvamentoError) {
-        content = `<p class="error" style="padding: 1rem; text-align: center;">${salvamentoError}</p>`;
-    } else if (salvamentoAvisos.length === 0) {
+    } else if (state.salvamentoError) {
+        content = `<p class="error" style="padding: 1rem; text-align: center;">${state.salvamentoError}</p>`;
+    } else if (state.salvamentoAvisos.length === 0) {
         content = `<p class="drill-placeholder">No hay radioavisos disponibles en la fuente oficial.</p>`;
     } else {
         const ZONAS_FILTRADAS = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
-        const searchTerm = salvamentoFilterText.toLowerCase();
-
-        const filteredAvisos = salvamentoAvisos
+        const searchTerm = state.salvamentoFilterText.toLowerCase();
+        const filteredAvisos = state.salvamentoAvisos
             .filter(aviso => ZONAS_FILTRADAS.some(zona => aviso.zona.includes(zona)))
             .filter(aviso => 
                 aviso.num.toLowerCase().includes(searchTerm) ||
                 aviso.asunto.toLowerCase().includes(searchTerm) ||
                 aviso.zona.toLowerCase().includes(searchTerm)
             );
-
         const sortedAvisos = [...filteredAvisos].sort((a, b) => {
-            const key = salvamentoSortConfig.key;
+            const { key, direction } = state.salvamentoSortConfig;
             const aValue = a[key] || '';
             const bValue = b[key] || '';
             const comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
-            return salvamentoSortConfig.direction === 'ascending' ? comparison : -comparison;
+            return direction === 'ascending' ? comparison : -comparison;
         });
 
         const renderHeader = (key: keyof SalvamentoAviso, label: string) => {
-            const isSorted = salvamentoSortConfig.key === key;
-            const sortClass = isSorted ? `sort-${salvamentoSortConfig.direction}` : '';
+            const isSorted = state.salvamentoSortConfig.key === key;
+            const sortClass = isSorted ? `sort-${state.salvamentoSortConfig.direction}` : '';
             return `<th class="${sortClass}" data-sort-key="${key}" data-table="salvamento">${label}</th>`;
         };
 
         if (sortedAvisos.length === 0) {
             content = `
                 <div class="filterable-table-header">
-                    <input type="search" class="filter-input" placeholder="Filtrar por número, asunto o zona..." value="${salvamentoFilterText}" data-action="filter" data-filter-target="salvamento">
+                    <input type="search" class="filter-input" placeholder="Filtrar por número, asunto o zona..." value="${state.salvamentoFilterText}" data-action="filter" data-filter-target="salvamento">
                 </div>
                 <p class="drill-placeholder">No hay radioavisos para los filtros aplicados.</p>
             `;
         } else {
             content = `
                 <div class="filterable-table-header">
-                     <input type="search" class="filter-input" placeholder="Filtrar por número, asunto o zona..." value="${salvamentoFilterText}" data-action="filter" data-filter-target="salvamento">
+                     <input type="search" class="filter-input" placeholder="Filtrar por número, asunto o zona..." value="${state.salvamentoFilterText}" data-action="filter" data-filter-target="salvamento">
                 </div>
                 <div class="table-wrapper">
                     <table class="reference-table">
@@ -246,10 +217,10 @@ function renderSalvamentoPanelHTML(): string {
                     </a>
                 </div>
                 <div class="salvamento-panel-controls">
-                    ${lastSalvamentoUpdate ? `<span class="last-update-text">${getFormattedDateTime(lastSalvamentoUpdate.toISOString())}</span>` : ''}
-                    <button class="secondary-btn" data-action="refresh-salvamento" ${isSalvamentoLoading ? 'disabled' : ''}>
-                        ${isSalvamentoLoading ? spinnerIcon : refreshIcon}
-                        <span>${isSalvamentoLoading ? 'Actualizando...' : 'Actualizar'}</span>
+                    ${state.lastSalvamentoUpdate ? `<span class="last-update-text">${getFormattedDateTime(state.lastSalvamentoUpdate.toISOString())}</span>` : ''}
+                    <button class="secondary-btn" data-action="refresh-salvamento" ${state.isSalvamentoLoading ? 'disabled' : ''}>
+                        ${state.isSalvamentoLoading ? spinnerIcon : refreshIcon}
+                        <span>${state.isSalvamentoLoading ? 'Actualizando...' : 'Actualizar'}</span>
                     </button>
                 </div>
             </div>
@@ -262,27 +233,11 @@ function renderSalvamentoPanelHTML(): string {
 // --- CORE RENDERING LOGIC ---
 // =================================================================================
 
-async function loadInitialData() {
-    isAppDataLoading = true;
-    appDataError = null;
-    await reRender();
-    
-    try {
-        appData = await api.getData();
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Error desconocido";
-        appDataError = message;
-    } finally {
-        isAppDataLoading = false;
-        await reRender();
-    }
-}
-
 async function reRender() {
-    if (!componentContainer) return;
+    if (!state.componentContainer) return;
     const activeElementId = document.activeElement?.id;
     
-    componentContainer.innerHTML = renderPageContent();
+    state.componentContainer.innerHTML = renderPageContent();
 
     const activeElement = activeElementId ? document.getElementById(activeElementId) : null;
     if (activeElement instanceof HTMLElement) {
@@ -290,11 +245,25 @@ async function reRender() {
     }
 }
 
-export function renderRadioavisos(container: HTMLElement) {
-    componentContainer = container;
-    const user = getCurrentUser();
+async function loadInitialData() {
+    state.isAppDataLoading = true;
+    state.appDataError = null;
+    await reRender();
+    
+    try {
+        state.appData = await api.getData();
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Error desconocido";
+        state.appDataError = message;
+    } finally {
+        state.isAppDataLoading = false;
+        await reRender();
+    }
+}
 
-    if (!user) {
+export function renderRadioavisos(container: HTMLElement) {
+    state.componentContainer = container;
+    if (!getCurrentUser()) {
         container.innerHTML = `<div class="content-card"><p class="error">Debe iniciar sesión para acceder a esta herramienta.</p></div>`;
         return;
     }
@@ -312,12 +281,12 @@ function renderPageContent(): string {
     const user = getCurrentUser();
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación. Por favor, inicie sesión de nuevo.</p></div>`;
 
-    if (isAppDataLoading) {
+    if (state.isAppDataLoading) {
         return `<div class="content-card"><div class="loader-container"><div class="loader"></div></div></div>`;
     }
 
-    if (appDataError) {
-        return `<div class="content-card"><p class="error">${appDataError}</p></div>`;
+    if (state.appDataError) {
+        return `<div class="content-card"><p class="error">${state.appDataError}</p></div>`;
     }
     
     const views: { id: View, name: string }[] = [
@@ -330,12 +299,10 @@ function renderPageContent(): string {
         <div id="salvamento-panel-container">
             ${renderSalvamentoPanelHTML()}
         </div>
-
         <div class="content-card" style="max-width: 1400px; margin-top: 2rem;">
             <div class="form-divider" style="width: 100%; margin: -0.5rem auto 1.5rem auto;">
                 <span>Gestor Local</span>
             </div>
-
             <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
                 <h2 class="content-card-title" style="margin: 0; padding: 0; border: none;">Gestor de Radioavisos (NR)</h2>
                 <div style="display: flex; align-items: center; gap: 1rem;">
@@ -347,11 +314,9 @@ function renderPageContent(): string {
                     </div>
                 </div>
             </div>
-
             <div class="info-nav-tabs">
-                ${views.map(v => `<button class="info-nav-btn ${currentView === v.id ? 'active' : ''}" data-view="${v.id}" data-action="switch-view">${v.name}</button>`).join('')}
+                ${views.map(v => `<button class="info-nav-btn ${state.currentView === v.id ? 'active' : ''}" data-view="${v.id}" data-action="switch-view">${v.name}</button>`).join('')}
             </div>
-
             <div id="radioavisos-view-content" style="margin-top: 2rem;">
                 ${renderCurrentViewContent()}
             </div>
@@ -359,22 +324,76 @@ function renderPageContent(): string {
     `;
 }
 
-
 // =================================================================================
 // --- EVENT HANDLING ---
 // =================================================================================
 
+async function handleSwitchView(element: HTMLElement) {
+    state.currentView = element.dataset.view as View;
+    await reRender();
+}
+
+async function handleSort(element: HTMLElement) {
+    const key = element.dataset.sortKey;
+    const targetTable = element.dataset.table;
+    if (!key) return;
+
+    if (targetTable === 'nrs') {
+        const isSameKey = state.nrSortConfig.key === key;
+        state.nrSortConfig = {
+            key: key as keyof NR,
+            direction: isSameKey && state.nrSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+        };
+    } else if (targetTable === 'history') {
+        const isSameKey = state.historySortConfig.key === key;
+        state.historySortConfig = {
+            key: key as keyof HistoryLog,
+            direction: isSameKey && state.historySortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+        };
+    } else if (targetTable === 'salvamento') {
+        const isSameKey = state.salvamentoSortConfig.key === key;
+        state.salvamentoSortConfig = {
+            key: key as keyof SalvamentoAviso,
+            direction: isSameKey && state.salvamentoSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+        };
+        const panelContainer = document.getElementById('salvamento-panel-container');
+        if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
+        return; 
+    }
+    await reRender();
+}
+
 function attachEventListeners(container: HTMLElement) {
-    container.addEventListener('click', handleDelegatedClick);
+    container.addEventListener('click', async (e) => {
+        const target = e.target as HTMLElement;
+        const actionElement = target.closest<HTMLElement>('[data-action]');
+        
+        if (actionElement) {
+            const action = actionElement.dataset.action;
+            switch(action) {
+                case 'refresh-salvamento': await fetchAndRenderSalvamentoAvisos(); break;
+                case 'switch-view': await handleSwitchView(actionElement); break;
+                case 'import': state.componentContainer?.querySelector<HTMLInputElement>('.file-input-hidden')?.click(); break;
+                case 'export': handleExport(); break;
+                case 'add-submit': await handleAddSubmit(); break;
+                case 'add-clear': state.currentView = 'AÑADIR'; await reRender(); break;
+                case 'edit-search': await handleEditSearch(); break;
+                case 'edit-save': await handleEditSave(); break;
+                case 'delete-nr': await handleDeleteNR(); break;
+                case 'cancel-nr': await handleCancelNR(); break;
+            }
+        } else if (target.closest('th[data-sort-key]')) {
+            await handleSort(target.closest('th[data-sort-key]')!);
+        }
+    });
     
     const debouncedFilter = debounce(async (e: Event) => {
         const input = e.target as HTMLInputElement;
-        if (input.dataset.filterTarget === 'nrs') {
-            nrFilterText = input.value;
-        } else if (input.dataset.filterTarget === 'history') {
-            historyFilterText = input.value;
-        } else if (input.dataset.filterTarget === 'salvamento') {
-            salvamentoFilterText = input.value;
+        const target = input.dataset.filterTarget;
+        if (target === 'nrs') state.nrFilterText = input.value;
+        else if (target === 'history') state.historyFilterText = input.value;
+        else if (target === 'salvamento') {
+            state.salvamentoFilterText = input.value;
             const panelContainer = document.getElementById('salvamento-panel-container');
             if(panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
             return;
@@ -384,9 +403,7 @@ function attachEventListeners(container: HTMLElement) {
 
     container.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
-        if (target.dataset.action === 'filter') {
-            debouncedFilter(e);
-        }
+        if (target.dataset.action === 'filter') debouncedFilter(e);
     });
     
     container.addEventListener('change', (e) => {
@@ -394,117 +411,54 @@ function attachEventListeners(container: HTMLElement) {
         if (target.id === 'add-is-versionado') {
             const versionedInput = document.getElementById('add-versioned-id-container');
             if (versionedInput) versionedInput.style.display = target.checked ? 'block' : 'none';
-        }
-        if (target.id === 'add-has-expiry') {
+        } else if (target.id === 'add-has-expiry') {
             const expiryInputs = document.getElementById('add-expiry-inputs');
             if (expiryInputs) expiryInputs.style.display = target.checked ? 'flex' : 'none';
-        }
-        if (target.classList.contains('file-input-hidden')) {
+        } else if (target.classList.contains('file-input-hidden')) {
             handleFileChange(e);
         }
     });
 }
 
-async function handleDelegatedClick(e: Event) {
-    const target = e.target as HTMLElement;
-
-    const actionElement = target.closest<HTMLElement>('[data-action]');
-    if (!actionElement) return;
-
-    const action = actionElement.dataset.action;
-
-    const sortTh = target.closest<HTMLTableCellElement>('th[data-sort-key]');
-    if (sortTh) {
-        const key = sortTh.dataset.sortKey;
-        const targetTable = sortTh.dataset.table;
-        if (key) {
-            if (targetTable === 'nrs') {
-                const isSameKey = nrSortConfig.key === key;
-                nrSortConfig = {
-                    key: key as keyof NR,
-                    direction: isSameKey && nrSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
-                };
-            } else if (targetTable === 'history') {
-                const isSameKey = historySortConfig.key === key;
-                historySortConfig = {
-                    key: key as keyof HistoryLog,
-                    direction: isSameKey && historySortConfig.direction === 'ascending' ? 'descending' : 'ascending',
-                };
-            } else if (targetTable === 'salvamento') {
-                const isSameKey = salvamentoSortConfig.key === key;
-                salvamentoSortConfig = {
-                    key: key as keyof SalvamentoAviso,
-                    direction: isSameKey && salvamentoSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
-                };
-                 const panelContainer = document.getElementById('salvamento-panel-container');
-                 if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
-                 return; 
-            }
-            await reRender();
-        }
-        return;
-    }
-
-
-    switch(action) {
-        case 'refresh-salvamento': fetchAndRenderSalvamentoAvisos(); break;
-        case 'switch-view':
-            currentView = actionElement.dataset.view as View;
-            await reRender();
-            break;
-        case 'import':
-            componentContainer?.querySelector<HTMLInputElement>('.file-input-hidden')?.click();
-            break;
-        case 'export': handleExport(); break;
-        case 'add-submit': await handleAddSubmit(); break;
-        case 'add-clear': currentView = 'AÑADIR'; await reRender(); break;
-        case 'edit-search': await handleEditSearch(); break;
-        case 'edit-save': await handleEditSave(); break;
-        case 'delete-nr': await handleDeleteNR(); break;
-        case 'cancel-nr': await handleCancelNR(); break;
-    }
-}
-
 async function handleAddSubmit() {
     const user = getCurrentUser();
     if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
-    if (!componentContainer) return;
+    if (!state.componentContainer) return;
+    const container = state.componentContainer;
 
     try {
-        let currentData = appData;
-
-        const nrNum = (componentContainer.querySelector('#add-nr-num') as HTMLInputElement).value.trim();
-        const nrYear = (componentContainer.querySelector('#add-nr-year') as HTMLInputElement).value.trim();
-        if (!nrNum || !nrYear) { return showToast("El número y el año del NR son obligatorios.", "error"); }
+        const nrNum = (container.querySelector('#add-nr-num') as HTMLInputElement).value.trim();
+        const nrYear = (container.querySelector('#add-nr-year') as HTMLInputElement).value.trim();
+        if (!nrNum || !nrYear) return showToast("El número y el año del NR son obligatorios.", "error");
         const nrId = `${nrNum}/${nrYear}`;
 
-        const stations = Array.from(componentContainer.querySelectorAll<HTMLInputElement>('#add-stations-group input:checked')).map(cb => cb.value);
-        if (stations.length === 0) { return showToast("Debe seleccionar al menos una estación.", "error"); }
+        const stations = Array.from(container.querySelectorAll<HTMLInputElement>('#add-stations-group input:checked')).map(cb => cb.value);
+        if (stations.length === 0) return showToast("Debe seleccionar al menos una estación.", "error");
 
-        const versionadoCheckbox = componentContainer.querySelector('#add-is-versionado') as HTMLInputElement;
-        const versionedFrom = versionadoCheckbox.checked ? (componentContainer.querySelector('#add-versioned-id') as HTMLInputElement).value.trim() : undefined;
+        const versionadoCheckbox = container.querySelector('#add-is-versionado') as HTMLInputElement;
+        const versionedFrom = versionadoCheckbox.checked ? (container.querySelector('#add-versioned-id') as HTMLInputElement).value.trim() : undefined;
         
-        if (currentData.nrs.some(nr => nr.id === nrId && !nr.isCaducado && !versionedFrom)) {
+        if (state.appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado && !versionedFrom)) {
             return showToast(`Error: El NR-${nrId} ya existe y está vigente. Para crear una nueva versión, marque la casilla 'Versionado'.`, "error");
         }
 
         let version = 1;
-        let nrsToUpdate = [...currentData.nrs];
+        let nrsToUpdate = [...state.appData.nrs];
         if (versionedFrom) {
             const previousVersions = nrsToUpdate.filter(nr => nr.id === versionedFrom);
             if (previousVersions.length > 0) {
                 version = Math.max(...previousVersions.map(nr => nr.version)) + 1;
                 nrsToUpdate = nrsToUpdate.map(nr => nr.id === versionedFrom ? { ...nr, isCaducado: true } : nr);
-                currentData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a NR-${nrId}-${version}`});
+                state.appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a NR-${nrId}-${version}`});
             }
         }
         
-        const expiryCheckbox = componentContainer.querySelector('#add-has-expiry') as HTMLInputElement;
+        const expiryCheckbox = container.querySelector('#add-has-expiry') as HTMLInputElement;
         const newNR: NR = {
             id: nrId, version, fullId: `NR-${nrId}-${version}`, stations,
-            expiryDate: expiryCheckbox.checked ? (componentContainer.querySelector('#add-expiry-date') as HTMLInputElement).value : '',
-            expiryTime: expiryCheckbox.checked ? (componentContainer.querySelector('#add-expiry-time') as HTMLInputElement).value : '',
-            isAmpliado: (componentContainer.querySelector('#add-is-ampliado') as HTMLInputElement).checked,
+            expiryDate: expiryCheckbox.checked ? (container.querySelector('#add-expiry-date') as HTMLInputElement).value : '',
+            expiryTime: expiryCheckbox.checked ? (container.querySelector('#add-expiry-time') as HTMLInputElement).value : '',
+            isAmpliado: (container.querySelector('#add-is-ampliado') as HTMLInputElement).checked,
             isCaducado: false
         };
 
@@ -512,16 +466,15 @@ async function handleAddSubmit() {
             nrs: [...nrsToUpdate, newNR],
             history: [
                 { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'AÑADIDO', nrId, details: `Añadida versión ${version} a ${stations.length} estaciones.` },
-                ...currentData.history
+                ...state.appData.history
             ]
         };
 
         await api.saveData(finalData);
-        appData = finalData;
+        state.appData = finalData;
         showToast(`NR-${nrId}-${version} añadido.`, 'success');
-        currentView = 'INICIO';
+        state.currentView = 'INICIO';
         await reRender();
-
     } catch (error) { 
         showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
     }
@@ -529,44 +482,43 @@ async function handleAddSubmit() {
 
 async function handleEditSave() {
     const user = getCurrentUser();
-    if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
-    if (!componentContainer) return;
+    if (!user) return showToast("Error de sesión.", "error");
+    if (!state.componentContainer) return;
+    const container = state.componentContainer;
 
-    const formContainer = componentContainer.querySelector('#edit-form-container') as HTMLElement;
+    const formContainer = container.querySelector('#edit-form-container') as HTMLElement;
     const fullId = formContainer.dataset.fullId;
     if (!fullId) return;
 
     try {
-        let currentData = appData;
-        const nrToUpdate = currentData.nrs.find(nr => nr.fullId === fullId);
+        const nrToUpdate = state.appData.nrs.find(nr => nr.fullId === fullId);
         if (!nrToUpdate) {
             showToast("El NR que intenta editar ya no existe.", "error");
-            currentView = 'INICIO';
-            await loadInitialData(); // Re-sync with server
-            return;
+            state.currentView = 'INICIO';
+            return await loadInitialData();
         }
 
-        const updatedStations = Array.from(componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input:checked')).map(cb => cb.value);
-        const updatedNrs = currentData.nrs.map(nr => nr.fullId === fullId ? {
+        const updatedStations = Array.from(container.querySelectorAll<HTMLInputElement>('#edit-stations-group input:checked')).map(cb => cb.value);
+        const updatedNrs = state.appData.nrs.map(nr => nr.fullId === fullId ? {
             ...nr,
-            expiryDate: (componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value,
-            expiryTime: (componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value,
-            isAmpliado: (componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked,
+            expiryDate: (container.querySelector('#edit-expiry-date') as HTMLInputElement).value,
+            expiryTime: (container.querySelector('#edit-expiry-time') as HTMLInputElement).value,
+            isAmpliado: (container.querySelector('#edit-is-ampliado') as HTMLInputElement).checked,
             stations: updatedStations,
         } : nr);
 
-        const updatedHistory = [
-            { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'EDITADO', nrId: nrToUpdate.id, details: `Editada versión ${nrToUpdate.version}.` },
-            ...currentData.history
-        ];
-
-        const finalData: AppData = { nrs: updatedNrs, history: updatedHistory };
+        const finalData: AppData = {
+            nrs: updatedNrs,
+            history: [
+                { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'EDITADO', nrId: nrToUpdate.id, details: `Editada versión ${nrToUpdate.version}.` },
+                ...state.appData.history
+            ]
+        };
         await api.saveData(finalData);
-        appData = finalData;
+        state.appData = finalData;
         showToast(`NR-${nrToUpdate.id} actualizado.`, 'success');
-        currentView = 'INICIO';
+        state.currentView = 'INICIO';
         await reRender();
-
     } catch (error) { 
         showToast("Error al guardar la edición: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
     }
@@ -574,28 +526,27 @@ async function handleEditSave() {
 
 async function handleDeleteNR() {
     const user = getCurrentUser();
-    if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
-    if (!componentContainer) return;
+    if (!user) return showToast("Error de sesión.", "error");
+    if (!state.componentContainer) return;
 
-    const nrId = (componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
+    const nrId = (state.componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
     if (!nrId) return;
 
     try {
-        let currentData = appData;
-        if (!currentData.nrs.some(nr => nr.id === nrId)) { return showToast(`El NR-${nrId} no existe.`, "error"); }
+        if (!state.appData.nrs.some(nr => nr.id === nrId)) return showToast(`El NR-${nrId} no existe.`, "error");
         
         if (window.confirm(`¡ADVERTENCIA!\n\nEstá a punto de ELIMINAR permanentemente el NR-${nrId} y todas sus versiones.\nEsta acción no se puede deshacer. ¿Continuar?`)) {
             const finalData: AppData = {
-                nrs: currentData.nrs.filter(nr => nr.id !== nrId),
+                nrs: state.appData.nrs.filter(nr => nr.id !== nrId),
                 history: [
                     { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'BORRADO', nrId: nrId, details: `Eliminado permanentemente.` },
-                    ...currentData.history
+                    ...state.appData.history
                 ]
             };
             await api.saveData(finalData);
-            appData = finalData;
+            state.appData = finalData;
             showToast(`NR-${nrId} ha sido eliminado.`, 'info');
-            currentView = 'INICIO';
+            state.currentView = 'INICIO';
             await reRender();
         }
     } catch (error) {
@@ -605,28 +556,27 @@ async function handleDeleteNR() {
 
 async function handleCancelNR() {
     const user = getCurrentUser();
-    if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
-    if (!componentContainer) return;
+    if (!user) return showToast("Error de sesión.", "error");
+    if (!state.componentContainer) return;
 
-    const nrId = (componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
+    const nrId = (state.componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
     if (!nrId) return;
     
     try {
-        let currentData = appData;
-        if (!currentData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) { return showToast(`El NR-${nrId} no existe o ya está cancelado.`, "error"); }
+        if (!state.appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) return showToast(`El NR-${nrId} no existe o ya está cancelado.`, "error");
         
         if (window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR-${nrId}?`)) {
             const finalData: AppData = {
-                nrs: currentData.nrs.map(nr => nr.id === nrId ? {...nr, isCaducado: true} : nr),
+                nrs: state.appData.nrs.map(nr => nr.id === nrId ? {...nr, isCaducado: true} : nr),
                 history: [
                     {id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: nrId, details: `Marcado como caducado.`},
-                    ...currentData.history
+                    ...state.appData.history
                 ]
             };
             await api.saveData(finalData);
-            appData = finalData;
+            state.appData = finalData;
             showToast(`NR-${nrId} ha sido cancelado.`, 'info');
-            currentView = 'INICIO';
+            state.currentView = 'INICIO';
             await reRender();
         }
     } catch (error) {
@@ -635,22 +585,21 @@ async function handleCancelNR() {
 }
 
 async function handleEditSearch() {
-    if (!componentContainer) return;
-    const searchInput = componentContainer.querySelector('#edit-search-id') as HTMLInputElement;
-    const formContainer = componentContainer.querySelector('#edit-form-container') as HTMLElement;
+    if (!state.componentContainer) return;
+    const container = state.componentContainer;
+    const searchInput = container.querySelector('#edit-search-id') as HTMLInputElement;
+    const formContainer = container.querySelector('#edit-form-container') as HTMLElement;
     const searchId = searchInput.value.trim();
 
     try {
-        let currentData = appData;
-        const foundNRs = currentData.nrs.filter(nr => nr.id === searchId && !nr.isCaducado);
-        
+        const foundNRs = state.appData.nrs.filter(nr => nr.id === searchId && !nr.isCaducado);
         if (foundNRs.length > 0) {
             const latestVersion = foundNRs.sort((a, b) => b.version - a.version)[0];
             formContainer.dataset.fullId = latestVersion.fullId;
-            (componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value = latestVersion.expiryDate;
-            (componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value = latestVersion.expiryTime;
-            (componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked = latestVersion.isAmpliado;
-            componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input').forEach(cb => {
+            (container.querySelector('#edit-expiry-date') as HTMLInputElement).value = latestVersion.expiryDate;
+            (container.querySelector('#edit-expiry-time') as HTMLInputElement).value = latestVersion.expiryTime;
+            (container.querySelector('#edit-is-ampliado') as HTMLInputElement).checked = latestVersion.isAmpliado;
+            container.querySelectorAll<HTMLInputElement>('#edit-stations-group input').forEach(cb => {
                 cb.checked = latestVersion.stations.includes(cb.value);
             });
             formContainer.style.display = 'block';
@@ -663,9 +612,8 @@ async function handleEditSearch() {
     }
 }
 
-
 function handleExport() {
-    const dataStr = JSON.stringify(appData, null, 2);
+    const dataStr = JSON.stringify(state.appData, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -691,13 +639,10 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-            // FIX: The 'action' property from JSON.parse results in a generic 'string' type.
-            // We cast the parsed data to AppData to assert that it conforms to our
-            // stricter type definition, which uses a string literal union for the 'action' property.
             const dataToProcess = parsedData as unknown as AppData;
             
             await api.saveData(dataToProcess);
-            appData = dataToProcess;
+            state.appData = dataToProcess;
             showToast("Datos importados y guardados.", 'success');
             await reRender();
         } catch (error) {
@@ -715,7 +660,7 @@ function handleFileChange(event: Event) {
 // =================================================================================
 
 function renderCurrentViewContent(): string {
-    switch (currentView) {
+    switch (state.currentView) {
         case 'INICIO': return renderMainView();
         case 'AÑADIR': return renderAddView();
         case 'EDITAR': return renderEditView();
@@ -727,23 +672,18 @@ function renderCurrentViewContent(): string {
 }
 
 function renderMainView(): string {
-    const lastAction = (action: HistoryLog['action']) => [...appData.history].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).find(h => h.action === action);
+    const { history, nrs } = state.appData;
+    const lastAction = (action: HistoryLog['action']) => [...history].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).find(h => h.action === action);
     const lastAdded = lastAction('AÑADIDO');
     const lastEdited = lastAction('EDITADO');
     const lastDeleted = lastAction('BORRADO');
-    const activeNRs = appData.nrs.filter(nr => !nr.isCaducado);
+    const activeNRs = nrs.filter(nr => !nr.isCaducado);
 
-    const vhfNrsByStation = STATIONS_VHF.reduce((acc, station) => {
-        (acc as any)[station] = activeNRs.filter(nr => nr.stations.includes(station)).map(nr => `NR-${nr.id}`);
-        return acc;
-    }, {});
-    const maxVhfNrs = Math.max(0, ...Object.values(vhfNrsByStation).map((arr: any) => arr.length));
-
-    const mfNrsByStation = STATIONS_MF.reduce((acc, station) => {
-        (acc as any)[station] = activeNRs.filter(nr => nr.stations.includes(station)).map(nr => `NR-${nr.id}`);
-        return acc;
-    }, {});
-    const maxMfNrs = Math.max(0, ...Object.values(mfNrsByStation).map((arr: any) => arr.length));
+    const vhfNrsByStation = STATIONS_VHF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => `NR-${nr.id}`)}), {} as Record<string, string[]>);
+    const maxVhfNrs = Math.max(0, ...Object.values(vhfNrsByStation).map(arr => arr.length));
+    
+    const mfNrsByStation = STATIONS_MF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => `NR-${nr.id}`)}), {} as Record<string, string[]>);
+    const maxMfNrs = Math.max(0, ...Object.values(mfNrsByStation).map(arr => arr.length));
     
     return `
         <div class="station-tables">
@@ -754,7 +694,7 @@ function renderMainView(): string {
                         <thead><tr>${STATIONS_VHF.map(s => `<th>${s.replace(' VHF', '')}</th>`).join('')}</tr></thead>
                         <tbody>
                             ${maxVhfNrs === 0 ? `<tr><td colspan="${STATIONS_VHF.length}" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` : 
-                            Array.from({ length: maxVhfNrs }).map((_, r) => `<tr>${STATIONS_VHF.map(s => `<td>${(vhfNrsByStation as any)[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')}
+                            Array.from({ length: maxVhfNrs }).map((_, r) => `<tr>${STATIONS_VHF.map(s => `<td>${vhfNrsByStation[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -766,7 +706,7 @@ function renderMainView(): string {
                          <thead><tr>${STATIONS_MF.map(s => `<th>${s.replace(' MF', '')}</th>`).join('')}</tr></thead>
                          <tbody>
                             ${maxMfNrs === 0 ? `<tr><td colspan="${STATIONS_MF.length}" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` :
-                            Array.from({ length: maxMfNrs }).map((_, r) => `<tr>${STATIONS_MF.map(s => `<td>${(mfNrsByStation as any)[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')}
+                            Array.from({ length: maxMfNrs }).map((_, r) => `<tr>${STATIONS_MF.map(s => `<td>${mfNrsByStation[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')}
                          </tbody>
                     </table>
                 </div>
@@ -853,144 +793,68 @@ function renderDeleteView(): string {
 }
 
 function renderDbView(): string {
-    const searchTerm = nrFilterText.toLowerCase();
-    const filteredNrs = appData.nrs.filter(nr => 
+    const searchTerm = state.nrFilterText.toLowerCase();
+    const filteredNrs = state.appData.nrs.filter(nr => 
         nr.id.toLowerCase().includes(searchTerm) ||
         nr.fullId.toLowerCase().includes(searchTerm) ||
         (nr.expiryDate && nr.expiryDate.includes(searchTerm))
     );
-
     const sortedNrs = [...filteredNrs].sort((a, b) => {
-        const key = nrSortConfig.key;
-        const aValue = a[key];
-        const bValue = b[key];
-        
-        let comparison = 0;
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-            comparison = aValue.localeCompare(bValue);
-        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-            comparison = aValue - bValue;
-        } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-            comparison = aValue === bValue ? 0 : aValue ? -1 : 1;
-        }
-
-        return nrSortConfig.direction === 'ascending' ? comparison : -comparison;
+        const { key, direction } = state.nrSortConfig;
+        const comparison = String(a[key]).localeCompare(String(b[key]), undefined, { numeric: true });
+        return direction === 'ascending' ? comparison : -comparison;
     });
 
     if (sortedNrs.length === 0) {
-        return `
-            <div class="filterable-table-header">
-                <input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${nrFilterText}" data-action="filter" data-filter-target="nrs">
-            </div>
-            <p class="drill-placeholder">No se encontraron NRs.</p>`;
+        return `<div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div><p class="drill-placeholder">No se encontraron NRs.</p>`;
     }
 
     const renderHeader = (key: keyof NR, label: string) => {
-        const isSorted = nrSortConfig.key === key;
-        const sortClass = isSorted ? `sort-${nrSortConfig.direction}` : '';
+        const isSorted = state.nrSortConfig.key === key;
+        const sortClass = isSorted ? `sort-${state.nrSortConfig.direction}` : '';
         return `<th class="${sortClass}" data-sort-key="${key}" data-table="nrs">${label}</th>`;
     };
 
     return `
-        <div class="filterable-table-header">
-            <input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${nrFilterText}" data-action="filter" data-filter-target="nrs">
-        </div>
+        <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div>
         <div class="table-wrapper">
              <table class="reference-table data-table">
-                <thead>
-                    <tr>
-                        ${renderHeader('id', 'NR')}
-                        ${renderHeader('version', 'Versión')}
-                        ${renderHeader('expiryDate', 'Caducidad (UTC)')}
-                        <th>EECC</th>
-                        ${renderHeader('isAmpliado', 'Ampliado')}
-                        ${renderHeader('isCaducado', 'Caducado')}
-                    </tr>
-                </thead>
+                <thead><tr>${renderHeader('id', 'NR')}${renderHeader('version', 'Versión')}${renderHeader('expiryDate', 'Caducidad (UTC)')}<th>EECC</th>${renderHeader('isAmpliado', 'Ampliado')}${renderHeader('isCaducado', 'Caducado')}</tr></thead>
                 <tbody>
-                    ${sortedNrs.map(nr => `
-                        <tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}">
-                            <td>NR-${nr.id}</td>
-                            <td>v${nr.version}</td>
-                            <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
-                            <td>${nr.stations.length}</td>
-                            <td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td>
-                            <td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td>
-                        </tr>
-                    `).join('')}
+                    ${sortedNrs.map(nr => `<tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}"><td>NR-${nr.id}</td><td>v${nr.version}</td><td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td><td>${nr.stations.length}</td><td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td><td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td></tr>`).join('')}
                 </tbody>
             </table>
-        </div>
-    `;
+        </div>`;
 }
 
 function renderHistoryView(): string {
-    const searchTerm = historyFilterText.toLowerCase();
-    const filteredHistory = appData.history.filter(log =>
-        log.nrId.toLowerCase().includes(searchTerm) ||
-        log.user.toLowerCase().includes(searchTerm) ||
-        log.action.toLowerCase().includes(searchTerm) ||
-        log.details.toLowerCase().includes(searchTerm)
+    const searchTerm = state.historyFilterText.toLowerCase();
+    const filteredHistory = state.appData.history.filter(log =>
+        log.nrId.toLowerCase().includes(searchTerm) || log.user.toLowerCase().includes(searchTerm) ||
+        log.action.toLowerCase().includes(searchTerm) || log.details.toLowerCase().includes(searchTerm)
     );
-
-     const sortedHistory = [...filteredHistory].sort((a, b) => {
-        const key = historySortConfig.key;
-        const aValue = a[key];
-        const bValue = b[key];
-        
-        let comparison = 0;
-        if (key === 'timestamp') {
-            comparison = new Date(aValue).getTime() - new Date(bValue).getTime();
-        } else {
-            if (typeof aValue === 'string' && typeof bValue === 'string') {
-                comparison = aValue.localeCompare(bValue);
-            }
-        }
-
-        return historySortConfig.direction === 'ascending' ? comparison : -comparison;
+    const sortedHistory = [...filteredHistory].sort((a, b) => {
+        const { key, direction } = state.historySortConfig;
+        const comparison = String(a[key]).localeCompare(String(b[key]), undefined, { numeric: true });
+        return direction === 'ascending' ? comparison : -comparison;
     });
 
     if (sortedHistory.length === 0) {
-        return `
-            <div class="filterable-table-header">
-                <input type="search" class="filter-input" placeholder="Filtrar historial..." value="${historyFilterText}" data-action="filter" data-filter-target="history">
-            </div>
-            <p class="drill-placeholder">No hay operaciones registradas.</p>`;
+        return `<div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history"></div><p class="drill-placeholder">No hay operaciones registradas.</p>`;
     }
     
     const renderHeader = (key: keyof HistoryLog, label: string) => {
-        const isSorted = historySortConfig.key === key;
-        const sortClass = isSorted ? `sort-${historySortConfig.direction}` : '';
+        const isSorted = state.historySortConfig.key === key;
+        const sortClass = isSorted ? `sort-${state.historySortConfig.direction}` : '';
         return `<th class="${sortClass}" data-sort-key="${key}" data-table="history">${label}</th>`;
     };
 
     return `
-        <div class="filterable-table-header">
-            <input type="search" class="filter-input" placeholder="Filtrar historial..." value="${historyFilterText}" data-action="filter" data-filter-target="history">
-        </div>
+        <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history"></div>
         <div class="table-wrapper">
              <table class="reference-table data-table">
-                <thead>
-                    <tr>
-                        ${renderHeader('nrId', 'NR')}
-                        ${renderHeader('timestamp', 'F/H Acción')}
-                        ${renderHeader('user', 'Usuario')}
-                        ${renderHeader('action', 'Acción')}
-                        ${renderHeader('details', 'Detalles')}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${sortedHistory.map(log => `
-                        <tr>
-                            <td>NR-${log.nrId}</td>
-                            <td>${getFormattedDateTime(log.timestamp)}</td>
-                            <td>${log.user}</td>
-                            <td>${log.action}</td>
-                            <td>${log.details}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
+                <thead><tr>${renderHeader('nrId', 'NR')}${renderHeader('timestamp', 'F/H Acción')}${renderHeader('user', 'Usuario')}${renderHeader('action', 'Acción')}${renderHeader('details', 'Detalles')}</tr></thead>
+                <tbody>${sortedHistory.map(log => `<tr><td>NR-${log.nrId}</td><td>${getFormattedDateTime(log.timestamp)}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('')}</tbody>
             </table>
-        </div>
-    `;
+        </div>`;
 }

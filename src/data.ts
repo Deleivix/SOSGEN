@@ -1,11 +1,16 @@
 
-
 // --- DATA STRUCTURES ---
 export interface Template { title: string; template: string; }
 export interface Category { category: string; items: Template[]; }
 export interface QuickRef { category: string; content: string; }
 export interface PhoneEntry { name: string; phones: string[]; fax?: string; email?: string; keywords: string[]; }
 export interface Page { name: string; }
+export type ReferenceTableData = {
+    caption: string;
+    captionClass: string;
+    headers: string[];
+    rows: string[][];
+}[];
 
 export const APP_PAGE_ICONS = [
     // Dashboard: Home
@@ -115,6 +120,99 @@ export const QUICK_REFERENCE_DATA: QuickRef[] = [
     { category: 'Calculadora', content: `...` },
     { category: 'Diccionario', content: `...` }
 ];
+
+export const VHF_FREQUENCIES_DATA: ReferenceTableData = [
+    {
+        caption: 'CCR LA CORUÑA (002241022)',
+        captionClass: 'header-coruna',
+        headers: ['EECC', 'Canal Retevisión', 'Canal Sasemar'],
+        rows: [
+            ['Pasajes', '27', '6'], ['Bilbao', '26', '74'], ['Santander', '24', '72'], ['Cabo Peñas', '27', '6'],
+            ['Navia', '62', '74'], ['Cabo Ortegal', '2', '72'], ['Coruña', '26', '6'], ['Finisterre', '22', '74'],
+            ['Vigo', '20', '6'], ['La Guardia', '82', '72']
+        ]
+    },
+    {
+        caption: 'CCR VALENCIA (002241024)',
+        captionClass: 'header-valencia',
+        headers: ['EECC', 'Canal Retevisión', 'Canal Sasemar'],
+        rows: [
+            ['Cabo de Gata', '24', '72'], ['Melilla', '25', '6'], ['Cartagena', '27', '6'], ['Cabo la Nao', '85', '74'],
+            ['Castellón', '28', '72'], ['Tarragona', '24', '6'], ['Barcelona', '60', '74'], ['Begur', '23', '6'],
+            ['Cadaqués', '27', '72'], ['Menorca', '85', '6'], ['Palma', '7', '72'], ['Ibiza', '3', '6']
+        ]
+    },
+    {
+        caption: 'CCR LAS PALMAS (002241026)',
+        captionClass: 'header-laspalmas',
+        headers: ['EECC', 'Canal Retevisión', 'Canal Sasemar'],
+        rows: [
+            ['Huelva', '26', '6'], ['Cádiz', '28', '74'], ['Tarifa', '83', '6'], ['Málaga', '26', '72'],
+            ['Motril', '81', '74'], ['La Palma', '20', '6'], ['Hierro', '23', '74'], ['Gomera', '24', '6'],
+            ['Tenerife', '27', '72'], ['Las Palmas', '26', '74'], ['Fuerteventura', '22', '6'],
+            ['Yaiza', '3', '74'], ['Arrecife', '25', '72'], ['Restinga', '2', '72'], ['Garafía', '60', '74']
+        ]
+    }
+];
+
+export const PHONETIC_ALPHABET_DATA = {
+    headers: ['Letra', 'Código', 'Letra', 'Código'],
+    rows: [
+        ['A', 'Alfa', 'N', 'November'], ['B', 'Bravo', 'O', 'Oscar'], ['C', 'Charlie', 'P', 'Papa'],
+        ['D', 'Delta', 'Q', 'Quebec'], ['E', 'Echo', 'R', 'Romeo'], ['F', 'Foxtrot', 'S', 'Sierra'],
+        ['G', 'Golf', 'T', 'Tango'], ['H', 'Hotel', 'U', 'Uniform'], ['I', 'India', 'V', 'Victor'],
+        ['J', 'Juliett', 'W', 'Whiskey'], ['K', 'Kilo', 'X', 'X-ray'], ['L', 'Lima', 'Y', 'Yankee'],
+        ['M', 'Mike', 'Z', 'Zulu']
+    ]
+};
+
+export const Q_CODES_DATA = {
+    headers: ['Código', 'Significado'],
+    rows: [
+        ['QTH', '¿Cuál es su posición? / Mi posición es...'],
+        ['QSO', '¿Puede comunicar con...? / Puedo comunicar con...'],
+        ['QRZ', '¿Quién me llama? / Le llama...'],
+        ['QRT', '¿Debo cesar la transmisión? / Cese la transmisión.'],
+        ['QRV', '¿Está usted listo? / Estoy listo.'],
+        ['QSL', '¿Puede acusar recibo? / Acuso recibo.'],
+        ['QSY', '¿Debo cambiar de frecuencia? / Cambie a la frecuencia...']
+    ]
+};
+
+export const BEAUFORT_SCALE_DATA = {
+    headers: ['Fuerza', 'Denominación / Designation', 'Nudos', 'Estado del Mar / Sea State'],
+    rows: [
+        ['0', 'Calma / Calm', '< 1', 'Espejo / Like a mirror'],
+        ['1', 'Ventolina / Light air', '1-3', 'Rizos / Ripples'],
+        ['2', 'Brisa muy débil / Light breeze', '4-6', 'Olas pequeñas / Small wavelets'],
+        ['3', 'Brisa débil / Gentle breeze', '7-10', 'Borreguillos dispersos / Scattered white horses'],
+        ['4', 'Brisa moderada / Moderate breeze', '11-16', 'Borreguillos frecuentes / Frequent white horses'],
+        ['5', 'Brisa fresca / Fresh breeze', '17-21', 'Olas moderadas, muchos borreguillos / Moderate waves, many white horses'],
+        ['6', 'Brisa fuerte / Strong breeze', '22-27', 'Olas grandes, crestas rompientes / Large waves, white foam crests'],
+        ['7', 'Viento fuerte / Near gale', '28-33', 'Mar gruesa, espuma en vetas / Sea heaps up, foam in streaks'],
+        ['8', 'Temporal / Gale', '34-40', 'Mar muy gruesa, rompientes / Moderately high waves, breaking crests'],
+        ['9', 'Temporal fuerte / Strong gale', '41-47', 'Mar arbolada, visibilidad reducida / High waves, reduced visibility'],
+        ['10', 'Temporal duro / Storm', '48-55', 'Mar muy arbolada, superficie blanca / Very high waves, surface white'],
+        ['11', 'Temporal muy duro / Violent storm', '56-63', 'Mar montañosa, visibilidad muy mala / Exceptionally high waves, poor visibility'],
+        ['12', 'Huracán / Hurricane', '> 64', 'Mar excepcional, aire lleno de espuma / Air filled with foam and spray']
+    ]
+};
+
+export const DOUGLAS_SCALE_DATA = {
+    headers: ['Grado', 'Descripción / Description', 'Altura de Olas (m) / Wave Height (m)'],
+    rows: [
+        ['0', 'Calma / Calm', '0'],
+        ['1', 'Mar rizada / Rippled', '0 - 0.1'],
+        ['2', 'Mar llana / Smooth', '0.1 - 0.5'],
+        ['3', 'Marejadilla / Slight', '0.5 - 1.25'],
+        ['4', 'Marejada / Moderate', '1.25 - 2.5'],
+        ['5', 'Fuerte marejada / Rough', '2.5 - 4'],
+        ['6', 'Mar gruesa / Very rough', '4 - 6'],
+        ['7', 'Mar muy gruesa / High', '6 - 9'],
+        ['8', 'Mar arbolada / Very high', '9 - 14'],
+        ['9', 'Mar montañosa / Phenomenal', '> 14']
+    ]
+};
 
 export const DAILY_TIPS: string[] = [
     "Recuerde: 'MAYDAY' es para socorro inminente. 'PAN PAN' para urgencia y 'SÉCURITÉ' para seguridad.",

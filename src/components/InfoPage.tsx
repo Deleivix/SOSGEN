@@ -1,9 +1,46 @@
-import { QUICK_REFERENCE_DATA, PHONE_DIRECTORY_DATA } from "../data";
+
+import { 
+    QUICK_REFERENCE_DATA, 
+    PHONE_DIRECTORY_DATA, 
+    VHF_FREQUENCIES_DATA,
+    PHONETIC_ALPHABET_DATA,
+    Q_CODES_DATA,
+    BEAUFORT_SCALE_DATA,
+    DOUGLAS_SCALE_DATA,
+    ReferenceTableData
+} from "../data";
 import { debounce, initializeInfoTabs, showToast } from "../utils/helpers";
+
+/**
+ * Generates an HTML string for a reference table from structured data.
+ * @param config - The table configuration.
+ * @returns An HTML string representing the table.
+ */
+function renderReferenceTable(config: {
+    caption?: string;
+    captionClass?: string;
+    headers: string[];
+    rows: string[][];
+}): string {
+    return `
+        <table class="reference-table">
+            ${config.caption ? `<caption class="${config.captionClass || ''}">${config.caption}</caption>` : ''}
+            <thead>
+                <tr>${config.headers.map(h => `<th>${h}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+                ${config.rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
 
 export function renderInfo(container: HTMLElement) {
     const fullQuickRefData = [...QUICK_REFERENCE_DATA];
-    fullQuickRefData[0] = { category: 'Buscador MMSI', content: `
+    
+    // Dynamically populate content for each tab
+    fullQuickRefData[0].content = `
         <div class="mmsi-searcher">
             <h3 class="reference-table-subtitle">Buscador Inteligente de Buques por MMSI (OSINT)</h3>
             <p class="translator-desc">Introduzca un MMSI (Identidad del Servicio Móvil Marítimo) de 9 dígitos para buscar información pública del buque utilizando IA para consultar bases de datos oficiales y de seguimiento.</p>
@@ -14,161 +51,30 @@ export function renderInfo(container: HTMLElement) {
             <div id="mmsi-result-container">
                  <p class="drill-placeholder">Introduzca un MMSI para comenzar la búsqueda.</p>
             </div>
-        </div>
-    `};
-    fullQuickRefData[1] = { category: 'Directorio', content: `
+        </div>`;
+
+    fullQuickRefData[1].content = `
         <h3 class="reference-table-subtitle">Directorio Telefónico Marítimo</h3>
         <input type="search" id="phone-search-input" class="phone-directory-search" placeholder="Buscar por nombre, centro, etc.">
-        <div id="phone-directory-list" class="phone-directory-list">
-            <!-- Phone entries will be rendered here by JS -->
-        </div>
-    `};
-    fullQuickRefData[2] = { category: 'Frecuencias', content: `
+        <div id="phone-directory-list" class="phone-directory-list"></div>`;
+
+    fullQuickRefData[2].content = `
         <h3 class="reference-table-subtitle">Canales VHF</h3>
         <div class="vhf-tables-container">
-            <table class="reference-table">
-                <caption class="header-coruna">CCR LA CORUÑA (002241022)</caption>
-                <thead><tr><th>EECC</th><th>Canal Retevisión</th><th>Canal Sasemar</th></tr></thead>
-                <tbody>
-                    <tr><td>Pasajes</td><td>27</td><td>6</td></tr>
-                    <tr><td>Bilbao</td><td>26</td><td>74</td></tr>
-                    <tr><td>Santander</td><td>24</td><td>72</td></tr>
-                    <tr><td>Cabo Peñas</td><td>27</td><td>6</td></tr>
-                    <tr><td>Navia</td><td>62</td><td>74</td></tr>
-                    <tr><td>Cabo Ortegal</td><td>2</td><td>72</td></tr>
-                    <tr><td>Coruña</td><td>26</td><td>6</td></tr>
-                    <tr><td>Finisterre</td><td>22</td><td>74</td></tr>
-                    <tr><td>Vigo</td><td>20</td><td>6</td></tr>
-                    <tr><td>La Guardia</td><td>82</td><td>72</td></tr>
-                </tbody>
-            </table>
-            <table class="reference-table">
-                <caption class="header-valencia">CCR VALENCIA (002241024)</caption>
-                <thead><tr><th>EECC</th><th>Canal Retevisión</th><th>Canal Sasemar</th></tr></thead>
-                <tbody>
-                    <tr><td>Cabo de Gata</td><td>24</td><td>72</td></tr>
-                    <tr><td>Melilla</td><td>25</td><td>6</td></tr>
-                    <tr><td>Cartagena</td><td>27</td><td>6</td></tr>
-                    <tr><td>Cabo la Nao</td><td>85</td><td>74</td></tr>
-                    <tr><td>Castellón</td><td>28</td><td>72</td></tr>
-                    <tr><td>Tarragona</td><td>24</td><td>6</td></tr>
-                    <tr><td>Barcelona</td><td>60</td><td>74</td></tr>
-                    <tr><td>Begur</td><td>23</td><td>6</td></tr>
-                    <tr><td>Cadaqués</td><td>27</td><td>72</td></tr>
-                    <tr><td>Menorca</td><td>85</td><td>6</td></tr>
-                    <tr><td>Palma</td><td>7</td><td>72</td></tr>
-                    <tr><td>Ibiza</td><td>3</td><td>6</td></tr>
-                </tbody>
-            </table>
-            <table class="reference-table">
-                <caption class="header-laspalmas">CCR LAS PALMAS (002241026)</caption>
-                <thead><tr><th>EECC</th><th>Canal Retevisión</th><th>Canal Sasemar</th></tr></thead>
-                <tbody>
-                    <tr><td>Huelva</td><td>26</td><td>6</td></tr>
-                    <tr><td>Cádiz</td><td>28</td><td>74</td></tr>
-                    <tr><td>Tarifa</td><td>83</td><td>6</td></tr>
-                    <tr><td>Málaga</td><td>26</td><td>72</td></tr>
-                    <tr><td>Motril</td><td>81</td><td>74</td></tr>
-                    <tr><td>La Palma</td><td>20</td><td>6</td></tr>
-                    <tr><td>Hierro</td><td>23</td><td>74</td></tr>
-                    <tr><td>Gomera</td><td>24</td><td>6</td></tr>
-                    <tr><td>Tenerife</td><td>27</td><td>72</td></tr>
-                    <tr><td>Las Palmas</td><td>26</td><td>74</td></tr>
-                    <tr><td>Fuerteventura</td><td>22</td><td>6</td></tr>
-                    <tr><td>Yaiza</td><td>3</td><td>74</td></tr>
-                    <tr><td>Arrecife</td><td>25</td><td>72</td></tr>
-                    <tr><td>Restinga</td><td>2</td><td>72</td></tr>
-                    <tr><td>Garafía</td><td>60</td><td>74</td></tr>
-                </tbody>
-            </table>
-        </div>
-    `};
-    fullQuickRefData[3] = { category: 'Alfabeto Fonético', content: `
-        <table class="reference-table">
-            <thead><tr><th>Letra</th><th>Código</th><th>Letra</th><th>Código</th></tr></thead>
-            <tbody>
-                <tr><td>A</td><td>Alfa</td><td>N</td><td>November</td></tr>
-                <tr><td>B</td><td>Bravo</td><td>O</td><td>Oscar</td></tr>
-                <tr><td>C</td><td>Charlie</td><td>P</td><td>Papa</td></tr>
-                <tr><td>D</td><td>Delta</td><td>Q</td><td>Quebec</td></tr>
-                <tr><td>E</td><td>Echo</td><td>R</td><td>Romeo</td></tr>
-                <tr><td>F</td><td>Foxtrot</td><td>S</td><td>Sierra</td></tr>
-                <tr><td>G</td><td>Golf</td><td>T</td><td>Tango</td></tr>
-                <tr><td>H</td><td>Hotel</td><td>U</td><td>Uniform</td></tr>
-                <tr><td>I</td><td>India</td><td>V</td><td>Victor</td></tr>
-                <tr><td>J</td><td>Juliett</td><td>W</td><td>Whiskey</td></tr>
-                <tr><td>K</td><td>Kilo</td><td>X</td><td>X-ray</td></tr>
-                <tr><td>L</td><td>Lima</td><td>Y</td><td>Yankee</td></tr>
-                <tr><td>M</td><td>Mike</td><td>Z</td><td>Zulu</td></tr>
-            </tbody>
-        </table>`
-    };
-    fullQuickRefData[4] = { category: 'Códigos Q', content: `
-        <table class="reference-table">
-            <thead><tr><th>Código</th><th>Significado</th></tr></thead>
-            <tbody>
-                <tr><td>QTH</td><td>¿Cuál es su posición? / Mi posición es...</td></tr>
-                <tr><td>QSO</td><td>¿Puede comunicar con...? / Puedo comunicar con...</td></tr>
-                <tr><td>QRZ</td><td>¿Quién me llama? / Le llama...</td></tr>
-                <tr><td>QRT</td><td>¿Debo cesar la transmisión? / Cese la transmisión.</td></tr>
-                <tr><td>QRV</td><td>¿Está usted listo? / Estoy listo.</td></tr>
-                <tr><td>QSL</td><td>¿Puede acusar recibo? / Acuso recibo.</td></tr>
-                <tr><td>QSY</td><td>¿Debo cambiar de frecuencia? / Cambie a la frecuencia...</td></tr>
-            </tbody>
-        </table>`
-    };
-    fullQuickRefData[5] = { category: 'Escalas', content: `
+            ${VHF_FREQUENCIES_DATA.map(tableData => renderReferenceTable(tableData)).join('')}
+        </div>`;
+
+    fullQuickRefData[3].content = renderReferenceTable(PHONETIC_ALPHABET_DATA);
+    
+    fullQuickRefData[4].content = renderReferenceTable(Q_CODES_DATA);
+    
+    fullQuickRefData[5].content = `
         <h3 class="reference-table-subtitle">Escala Beaufort / Beaufort Wind Scale</h3>
-        <table class="reference-table">
-            <thead>
-                <tr>
-                    <th>Fuerza</th>
-                    <th>Denominación / Designation</th>
-                    <th>Nudos</th>
-                    <th>Estado del Mar / Sea State</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td>0</td><td>Calma / Calm</td><td>&lt; 1</td><td>Espejo / Like a mirror</td></tr>
-                <tr><td>1</td><td>Ventolina / Light air</td><td>1-3</td><td>Rizos / Ripples</td></tr>
-                <tr><td>2</td><td>Brisa muy débil / Light breeze</td><td>4-6</td><td>Olas pequeñas / Small wavelets</td></tr>
-                <tr><td>3</td><td>Brisa débil / Gentle breeze</td><td>7-10</td><td>Borreguillos dispersos / Scattered white horses</td></tr>
-                <tr><td>4</td><td>Brisa moderada / Moderate breeze</td><td>11-16</td><td>Borreguillos frecuentes / Frequent white horses</td></tr>
-                <tr><td>5</td><td>Brisa fresca / Fresh breeze</td><td>17-21</td><td>Olas moderadas, muchos borreguillos / Moderate waves, many white horses</td></tr>
-                <tr><td>6</td><td>Brisa fuerte / Strong breeze</td><td>22-27</td><td>Olas grandes, crestas rompientes / Large waves, white foam crests</td></tr>
-                <tr><td>7</td><td>Viento fuerte / Near gale</td><td>28-33</td><td>Mar gruesa, espuma en vetas / Sea heaps up, foam in streaks</td></tr>
-                <tr><td>8</td><td>Temporal / Gale</td><td>34-40</td><td>Mar muy gruesa, rompientes / Moderately high waves, breaking crests</td></tr>
-                <tr><td>9</td><td>Temporal fuerte / Strong gale</td><td>41-47</td><td>Mar arbolada, visibilidad reducida / High waves, reduced visibility</td></tr>
-                <tr><td>10</td><td>Temporal duro / Storm</td><td>48-55</td><td>Mar muy arbolada, superficie blanca / Very high waves, surface white</td></tr>
-                <tr><td>11</td><td>Temporal muy duro / Violent storm</td><td>56-63</td><td>Mar montañosa, visibilidad muy mala / Exceptionally high waves, poor visibility</td></tr>
-                <tr><td>12</td><td>Huracán / Hurricane</td><td>&gt; 64</td><td>Mar excepcional, aire lleno de espuma / Air filled with foam and spray</td></tr>
-            </tbody>
-        </table>
+        ${renderReferenceTable(BEAUFORT_SCALE_DATA)}
         <h3 class="reference-table-subtitle">Escala Douglas / Douglas Sea Scale</h3>
-        <table class="reference-table">
-            <thead>
-                <tr>
-                    <th>Grado</th>
-                    <th>Descripción / Description</th>
-                    <th>Altura de Olas (m) / Wave Height (m)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td>0</td><td>Calma / Calm</td><td>0</td></tr>
-                <tr><td>1</td><td>Mar rizada / Rippled</td><td>0 - 0.1</td></tr>
-                <tr><td>2</td><td>Mar llana / Smooth</td><td>0.1 - 0.5</td></tr>
-                <tr><td>3</td><td>Marejadilla / Slight</td><td>0.5 - 1.25</td></tr>
-                <tr><td>4</td><td>Marejada / Moderate</td><td>1.25 - 2.5</td></tr>
-                <tr><td>5</td><td>Fuerte marejada / Rough</td><td>2.5 - 4</td></tr>
-                <tr><td>6</td><td>Mar gruesa / Very rough</td><td>4 - 6</td></tr>
-                <tr><td>7</td><td>Mar muy gruesa / High</td><td>6 - 9</td></tr>
-                <tr><td>8</td><td>Mar arbolada / Very high</td><td>9 - 14</td></tr>
-                <tr><td>9</td><td>Mar montañosa / Phenomenal</td><td>&gt; 14</td></tr>
-            </tbody>
-        </table>
-        `
-    };
-    fullQuickRefData[6] = { category: 'Calculadora', content: `
+        ${renderReferenceTable(DOUGLAS_SCALE_DATA)}`;
+
+    fullQuickRefData[6].content = `
         <div class="coord-converter">
             <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
             <p class="translator-desc">Introduzca un par de coordenadas (Latitud y Longitud) para convertirlas al formato estándar <strong>gg° mm,ddd' N/S ggg° mm,ddd' E/W</strong>. Use espacios como separadores.</p>
@@ -177,9 +83,9 @@ export function renderInfo(container: HTMLElement) {
                 <button id="coord-convert-btn" class="primary-btn">Convertir</button>
             </div>
             <div id="coord-result" class="translation-result" aria-live="polite"></div>
-        </div>
-    `};
-    fullQuickRefData[7] = { category: 'Diccionario', content: `
+        </div>`;
+        
+    fullQuickRefData[7].content = `
         <div class="nautical-translator">
             <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
             <p class="translator-desc">Traduce términos o frases cortas entre español e inglés.</p>
@@ -188,25 +94,15 @@ export function renderInfo(container: HTMLElement) {
             <div id="translator-result" class="translation-result"></div>
         </div>
         <h3 class="reference-table-subtitle">Términos Comunes / Common Terms</h3>
-        <table class="reference-table">
-             <thead><tr><th>Español</th><th>Inglés</th></tr></thead>
-             <tbody>
-                <tr><td>Babor</td><td>Port</td></tr>
-                <tr><td>Estribor</td><td>Starboard</td></tr>
-                <tr><td>Proa</td><td>Bow</td></tr>
-                <tr><td>Popa</td><td>Stern</td></tr>
-                <tr><td>Barlovento</td><td>Windward</td></tr>
-                <tr><td>Sotavento</td><td>Leeward</td></tr>
-                <tr><td>Nudo</td><td>Knot</td></tr>
-                <tr><td>Ancla</td><td>Anchor</td></tr>
-                <tr><td>Timón</td><td>Rudder</td></tr>
-                <tr><td>Deriva</td><td>Leeway / Drift</td></tr>
-                <tr><td>Rumbo</td><td>Heading / Course</td></tr>
-                <tr><td>Escora</td><td>Heel / List</td></tr>
-             </tbody>
-        </table>
-        `
-    };
+        ${renderReferenceTable({
+            headers: ['Español', 'Inglés'],
+            rows: [
+                ['Babor', 'Port'], ['Estribor', 'Starboard'], ['Proa', 'Bow'], ['Popa', 'Stern'],
+                ['Barlovento', 'Windward'], ['Sotavento', 'Leeward'], ['Nudo', 'Knot'],
+                ['Ancla', 'Anchor'], ['Timón', 'Rudder'], ['Deriva', 'Leeway / Drift'],
+                ['Rumbo', 'Heading / Course'], ['Escora', 'Heel / List']
+            ]
+        })}`;
 
     container.innerHTML = `
         <div class="content-card">
