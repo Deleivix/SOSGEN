@@ -323,17 +323,17 @@ nav {
     flex-shrink: 0;
 }
 
-.nav-user-display {
+.user-session-controls {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.9rem;
-    font-weight: 500;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
 }
-.nav-user-display svg {
-    fill: currentColor;
-    flex-shrink: 0;
+
+.nav-user-display {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 
 /* Theme Switcher */
@@ -642,7 +642,11 @@ body.dark-theme .tertiary-btn { color: var(--danger-color-dark); border-color: v
 body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-bg); }
 .primary-btn-small { color: var(--text-inverted); background-color: var(--accent-color); border: 1px solid var(--accent-color); }
 .primary-btn-small:hover { background-color: var(--accent-color-dark); border-color: var(--accent-color-dark); }
-.logout-btn { color: var(--text-inverted); background-color: transparent; border: 1px solid rgba(255,255,255,0.3); }
+.logout-btn {
+    color: var(--text-inverted); background-color: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 0.4rem 0.8rem;
+}
 .logout-btn:hover { background-color: rgba(255,255,255,0.1); }
 
 /* --- SOSGEN --- */
