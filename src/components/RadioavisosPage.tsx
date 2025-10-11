@@ -176,24 +176,17 @@ async function fetchAndRenderSalvamentoAvisos() {
         state.salvamentoAvisos = await response.json();
         state.lastSalvamentoUpdate = new Date();
         
-        // FIX: Decouple UI rendering from background sync.
-        // First, render the UI with the data we just fetched.
         await reRender(); 
         
-        // Then, run the sync process in the background without waiting for it to finish.
-        // This makes the UI responsive immediately.
         syncWithSalvamento();
 
     } catch (e) {
         state.salvamentoAvisos = [];
         console.error("Salvamento Fetch Error:", e);
         state.salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
-        // Re-render to show the error
         await reRender();
     } finally {
         state.isSalvamentoLoading = false;
-        // The main re-render is now done inside the try/catch blocks to provide immediate feedback.
-        // We can still trigger a final render here to update the refresh button state.
         const finalPanelContainer = document.getElementById('salvamento-panel-container');
         if (finalPanelContainer) finalPanelContainer.innerHTML = renderSalvamentoPanelHTML();
     }
@@ -336,10 +329,12 @@ async function loadInitialData() {
     } catch (error) {
         const message = error instanceof Error ? error.message : "Error desconocido";
         state.appDataError = message;
-        state.isAppDataLoading = false;
         await reRender();
     } finally {
         state.isAppDataLoading = false;
+        // FIX: Add a final re-render call here to ensure the UI updates
+        // after isAppDataLoading is set to false, resolving the race condition.
+        await reRender();
     }
 }
 
@@ -382,7 +377,7 @@ function renderLocalManagerHTML(): string {
     const user = getCurrentUser();
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
 
-    if (state.isAppDataLoading && state.appData.nrs.length === 0) {
+    if (state.isAppDataLoading) {
         return `<div class="loader-container"><div class="loader"></div></div>`;
     }
     if (state.appDataError) return `<p class="error">${state.appDataError}</p>`;
