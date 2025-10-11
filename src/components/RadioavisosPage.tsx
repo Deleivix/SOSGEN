@@ -160,7 +160,7 @@ function renderSalvamentoPanelHTML(): string {
         const renderHeader = (key: keyof SalvamentoAviso, label: string) => {
             const isSorted = salvamentoSortConfig.key === key;
             const sortClass = isSorted ? `sort-${salvamentoSortConfig.direction}` : '';
-            return `<th class="${sortClass}" data-action="sort" data-sort-key="${key}" data-table="salvamento">${label}</th>`;
+            return `<th class="${sortClass}" data-sort-key="${key}" data-table="salvamento">${label}</th>`;
         };
 
         if (sortedAvisos.length === 0) {
@@ -365,6 +365,7 @@ async function handleDelegatedClick(e: Event) {
     
     const tableRow = target.closest<HTMLTableRowElement>('tr[data-event-target]');
     if (tableRow && tableRow.dataset.eventTarget) {
+        showToast("Solicitando PDF oficial...", "info");
         const eventTarget = tableRow.dataset.eventTarget;
         if (eventTarget) {
             window.open(`/api/radioaviso-pdf?target=${encodeURIComponent(eventTarget)}`, '_blank');
@@ -377,37 +378,44 @@ async function handleDelegatedClick(e: Event) {
 
     const action = actionElement.dataset.action;
 
+    // Handle sort clicks separately to avoid re-rendering the whole salvamento panel just for a sort
+    if (action === 'sort' && actionElement.tagName === 'TH') {
+        const key = actionElement.dataset.sortKey;
+        const targetTable = actionElement.dataset.table;
+        if (key) {
+            if (targetTable === 'nrs') {
+                const isSameKey = nrSortConfig.key === key;
+                nrSortConfig = {
+                    key: key as keyof NR,
+                    direction: isSameKey && nrSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+                };
+            } else if (targetTable === 'history') {
+                const isSameKey = historySortConfig.key === key;
+                historySortConfig = {
+                    key: key as keyof HistoryLog,
+                    direction: isSameKey && historySortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+                };
+            } else if (targetTable === 'salvamento') {
+                const isSameKey = salvamentoSortConfig.key === key;
+                salvamentoSortConfig = {
+                    key: key as keyof SalvamentoAviso,
+                    direction: isSameKey && salvamentoSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+                };
+                 const panelContainer = document.getElementById('salvamento-panel-container');
+                 if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
+                 return; // Prevent full re-render
+            }
+            await reRender();
+        }
+        return;
+    }
+
+
     switch(action) {
         case 'refresh-salvamento': fetchAndRenderSalvamentoAvisos(); break;
         case 'switch-view':
             currentView = actionElement.dataset.view as View;
             await reRender();
-            break;
-        case 'sort':
-            const key = actionElement.dataset.sortKey;
-            const targetTable = actionElement.dataset.table;
-            if (key) {
-                if (targetTable === 'nrs') {
-                    const isSameKey = nrSortConfig.key === key;
-                    nrSortConfig = {
-                        key: key as keyof NR,
-                        direction: isSameKey && nrSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
-                    };
-                } else if (targetTable === 'history') {
-                    const isSameKey = historySortConfig.key === key;
-                    historySortConfig = {
-                        key: key as keyof HistoryLog,
-                        direction: isSameKey && historySortConfig.direction === 'ascending' ? 'descending' : 'ascending',
-                    };
-                } else if (targetTable === 'salvamento') {
-                    const isSameKey = salvamentoSortConfig.key === key;
-                    salvamentoSortConfig = {
-                        key: key as keyof SalvamentoAviso,
-                        direction: isSameKey && salvamentoSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
-                    };
-                }
-                await reRender();
-            }
             break;
         case 'import':
             componentContainer?.querySelector<HTMLInputElement>('.file-input-hidden')?.click();
@@ -798,7 +806,7 @@ function renderDbView(): string {
     const renderHeader = (key: keyof NR, label: string) => {
         const isSorted = nrSortConfig.key === key;
         const sortClass = isSorted ? `sort-${nrSortConfig.direction}` : '';
-        return `<th class="${sortClass}" data-action="sort" data-sort-key="${key}" data-table="nrs">${label}</th>`;
+        return `<th class="${sortClass}" data-sort-key="${key}" data-table="nrs">${label}</th>`;
     };
 
     return `
@@ -871,7 +879,7 @@ function renderHistoryView(): string {
     const renderHeader = (key: keyof HistoryLog, label: string) => {
         const isSorted = historySortConfig.key === key;
         const sortClass = isSorted ? `sort-${historySortConfig.direction}` : '';
-        return `<th class="${sortClass}" data-action="sort" data-sort-key="${key}" data-table="history">${label}</th>`;
+        return `<th class="${sortClass}" data-sort-key="${key}" data-table="history">${label}</th>`;
     };
 
     return `

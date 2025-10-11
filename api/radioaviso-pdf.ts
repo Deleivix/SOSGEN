@@ -34,9 +34,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const pageHtml = await pageResponse.text();
 
-        // Step 2: Parse the HTML to extract all hidden ASP.NET fields.
+        // Step 2: Parse the HTML to extract all hidden ASP.NET fields using a more robust regex.
         const formData = new URLSearchParams();
-        const hiddenInputRegex = /<input type="hidden" name="([^"]+)" id="[^"]+" value="([^"]*)" \/>/g;
+        const hiddenInputRegex = /<input type="hidden"\s+name="([^"]+)"[^>]*?value="([^"]*)"/gi;
         
         let match;
         while ((match = hiddenInputRegex.exec(pageHtml)) !== null) {
@@ -46,6 +46,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Step 3: Set the specific target for the PDF link we want to "click".
         formData.set('__EVENTTARGET', target);
         formData.set('__EVENTARGUMENT', '');
+        // Also ensure RadScriptManager is set correctly as it's part of the form post.
+        const scriptManagerMatch = pageHtml.match(/RadScriptManager1=([^&|"]*)/);
+        if (scriptManagerMatch && scriptManagerMatch[1]) {
+            formData.set('RadScriptManager1', scriptManagerMatch[1]);
+        }
+
 
         // Step 4: Make the POST request to trigger the PDF download.
         const pdfResponse = await fetch(targetUrl, {
