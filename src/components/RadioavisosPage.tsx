@@ -1,4 +1,3 @@
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -152,6 +151,8 @@ async function syncWithSalvamento() {
             await api.saveData(finalData);
             state.appData = finalData;
             showToast(`${nuevosNRs.length} nuevo(s) NR(s) importado(s) de SASEMAR.`, 'info');
+            // Re-render after a successful background save to show the attention panel
+            await reRender();
         } catch (error) {
             showToast("Error al guardar los NRs importados.", "error");
         }
@@ -174,15 +175,27 @@ async function fetchAndRenderSalvamentoAvisos() {
         }
         state.salvamentoAvisos = await response.json();
         state.lastSalvamentoUpdate = new Date();
-        await syncWithSalvamento(); // Sincronizar después de obtener los datos
+        
+        // FIX: Decouple UI rendering from background sync.
+        // First, render the UI with the data we just fetched.
+        await reRender(); 
+        
+        // Then, run the sync process in the background without waiting for it to finish.
+        // This makes the UI responsive immediately.
+        syncWithSalvamento();
+
     } catch (e) {
         state.salvamentoAvisos = [];
         console.error("Salvamento Fetch Error:", e);
         state.salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
+        // Re-render to show the error
+        await reRender();
     } finally {
         state.isSalvamentoLoading = false;
-        // Re-render both panels since sync might have changed appData
-        await reRender();
+        // The main re-render is now done inside the try/catch blocks to provide immediate feedback.
+        // We can still trigger a final render here to update the refresh button state.
+        const finalPanelContainer = document.getElementById('salvamento-panel-container');
+        if (finalPanelContainer) finalPanelContainer.innerHTML = renderSalvamentoPanelHTML();
     }
 }
 
@@ -191,7 +204,7 @@ function renderSalvamentoPanelHTML(): string {
     const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
 
     let content;
-    if (state.isSalvamentoLoading) {
+    if (state.isSalvamentoLoading && state.salvamentoAvisos.length === 0) { // Show loader only on initial load
         content = `<div class="loader-container"><div class="loader"></div></div>`;
     } else if (state.salvamentoError) {
         content = `<p class="error" style="padding: 1rem; text-align: center;">${state.salvamentoError}</p>`;
@@ -319,15 +332,14 @@ async function loadInitialData() {
     
     try {
         state.appData = await api.getData();
-        await fetchAndRenderSalvamentoAvisos(); // This will trigger sync and a re-render
+        await fetchAndRenderSalvamentoAvisos();
     } catch (error) {
         const message = error instanceof Error ? error.message : "Error desconocido";
         state.appDataError = message;
         state.isAppDataLoading = false;
-        await reRender(); // Re-render to show the error
+        await reRender();
     } finally {
         state.isAppDataLoading = false;
-        // Don't re-render here, fetchAndRenderSalvamentoAvisos will do it.
     }
 }
 
@@ -338,7 +350,12 @@ export function renderRadioavisos(container: HTMLElement) {
         return;
     }
     
+    // Attach event listeners only once
     if (!(container as any).__radioavisosListenersAttached) {
+        container.innerHTML = `
+            <div id="salvamento-panel-container"></div>
+            <div class="content-card" style="max-width: 1400px; margin-top: 2rem;" id="local-manager-container"></div>
+        `;
         attachEventListeners(container);
         (container as any).__radioavisosListenersAttached = true;
     }
@@ -365,7 +382,9 @@ function renderLocalManagerHTML(): string {
     const user = getCurrentUser();
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
 
-    if (state.isAppDataLoading) return `<div class="loader-container"><div class="loader"></div></div>`;
+    if (state.isAppDataLoading && state.appData.nrs.length === 0) {
+        return `<div class="loader-container"><div class="loader"></div></div>`;
+    }
     if (state.appDataError) return `<p class="error">${state.appDataError}</p>`;
 
     const views: { id: View, name: string }[] = [
