@@ -19,7 +19,7 @@ export function renderSimulacro(container: HTMLElement) {
         </div>
     `;
     initializeSimulacro();
-    renderDrillDashboard();
+    renderDrillDashboard(); // These now fetch data from the backend via drill.ts
     renderDrillCalendar();
 }
 

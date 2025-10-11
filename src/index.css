@@ -92,8 +92,83 @@ body {
   background-color: var(--bg-main);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
 }
-#app { display: flex; flex-direction: column; }
+#app { 
+  display: flex; 
+  flex-direction: column; 
+  min-height: 100vh;
+}
+
+/* --- Login Page --- */
+.login-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: var(--bg-main);
+    padding: 1rem;
+}
+.login-container {
+    background: var(--bg-card);
+    padding: 2.5rem 3rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    animation: fadeIn 0.5s ease-out;
+}
+.login-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+.login-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+.login-form {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+.login-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.login-form label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.login-form .simulator-input {
+    width: 100%;
+}
+.login-form .button-container {
+    margin-top: 1rem;
+    padding: 0;
+    border: none;
+}
+.login-form .primary-btn, .login-form .secondary-btn {
+    flex: 1;
+    margin-top: 0;
+}
+.login-error-message {
+    color: var(--danger-color);
+    min-height: 1.2em;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+}
 
 /* --- General Animations --- */
 @keyframes fadeIn {
@@ -208,6 +283,12 @@ nav {
 .nav-link:hover { color: var(--text-inverted); transform: translateY(-2px); }
 .nav-link.active { background-color: var(--accent-color); color: var(--text-inverted); }
 
+.nav-right-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
 /* Theme Switcher */
 .theme-switcher { display: flex; align-items: center; gap: 0.5rem; color: var(--text-inverted); }
 .theme-switcher-label {
@@ -225,7 +306,7 @@ nav {
 #theme-toggle:checked + .theme-switcher-label::after { transform: translateX(18px); }
 
 /* --- Main Content --- */
-main { padding: 2rem; }
+main { padding: 2rem; flex-grow: 1; }
 .page-panel { display: none; }
 .page-panel.active { display: block; animation: page-enter 0.4s ease-out forwards; }
 .page-panel.is-exiting { display: block; animation: page-exit 0.4s ease-out forwards; }
@@ -488,16 +569,23 @@ body.dark-theme .pressure-trend-icon.falling { fill: var(--danger-color-dark); }
   border: none; border-radius: 8px; padding: 0.875rem 1.5rem;
   cursor: pointer; transition: all 0.2s ease; width: 100%; margin-top: 1.5rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
 }
 .primary-btn:hover:not(:disabled) { background-color: var(--accent-color-dark); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
 .primary-btn:disabled { background-color: #E9ECEF; color: #ADB5BD; cursor: not-allowed; }
 body.dark-theme .primary-btn:disabled { background-color: #333; color: #777; }
 
-.secondary-btn, .tertiary-btn, .primary-btn-small {
+.secondary-btn, .tertiary-btn, .primary-btn-small, .logout-btn {
   font-family: var(--font-sans); font-size: 0.9rem; font-weight: 500;
   border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer;
   transition: all 0.2s ease-in-out;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 .secondary-btn { color: var(--text-primary); background-color: transparent; border: 1px solid var(--border-color); }
 .secondary-btn:hover { background-color: var(--bg-main); border-color: var(--text-primary); transform: translateY(-2px); }
@@ -507,7 +595,8 @@ body.dark-theme .tertiary-btn { color: var(--danger-color-dark); border-color: v
 body.dark-theme .tertiary-btn:hover { background-color: var(--danger-color-dark-bg); }
 .primary-btn-small { color: var(--text-inverted); background-color: var(--accent-color); border: 1px solid var(--accent-color); }
 .primary-btn-small:hover { background-color: var(--accent-color-dark); border-color: var(--accent-color-dark); }
-
+.logout-btn { color: var(--text-inverted); background-color: transparent; border: 1px solid rgba(255,255,255,0.3); }
+.logout-btn:hover { background-color: rgba(255,255,255,0.1); }
 
 /* --- SOSGEN --- */
 .sosgen-results { margin-top: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
@@ -1183,20 +1272,7 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 .stat-card .value { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); }
 .stat-card .value.red { color: var(--danger-color); }
 .stat-card .value.green { color: var(--accent-color-dark); }
-.user-prompt-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    z-index: 2000;
-}
-.user-prompt-box {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--bg-card); padding: 2rem; border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center;
-    width: 90%; max-width: 400px;
-}
+
 .warning-box {
     background-color: var(--danger-color-bg); border: 1px solid var(--danger-color);
     color: var(--danger-color); padding: 1rem; border-radius: 8px;
@@ -1484,7 +1560,7 @@ body.dark-theme .skeleton {
     border-bottom: 2px solid var(--accent-color);
   }
 
-  .nav-brand, .theme-switcher {
+  .nav-brand, .nav-right-controls {
       display: none;
   }
   

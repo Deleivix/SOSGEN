@@ -17,6 +17,7 @@ export default async function handler(
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(50) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(128) NOT NULL,
                 salt VARCHAR(32) NOT NULL
             );
@@ -30,28 +31,43 @@ export default async function handler(
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { action, username, password } = request.body;
-
-    if (!action || !username || !password) {
-        return response.status(400).json({ error: 'Action, username, and password are required.' });
-    }
+    const { action, username, password, email } = request.body;
     
+    if (action === 'register') {
+        if (!username || !password || !email) {
+            return response.status(400).json({ error: 'Usuario, contraseña y email son obligatorios.' });
+        }
+        if (!email.toLowerCase().includes('@cellnex')) {
+            return response.status(400).json({ error: 'Debe proporcionar un email de Cellnex válido.' });
+        }
+    } else if (action === 'login') {
+        if (!username || !password) {
+            return response.status(400).json({ error: 'Usuario y contraseña son obligatorios.' });
+        }
+    } else {
+        return response.status(400).json({ error: 'Acción no válida.' });
+    }
+
     // Normalize username to uppercase to avoid case-sensitivity issues
     const normalizedUsername = username.trim().toUpperCase();
+    const trimmedEmail = email ? email.trim() : '';
 
     try {
         if (action === 'register') {
-            const { rows: existingUsers } = await sql`SELECT * FROM users WHERE username = ${normalizedUsername};`;
+            const { rows: existingUsers } = await sql`SELECT * FROM users WHERE username = ${normalizedUsername} OR email = ${trimmedEmail};`;
             if (existingUsers.length > 0) {
-                return response.status(409).json({ error: 'El nombre de usuario ya existe.' });
+                 if (existingUsers[0].username === normalizedUsername) {
+                     return response.status(409).json({ error: 'El nombre de usuario ya existe.' });
+                }
+                return response.status(409).json({ error: 'El email ya está registrado.' });
             }
 
             const salt = crypto.randomBytes(16).toString('hex');
             const passwordHash = hashPassword(password, salt);
 
             await sql`
-                INSERT INTO users (username, password_hash, salt)
-                VALUES (${normalizedUsername}, ${passwordHash}, ${salt});
+                INSERT INTO users (username, email, password_hash, salt)
+                VALUES (${normalizedUsername}, ${trimmedEmail}, ${passwordHash}, ${salt});
             `;
 
             return response.status(201).json({ success: true, message: 'User registered successfully.' });
@@ -72,8 +88,9 @@ export default async function handler(
             if (storedHashBuffer.length !== suppliedHashBuffer.length || !crypto.timingSafeEqual(storedHashBuffer, suppliedHashBuffer)) {
                  return response.status(401).json({ error: 'Usuario o contraseña no válidos.' });
             }
-
-            return response.status(200).json({ success: true, user: { username: user.username } });
+            
+            // Return user object on successful login
+            return response.status(200).json({ success: true, user: { id: user.id, username: user.username } });
 
         } else {
             return response.status(400).json({ error: 'Invalid action specified.' });

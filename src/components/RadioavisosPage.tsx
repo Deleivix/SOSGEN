@@ -727,11 +727,11 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-            // Fix for line 605: The `action` property from the parsed JSON is a generic `string`,
+            // FIX: The `action` property from the parsed JSON is a generic 'string',
             // which is incompatible with the specific literal union type expected in `HistoryLog`.
-            // A type assertion (`as AppData`) is used to tell TypeScript to trust the structure
-            // of the incoming data from the JSON file.
-            const dataToProcess = parsedData as AppData;
+            // The `as unknown as AppData` double assertion tells TypeScript to trust the structure
+            // of the incoming data from the JSON file, resolving the type error.
+            const dataToProcess = parsedData as unknown as AppData;
             
             await api.saveData(dataToProcess);
             appData = dataToProcess;

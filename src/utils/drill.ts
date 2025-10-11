@@ -1,37 +1,95 @@
-export function updateDrillStats(score: number, totalQuestions: number, drillType: string) {
-    const stats = JSON.parse(localStorage.getItem('sosgen_drill_stats') || JSON.stringify({
-        totalDrills: 0,
-        totalCorrect: 0,
-        totalQuestions: 0,
-        dsc: { taken: 0, correct: 0, questions: 0 },
-        radiotelephony: { taken: 0, correct: 0, questions: 0 },
-        history: []
-    }));
+import { getCurrentUser } from "./auth";
+import { showToast } from "./helpers";
 
-    stats.totalDrills++;
-    stats.totalCorrect += score;
-    stats.totalQuestions += totalQuestions;
+type DrillStats = {
+    totalDrills: number;
+    totalCorrect: number;
+    totalQuestions: number;
+    dsc: { taken: number; correct: number; questions: number; };
+    radiotelephony: { taken: number; correct: number; questions: number; };
+    history: {
+        timestamp: string;
+        type: string;
+        score: number;
+        total: number;
+    }[];
+}
 
-    if (!stats[drillType]) {
-      stats[drillType] = { taken: 0, correct: 0, questions: 0 };
+let drillStats: DrillStats | null = null;
+
+async function loadDrillStats() {
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    try {
+        const response = await fetch(`/api/user-data?username=${user.username}`);
+        if(!response.ok) throw new Error("Could not fetch user data");
+        const data = await response.json();
+        
+        drillStats = data.drillStats || {
+            totalDrills: 0, totalCorrect: 0, totalQuestions: 0,
+            dsc: { taken: 0, correct: 0, questions: 0 },
+            radiotelephony: { taken: 0, correct: 0, questions: 0 },
+            history: []
+        };
+
+    } catch(e) {
+        console.error("Failed to load drill stats:", e);
+        showToast("No se pudieron cargar las estadísticas.", "error");
+        drillStats = null;
     }
-    stats[drillType].taken++;
-    stats[drillType].correct += score;
-    stats[drillType].questions += totalQuestions;
+}
 
-    stats.history.push({
+async function saveDrillStats() {
+    const user = getCurrentUser();
+    if (!user || !drillStats) return;
+
+    try {
+        await fetch('/api/user-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: user.username,
+                type: 'drill_stats',
+                data: drillStats
+            })
+        });
+    } catch(e) {
+        console.error("Failed to save drill stats:", e);
+        showToast("No se pudieron guardar las estadísticas.", "error");
+    }
+}
+
+
+export async function updateDrillStats(score: number, totalQuestions: number, drillType: string) {
+    if (!drillStats) await loadDrillStats();
+    if (!drillStats) return; // if loading failed, abort
+
+    drillStats.totalDrills++;
+    drillStats.totalCorrect += score;
+    drillStats.totalQuestions += totalQuestions;
+
+    if (!drillStats[drillType as keyof DrillStats]) {
+      (drillStats as any)[drillType] = { taken: 0, correct: 0, questions: 0 };
+    }
+    const statsForType = (drillStats as any)[drillType];
+    statsForType.taken++;
+    statsForType.correct += score;
+    statsForType.questions += totalQuestions;
+
+    drillStats.history.push({
         timestamp: new Date().toISOString(),
         type: drillType,
         score: score,
         total: totalQuestions
     });
 
-    if (stats.history.length > 50) {
-        stats.history.shift(); // Keep history from growing indefinitely
+    if (drillStats.history.length > 50) {
+        drillStats.history.shift();
     }
 
-    localStorage.setItem('sosgen_drill_stats', JSON.stringify(stats));
-
+    await saveDrillStats();
+    
     // Refresh dashboard and calendar
     renderDrillDashboard();
     renderDrillCalendar();
@@ -82,12 +140,13 @@ export function checkDrillAnswers(data: any, container: HTMLDivElement) {
 }
 
 
-export function renderDrillDashboard() {
+export async function renderDrillDashboard() {
     const container = document.getElementById('drill-dashboard-container');
     if (!container) return;
 
-    const stats = JSON.parse(localStorage.getItem('sosgen_drill_stats') || JSON.stringify({ totalDrills: 0, totalCorrect: 0, totalQuestions: 0, dsc: { taken: 0 }, radiotelephony: { taken: 0 } }));
-
+    if (!drillStats) await loadDrillStats();
+    
+    const stats = drillStats || { totalDrills: 0, totalCorrect: 0, totalQuestions: 0, dsc: { taken: 0 }, radiotelephony: { taken: 0 } };
     const avgScore = stats.totalQuestions > 0 ? (stats.totalCorrect / stats.totalQuestions) * 100 : 0;
 
     container.innerHTML = `
@@ -116,11 +175,13 @@ export function renderDrillDashboard() {
     `;
 }
 
-export function renderDrillCalendar() {
+export async function renderDrillCalendar() {
     const container = document.getElementById('drill-calendar-container');
     if (!container) return;
 
-    const stats = JSON.parse(localStorage.getItem('sosgen_drill_stats') || '{ "history": [] }');
+    if (!drillStats) await loadDrillStats();
+
+    const stats = drillStats || { history: [] };
     const drillDates = stats.history.map((h: any) => new Date(h.timestamp).toDateString());
     
     const now = new Date();
@@ -128,7 +189,7 @@ export function renderDrillCalendar() {
     const month = now.getMonth();
     const monthName = now.toLocaleString('es-ES', { month: 'long' });
 
-    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun, 1=Mon...
+    const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     let calendarHtml = `<div class="calendar-header"><span>${monthName} ${year}</span></div>`;
@@ -136,7 +197,6 @@ export function renderDrillCalendar() {
     const dayNames = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
     dayNames.forEach(d => calendarHtml += `<div class="calendar-day-name">${d}</div>`);
     
-    // Adjust first day to be Monday-first if needed (Sunday is 0)
     const startOffset = (firstDay === 0) ? 6 : firstDay - 1;
 
     for (let i = 0; i < startOffset; i++) {
@@ -156,7 +216,6 @@ export function renderDrillCalendar() {
     }
     calendarHtml += `</div>`;
     
-    // Reminder logic
     let reminderHtml = '<div class="reminder-box">';
     if (stats.history.length > 0) {
         const lastDrillDate = new Date(stats.history[stats.history.length - 1].timestamp);
