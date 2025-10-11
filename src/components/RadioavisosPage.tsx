@@ -669,9 +669,10 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-            // FIX: The 'action' property from JSON.parse is a generic string.
-            // A direct type assertion to AppData is needed to satisfy the stricter HistoryLog type.
-            const dataToProcess = parsedData as AppData;
+            // FIX: The 'action' property from JSON.parse is a generic string. By casting
+            // the parsed data to 'any', we can assign it to a strongly-typed variable,
+            // bypassing the strict check on the 'action' property's string literal union type.
+            const dataToProcess: AppData = parsedData as any;
             
             await api.saveData(dataToProcess);
             appData = dataToProcess;

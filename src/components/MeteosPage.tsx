@@ -329,14 +329,14 @@ function renderFinalLayout(data: { [key: string]: { spanish: string, error?: str
 
     const getHtmlForTranslatedBulletin = (id: string, title: string) => {
         const bulletinData = data[id];
-        const esContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : `<pre class="bulletin-content">${bulletinData.spanish || 'No disponible.'}</pre>`;
+        const esContent = bulletinData.error ? `<div class="error" style="padding: 1rem;">${bulletinData.error}</div>` : `<pre class="bulletin-content">${bulletinData.spanish || 'No disponible.'}</pre>`;
         const enPlaceholder = `
             <div class="meteos-progress-container" style="gap: 1rem;">
                 <p class="translator-desc" style="margin-bottom: 0;">Haga clic para traducir el boletín a inglés usando IA.</p>
                 <button class="secondary-btn translate-btn" data-bulletin-id="${id}">Traducir con IA</button>
             </div>
         `;
-        const enContent = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : enPlaceholder;
+        const enContent = bulletinData.error ? `<div class="error" style="padding: 1rem;">${bulletinData.error}</div>` : enPlaceholder;
         
         return `
             <div class="bulletin-card" style="grid-column: 1 / -1;">
@@ -358,20 +358,6 @@ function renderFinalLayout(data: { [key: string]: { spanish: string, error?: str
             </div>`;
     };
     
-    const getHtmlForCoastalBulletin = (id: string, title: string) => {
-        const bulletinData = data[id];
-        const content = bulletinData.error ? `<p class="error">${bulletinData.error}</p>` : `<pre class="bulletin-content">${bulletinData.spanish || 'No disponible.'}</pre>`;
-        return `
-             <div class="bulletin-card">
-                <div class="bulletin-card-header">
-                    <h4>${title}</h4>
-                    ${copyButtonHTML(id, 'es')}
-                </div>
-                ${content}
-            </div>
-        `;
-    }
-
     meteosContent.innerHTML = `
         <div class="meteos-header">
              <div class="meteos-header-text">
@@ -386,14 +372,8 @@ function renderFinalLayout(data: { [key: string]: { spanish: string, error?: str
         <div style="display: grid; gap: 2rem;">
             ${getHtmlForTranslatedBulletin('FQNT42MM', 'Boletín Atlántico (Alta Mar)')}
             ${getHtmlForTranslatedBulletin('WONT40MM', 'Avisos Marítimos (Alta Mar)')}
-            
-            <div class="bulletin-card" style="grid-column: 1 / -1;">
-                <div class="bulletin-card-header"><h3>Boletines Costeros</h3></div>
-                <div class="coastal-container" style="padding: 1rem; gap: 1rem;">
-                    ${getHtmlForCoastalBulletin('FQXX40MM', 'Costero Galicia (FQXX40MM)')}
-                    ${getHtmlForCoastalBulletin('FQXX41MM', 'Costero Cantábrico (FQXX41MM)')}
-                </div>
-            </div>
+            ${getHtmlForTranslatedBulletin('FQXX40MM', 'Boletín Costero Galicia (FQXX40MM)')}
+            ${getHtmlForTranslatedBulletin('FQXX41MM', 'Boletín Costero Cantábrico (FQXX41MM)')}
         </div>
     `;
 }

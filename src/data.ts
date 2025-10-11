@@ -1,4 +1,5 @@
 
+
 // --- DATA STRUCTURES ---
 export interface Template { title: string; template: string; }
 export interface Category { category: string; items: Template[]; }
@@ -79,7 +80,7 @@ export const PHONE_DIRECTORY_DATA: PhoneEntry[] = [
     { name: 'CCS BILBAO', phones: ['944 839 286', '944 837 053', '690 608 803'], fax: '944 83 91 61', email: 'bilbao@sasemar.es', keywords: ['bizkaia', 'euskadi'] },
     { name: 'CCS SANTANDER', phones: ['942 21 30 60', '942 21 30 30', '690 615 645', '609 430 310'], fax: '942 21 36 38', email: 'santander@sasemar.es', keywords: ['cantabria'] },
     { name: 'CCS GIJÓN', phones: ['985 326 050', '985 326 373', '985 300 475', '690 634 123', '629 837 682'], fax: '985 32 09 08', email: 'gijon@sasemar.es', keywords: ['asturias'] },
-    { name: 'CCS A CORUÑA', phones: ['981 209 548', '981 270 405', '606 195 875'], fax: '981 20 95 18', email: 'coruna@sasemar.es', keywords: ['galicia'] },
+    { name: 'CCS A CORUÑA', phones: ['981 209 548', '981 270 405', '606 195 875', '981 904 756', '123020'], fax: '981 20 95 18', email: 'coruna@sasemar.es', keywords: ['galicia'] },
     { name: 'CCS FINISTERRE', phones: ['981 767 738', '981 767 320', '981 767 500', '690 607 377'], fax: '981 76 77 40', email: 'finisterre@sasemar.es', keywords: ['galicia'] },
     { name: 'CCS VIGO', phones: ['986 228 874', '986 222 230', '630 347 746'], fax: '986 22 89 57', email: 'vigo@sasemar.es', keywords: ['galicia', 'pontevedra'] },
     { name: 'CCS HUELVA', phones: ['959 243 000', '959 243 061'], fax: '959 24 21 03', email: 'huelva@sasemar.es', keywords: ['andalucia'] },
@@ -92,13 +93,13 @@ export const PHONE_DIRECTORY_DATA: PhoneEntry[] = [
     { name: 'CCS ALGECIRAS', phones: ['956 580 930', '956 580 035'], fax: '956 58 54 02', email: 'algeciras@sasemar.es', keywords: ['andalucia'] },
     { name: 'CCS ALMERÍA', phones: ['950 275 477', '950 270 715', '950 271 726'], fax: '950 27 04 02', email: 'almeria@sasemar.es', keywords: ['andalucia'] },
     { name: 'CCS CARTAGENA', phones: ['968 505 366', '968 529 594', '968 529 517'], fax: '968 52 97 48', email: 'cartagena@sasemar.es', keywords: ['murcia'] },
-    { name: 'CCS VALENCIA', phones: ['963 679 204', '963 679 302'], fax: '963 67 94 03', email: 'valencia@sasemar.es', keywords: ['comunidad valenciana'] },
+    { name: 'CCS VALENCIA', phones: ['963 679 204', '963 679 302', '961 027 440', '113010'], fax: '963 67 94 03', email: 'valencia@sasemar.es', keywords: ['comunidad valenciana'] },
     { name: 'CCS CASTELLÓN', phones: ['964 737 202', '964 737 187'], fax: '964 73 71 05', email: 'castellon@sasemar.es', keywords: ['comunidad valenciana'] },
     { name: 'CCS TARRAGONA', phones: ['977 216 203', '977 216 215'], fax: '977 21 62 09', email: 'tarragona@sasemar.es', keywords: ['cataluña'] },
     { name: 'CCS BARCELONA', phones: ['932 234 759', '932 234 748'], fax: '932 23 46 13', email: 'barcelona@sasemar.es', keywords: ['cataluña'] },
     { name: 'CCS PALMA', phones: ['971 724 562'], fax: '971 72 83 52', email: 'palma@sasemar.es', keywords: ['baleares', 'mallorca'] },
     { name: 'CCS TENERIFE', phones: ['922 597 551', '922 597 550'], fax: '922 59 73 31', email: 'tenerife@sasemar.es', keywords: ['canarias'] },
-    { name: 'CCS LAS PALMAS', phones: ['928 467 955', '928 467 965', '928 467 757', '618 068 005'], fax: '928 46 77 60', email: 'laspalmas@sasemar.es', keywords: ['canarias', 'gran canaria'] }
+    { name: 'CCS LAS PALMAS', phones: ['928 467 955', '928 467 965', '928 467 757', '618 068 005', '928 001 690', '133033'], fax: '928 46 77 60', email: 'laspalmas@sasemar.es', keywords: ['canarias', 'gran canaria'] }
 ];
 
 export const QUICK_REFERENCE_DATA: QuickRef[] = [
