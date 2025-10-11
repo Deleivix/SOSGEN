@@ -28,13 +28,12 @@ function parseWarningFromXml(xmlText: string): string | null {
 }
 
 // --- Helper Functions for forecast ---
-// This new mapping is crucial for correctly associating stations with the forecast zones from the XML.
 const STATION_ZONE_MAPPING: { [key: string]: string } = {
     'La Guardia': 'AGUAS COSTERAS DE PONTEVEDRA',
     'Vigo': 'AGUAS COSTERAS DE PONTEVEDRA',
-    'Finisterre': 'NORTE DE FISTERRA',
-    'A Coruña': 'NORTE DE FISTERRA',
-    'Ortegal': 'AGUAS COSTERAS DE LUGO',
+    'Finisterre': 'SUR DE FISTERRA', // Mapped to the new south sub-zone
+    'A Coruña': 'NORTE DE FISTERRA', // Correctly mapped
+    'Ortegal': 'NORTE DE FISTERRA', // Mapped to the new north sub-zone
     'Navia': 'AGUAS COSTERAS DE ASTURIAS',
     'Cabo Peñas': 'AGUAS COSTERAS DE ASTURIAS',
     'Santander': 'AGUAS COSTERAS DE CANTABRIA',
@@ -201,6 +200,33 @@ async function getForecast() {
             const zoneName = zoneMatch[1].trim().toUpperCase();
             const zoneContent = zoneMatch[2];
             
+            // --- SPECIAL HANDLING FOR A CORUÑA ---
+            if (zoneName === 'AGUAS COSTERAS DE A CORUÑA') {
+                const fullTextMatch = zoneContent.match(textoRegex);
+                if (fullTextMatch && fullTextMatch[1]) {
+                    const fullText = fullTextMatch[1].replace(/\s+/g, ' ').trim();
+                    
+                    const northWindRegex = /^(AL NORTE DE FISTERRA[^.]*\.)/i;
+                    const southWindRegex = /(AL SUR DE FISTERRA[^.]*\.)/i;
+                    const seaStateRegex = /([^.]*AL NORTE DE FISTERRA[^,]*),([^.]*AL SUR[^.]*\.)/i;
+                    
+                    const northWindMatch = fullText.match(northWindRegex);
+                    const southWindMatch = fullText.match(southWindRegex);
+                    const seaStateMatch = fullText.match(seaStateRegex);
+
+                    if (northWindMatch && southWindMatch && seaStateMatch) {
+                        const northText = `${northWindMatch[1]} ${seaStateMatch[1].replace('AL NORTE DE FISTERRA', '').trim()}.`;
+                        const southText = `${southWindMatch[1]} ${seaStateMatch[2].replace('AL SUR', '').trim()}`;
+                        
+                        zoneForecasts.set('NORTE DE FISTERRA', parseForecastFromText(northText));
+                        zoneForecasts.set('SUR DE FISTERRA', parseForecastFromText(southText));
+                        
+                        continue; // Skip the generic processing for this zone
+                    }
+                }
+            }
+            // --- END: SPECIAL HANDLING ---
+
             const subzoneMatches = [...zoneContent.matchAll(subzoneRegex)];
             
             if (subzoneMatches.length > 0) {
