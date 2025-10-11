@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -226,9 +227,9 @@ async function loadInitialData() {
     console.log('[DEBUG] loadInitialData: START. Setting isAppDataLoading = true.');
     state.isAppDataLoading = true;
     state.appDataError = null;
-    if (state.componentContainer) {
-        state.componentContainer.innerHTML = renderPageSkeleton();
-    }
+
+    // First render: Show skeletons immediately
+    await reRender();
     
     try {
         console.log('[DEBUG] loadInitialData: Awaiting api.getData()');
@@ -243,6 +244,7 @@ async function loadInitialData() {
     } finally {
         console.log('[DEBUG] loadInitialData: FINALLY block. isAppDataLoading is now false. Triggering reRender...');
         state.isAppDataLoading = false;
+        // Second render: Show final content
         await reRender();
         console.log('[DEBUG] loadInitialData: Final reRender complete.');
     }
@@ -255,6 +257,7 @@ export function renderRadioavisos(container: HTMLElement) {
         return;
     }
     
+    // Set up the page structure only once
     if (!(container as any).__radioavisosListenersAttached) {
         container.innerHTML = `
             <div id="salvamento-panel-container"></div>
@@ -264,21 +267,8 @@ export function renderRadioavisos(container: HTMLElement) {
         (container as any).__radioavisosListenersAttached = true;
     }
     
+    // Kick off the data loading and rendering process
     loadInitialData();
-}
-
-function renderPageSkeleton(): string {
-     return `
-        <div class="salvamento-panel">
-            <div class="salvamento-panel-header">
-                <div><h3>Radioavisos Oficiales (Zonas N, NW, Coruña)</h3></div>
-            </div>
-            <div class="loader-container"><div class="loader"></div></div>
-        </div>
-        <div class="content-card" style="max-width: 1400px; margin-top: 2rem;">
-            <div class="loader-container"><div class="loader"></div></div>
-        </div>
-     `;
 }
 
 function renderSalvamentoPanelHTML(): string {
@@ -293,7 +283,7 @@ function renderSalvamentoPanelHTML(): string {
     } else if (state.salvamentoError) {
         console.log('[DEBUG:Render] ... rendering salvamento ERROR.');
         content = `<p class="error" style="padding: 1rem; text-align: center;">${state.salvamentoError}</p>`;
-    } else if (state.salvamentoAvisos.length === 0) {
+    } else if (state.salvamentoAvisos.length === 0 && !state.isSalvamentoLoading) {
         content = `<p class="drill-placeholder">No hay radioavisos disponibles en la fuente oficial.</p>`;
     } else {
         console.log('[DEBUG:Render] ... rendering salvamento CONTENT.');
