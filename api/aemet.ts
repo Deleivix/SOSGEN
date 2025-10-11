@@ -66,7 +66,10 @@ function parseForecastFromText(text: string) {
         // Exclude wave heights by checking context
         const context = normalizedText.substring(Math.max(0, match.index - 20), match.index);
         if (!/METROS?|OLA|FONDO/.test(context)) {
-            allForces.push(parseInt(match[1], 10));
+            const num = parseInt(match[1], 10);
+            if (num <= 12) { // Only accept valid Beaufort scale numbers
+                allForces.push(num);
+            }
         }
     }
     if (allForces.length > 0) {
@@ -222,8 +225,13 @@ async function getForecast() {
     processXml(cantabricoXml);
 
     const forecastData = [];
-    for (const [stationName, zoneName] of Object.entries(STATION_ZONE_MAPPING)) {
-        const zoneForecast = zoneForecasts.get(zoneName);
+    for (const [stationName, zoneNameToFind] of Object.entries(STATION_ZONE_MAPPING)) {
+        // Find a key in the parsed forecasts that contains the specific zone we're looking for.
+        // This handles cases where the XML zone name is complex (e.g., "AGUAS COSTERAS DE A CORUÑA: NORTE DE FISTERRA")
+        // but our mapping is just "NORTE DE FISTERRA".
+        const matchingKey = [...zoneForecasts.keys()].find(key => key.includes(zoneNameToFind));
+        const zoneForecast = matchingKey ? zoneForecasts.get(matchingKey) : undefined;
+
         if (zoneForecast) {
             forecastData.push({ locationName: stationName, ...zoneForecast });
         }
