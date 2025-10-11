@@ -52,6 +52,8 @@ type SortConfig<T> = { key: keyof T; direction: SortDirection };
 // --- Component-level State ---
 let user: string | null = null;
 let appData: AppData = { nrs: [], history: [] };
+let isAppDataLoading = true;
+let appDataError: string | null = null;
 let currentView: View = 'INICIO';
 let componentContainer: HTMLElement | null = null;
 // --- State for Salvamento Panel ---
@@ -127,6 +129,7 @@ async function fetchAndRenderSalvamentoAvisos() {
         salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
     } finally {
         isSalvamentoLoading = false;
+        const panelContainer = document.getElementById('salvamento-panel-container');
         if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
     }
 }
@@ -237,11 +240,27 @@ function renderSalvamentoPanelHTML(): string {
 // --- CORE RENDERING LOGIC ---
 // =================================================================================
 
+async function loadInitialData() {
+    isAppDataLoading = true;
+    appDataError = null;
+    await reRender();
+    
+    try {
+        appData = await api.getData();
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Error desconocido";
+        appDataError = message;
+    } finally {
+        isAppDataLoading = false;
+        await reRender();
+    }
+}
+
 async function reRender() {
     if (!componentContainer) return;
     const activeElementId = document.activeElement?.id;
     
-    componentContainer.innerHTML = await renderPageContent();
+    componentContainer.innerHTML = renderPageContent();
 
     const activeElement = activeElementId ? document.getElementById(activeElementId) : null;
     if (activeElement instanceof HTMLElement) {
@@ -249,7 +268,7 @@ async function reRender() {
     }
 }
 
-export async function renderRadioavisos(container: HTMLElement) {
+export function renderRadioavisos(container: HTMLElement) {
     componentContainer = container;
     user = localStorage.getItem('nr_manager_user');
     
@@ -258,24 +277,23 @@ export async function renderRadioavisos(container: HTMLElement) {
         (container as any).__radioavisosListenersAttached = true;
     }
     
-    await reRender();
+    loadInitialData();
     fetchAndRenderSalvamentoAvisos();
 }
 
-async function renderPageContent(): Promise<string> {
+function renderPageContent(): string {
     if (!user) {
         return renderUserPrompt();
     }
-    
-    if (appData.nrs.length === 0 && appData.history.length === 0) {
-        try {
-            appData = await api.getData();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Error desconocido";
-            return `<div class="content-card"><p class="error">${message}</p></div>`;
-        }
+
+    if (isAppDataLoading) {
+        return `<div class="content-card"><div class="loader-container"><div class="loader"></div></div></div>`;
     }
 
+    if (appDataError) {
+        return `<div class="content-card"><p class="error">${appDataError}</p></div>`;
+    }
+    
     const views: { id: View, name: string }[] = [
         { id: 'INICIO', name: 'Inicio' }, { id: 'AÑADIR', name: 'Añadir' },
         { id: 'EDITAR', name: 'Editar' }, { id: 'BORRAR', name: 'Borrar/Cancelar' },
@@ -332,6 +350,9 @@ function attachEventListeners(container: HTMLElement) {
             historyFilterText = input.value;
         } else if (input.dataset.filterTarget === 'salvamento') {
             salvamentoFilterText = input.value;
+            const panelContainer = document.getElementById('salvamento-panel-container');
+            if(panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
+            return;
         }
         await reRender();
     }, 300);
@@ -373,7 +394,6 @@ async function handleDelegatedClick(e: Event) {
 
     const action = actionElement.dataset.action;
 
-    // Handle sort clicks separately to avoid re-rendering the whole salvamento panel just for a sort
     const sortTh = target.closest<HTMLTableCellElement>('th[data-sort-key]');
     if (sortTh) {
         const key = sortTh.dataset.sortKey;
@@ -399,7 +419,7 @@ async function handleDelegatedClick(e: Event) {
                 };
                  const panelContainer = document.getElementById('salvamento-panel-container');
                  if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
-                 return; // Prevent full re-render
+                 return; 
             }
             await reRender();
         }
@@ -432,80 +452,68 @@ async function handleUserSet(form: HTMLFormElement) {
     if (username) {
         user = username;
         localStorage.setItem('nr_manager_user', user);
-        appData = { nrs: [], history: [] }; 
-        await reRender();
+        await loadInitialData();
         fetchAndRenderSalvamentoAvisos();
     }
 }
 
 async function handleAddSubmit() {
     if (!componentContainer) return;
-    const nrNum = (componentContainer.querySelector('#add-nr-num') as HTMLInputElement).value.trim();
-    const nrYear = (componentContainer.querySelector('#add-nr-year') as HTMLInputElement).value.trim();
-    if (!nrNum || !nrYear) { return showToast("El número y el año del NR son obligatorios.", "error"); }
-    const nrId = `${nrNum}/${nrYear}`;
 
-    const stations = Array.from(componentContainer.querySelectorAll<HTMLInputElement>('#add-stations-group input:checked')).map(cb => cb.value);
-    if (stations.length === 0) { return showToast("Debe seleccionar al menos una estación.", "error"); }
-
-    const versionadoCheckbox = componentContainer.querySelector('#add-is-versionado') as HTMLInputElement;
-    const versionedFrom = versionadoCheckbox.checked ? (componentContainer.querySelector('#add-versioned-id') as HTMLInputElement).value.trim() : undefined;
-    
-    if (appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado && !versionedFrom)) {
-        return showToast(`Error: El NR-${nrId} ya existe y está vigente. Para crear una nueva versión, marque la casilla 'Versionado'.`, "error");
-    }
-
-    let version = 1;
-    let nrsToUpdate = [...appData.nrs];
-    if (versionedFrom) {
-        const previousVersions = nrsToUpdate.filter(nr => nr.id === versionedFrom);
-        if (previousVersions.length > 0) {
-            version = Math.max(...previousVersions.map(nr => nr.version)) + 1;
-            nrsToUpdate = nrsToUpdate.map(nr => nr.id === versionedFrom ? { ...nr, isCaducado: true } : nr);
-            appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a NR-${nrId}-${version}`});
-        }
-    }
-    
-    const expiryCheckbox = componentContainer.querySelector('#add-has-expiry') as HTMLInputElement;
-    const newNR: NR = {
-        id: nrId, version, fullId: `NR-${nrId}-${version}`, stations,
-        expiryDate: expiryCheckbox.checked ? (componentContainer.querySelector('#add-expiry-date') as HTMLInputElement).value : '',
-        expiryTime: expiryCheckbox.checked ? (componentContainer.querySelector('#add-expiry-time') as HTMLInputElement).value : '',
-        isAmpliado: (componentContainer.querySelector('#add-is-ampliado') as HTMLInputElement).checked,
-        isCaducado: false
-    };
-
-    appData.nrs = [...nrsToUpdate, newNR];
-    appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'AÑADIDO', nrId, details: `Añadida versión ${version} a ${stations.length} estaciones.`});
-    
     try {
-        await api.saveData(appData);
+        let currentData = appData;
+
+        const nrNum = (componentContainer.querySelector('#add-nr-num') as HTMLInputElement).value.trim();
+        const nrYear = (componentContainer.querySelector('#add-nr-year') as HTMLInputElement).value.trim();
+        if (!nrNum || !nrYear) { return showToast("El número y el año del NR son obligatorios.", "error"); }
+        const nrId = `${nrNum}/${nrYear}`;
+
+        const stations = Array.from(componentContainer.querySelectorAll<HTMLInputElement>('#add-stations-group input:checked')).map(cb => cb.value);
+        if (stations.length === 0) { return showToast("Debe seleccionar al menos una estación.", "error"); }
+
+        const versionadoCheckbox = componentContainer.querySelector('#add-is-versionado') as HTMLInputElement;
+        const versionedFrom = versionadoCheckbox.checked ? (componentContainer.querySelector('#add-versioned-id') as HTMLInputElement).value.trim() : undefined;
+        
+        if (currentData.nrs.some(nr => nr.id === nrId && !nr.isCaducado && !versionedFrom)) {
+            return showToast(`Error: El NR-${nrId} ya existe y está vigente. Para crear una nueva versión, marque la casilla 'Versionado'.`, "error");
+        }
+
+        let version = 1;
+        let nrsToUpdate = [...currentData.nrs];
+        if (versionedFrom) {
+            const previousVersions = nrsToUpdate.filter(nr => nr.id === versionedFrom);
+            if (previousVersions.length > 0) {
+                version = Math.max(...previousVersions.map(nr => nr.version)) + 1;
+                nrsToUpdate = nrsToUpdate.map(nr => nr.id === versionedFrom ? { ...nr, isCaducado: true } : nr);
+                currentData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a NR-${nrId}-${version}`});
+            }
+        }
+        
+        const expiryCheckbox = componentContainer.querySelector('#add-has-expiry') as HTMLInputElement;
+        const newNR: NR = {
+            id: nrId, version, fullId: `NR-${nrId}-${version}`, stations,
+            expiryDate: expiryCheckbox.checked ? (componentContainer.querySelector('#add-expiry-date') as HTMLInputElement).value : '',
+            expiryTime: expiryCheckbox.checked ? (componentContainer.querySelector('#add-expiry-time') as HTMLInputElement).value : '',
+            isAmpliado: (componentContainer.querySelector('#add-is-ampliado') as HTMLInputElement).checked,
+            isCaducado: false
+        };
+
+        const finalData: AppData = {
+            nrs: [...nrsToUpdate, newNR],
+            history: [
+                { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'AÑADIDO', nrId, details: `Añadida versión ${version} a ${stations.length} estaciones.` },
+                ...currentData.history
+            ]
+        };
+
+        await api.saveData(finalData);
+        appData = finalData;
         showToast(`NR-${nrId}-${version} añadido.`, 'success');
         currentView = 'INICIO';
         await reRender();
-    } catch (error) { showToast("Error al guardar.", "error"); }
-}
 
-async function handleEditSearch() {
-    if (!componentContainer) return;
-    const searchInput = componentContainer.querySelector('#edit-search-id') as HTMLInputElement;
-    const formContainer = componentContainer.querySelector('#edit-form-container') as HTMLElement;
-    const searchId = searchInput.value.trim();
-    const foundNRs = appData.nrs.filter(nr => nr.id === searchId && !nr.isCaducado);
-    
-    if (foundNRs.length > 0) {
-        const latestVersion = foundNRs.sort((a, b) => b.version - a.version)[0];
-        formContainer.dataset.fullId = latestVersion.fullId; // Store for saving
-        (componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value = latestVersion.expiryDate;
-        (componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value = latestVersion.expiryTime;
-        (componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked = latestVersion.isAmpliado;
-        componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input').forEach(cb => {
-            cb.checked = latestVersion.stations.includes(cb.value);
-        });
-        formContainer.style.display = 'block';
-    } else {
-        showToast(`NR-${searchId} no encontrado o está cancelado.`, 'info');
-        formContainer.style.display = 'none';
+    } catch (error) { 
+        showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
     }
 }
 
@@ -515,40 +523,67 @@ async function handleEditSave() {
     const fullId = formContainer.dataset.fullId;
     if (!fullId) return;
 
-    const nrToUpdate = appData.nrs.find(nr => nr.fullId === fullId);
-    if (!nrToUpdate) return;
-
-    const updatedStations = Array.from(componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input:checked')).map(cb => cb.value);
-    appData.nrs = appData.nrs.map(nr => nr.fullId === fullId ? {
-        ...nr,
-        expiryDate: (componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value,
-        expiryTime: (componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value,
-        isAmpliado: (componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked,
-        stations: updatedStations,
-    } : nr);
-    appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'EDITADO', nrId: nrToUpdate.id, details: `Editada versión ${nrToUpdate.version}.`});
-
     try {
-        await api.saveData(appData);
+        let currentData = appData;
+        const nrToUpdate = currentData.nrs.find(nr => nr.fullId === fullId);
+        if (!nrToUpdate) {
+            showToast("El NR que intenta editar ya no existe.", "error");
+            currentView = 'INICIO';
+            await loadInitialData(); // Re-sync with server
+            return;
+        }
+
+        const updatedStations = Array.from(componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input:checked')).map(cb => cb.value);
+        const updatedNrs = currentData.nrs.map(nr => nr.fullId === fullId ? {
+            ...nr,
+            expiryDate: (componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value,
+            expiryTime: (componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value,
+            isAmpliado: (componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked,
+            stations: updatedStations,
+        } : nr);
+
+        const updatedHistory = [
+            { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'EDITADO', nrId: nrToUpdate.id, details: `Editada versión ${nrToUpdate.version}.` },
+            ...currentData.history
+        ];
+
+        const finalData: AppData = { nrs: updatedNrs, history: updatedHistory };
+        await api.saveData(finalData);
+        appData = finalData;
         showToast(`NR-${nrToUpdate.id} actualizado.`, 'success');
         currentView = 'INICIO';
         await reRender();
-    } catch (error) { showToast("Error al guardar.", "error"); }
+
+    } catch (error) { 
+        showToast("Error al guardar la edición: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
+    }
 }
 
 async function handleDeleteNR() {
     if (!componentContainer) return;
     const nrId = (componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
     if (!nrId) return;
-    if (!appData.nrs.some(nr => nr.id === nrId)) { return showToast(`El NR-${nrId} no existe.`, "error"); }
-    
-    if (window.confirm(`¡ADVERTENCIA!\n\nEstá a punto de ELIMINAR permanentemente el NR-${nrId} y todas sus versiones.\nEsta acción no se puede deshacer. ¿Continuar?`)) {
-        appData.nrs = appData.nrs.filter(nr => nr.id !== nrId);
-        appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'BORRADO', nrId: nrId, details: `Eliminado permanentemente.`});
-        await api.saveData(appData);
-        showToast(`NR-${nrId} ha sido eliminado.`, 'info');
-        currentView = 'INICIO';
-        await reRender();
+
+    try {
+        let currentData = appData;
+        if (!currentData.nrs.some(nr => nr.id === nrId)) { return showToast(`El NR-${nrId} no existe.`, "error"); }
+        
+        if (window.confirm(`¡ADVERTENCIA!\n\nEstá a punto de ELIMINAR permanentemente el NR-${nrId} y todas sus versiones.\nEsta acción no se puede deshacer. ¿Continuar?`)) {
+            const finalData: AppData = {
+                nrs: currentData.nrs.filter(nr => nr.id !== nrId),
+                history: [
+                    { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'BORRADO', nrId: nrId, details: `Eliminado permanentemente.` },
+                    ...currentData.history
+                ]
+            };
+            await api.saveData(finalData);
+            appData = finalData;
+            showToast(`NR-${nrId} ha sido eliminado.`, 'info');
+            currentView = 'INICIO';
+            await reRender();
+        }
+    } catch (error) {
+        showToast("Error al eliminar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
     }
 }
 
@@ -556,17 +591,59 @@ async function handleCancelNR() {
     if (!componentContainer) return;
     const nrId = (componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
     if (!nrId) return;
-    if (!appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) { return showToast(`El NR-${nrId} no existe o ya está cancelado.`, "error"); }
     
-    if (window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR-${nrId}?`)) {
-        appData.nrs = appData.nrs.map(nr => nr.id === nrId ? {...nr, isCaducado: true} : nr);
-        appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'CANCELADO', nrId: nrId, details: `Marcado como caducado.`});
-        await api.saveData(appData);
-        showToast(`NR-${nrId} ha sido cancelado.`, 'info');
-        currentView = 'INICIO';
-        await reRender();
+    try {
+        let currentData = appData;
+        if (!currentData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) { return showToast(`El NR-${nrId} no existe o ya está cancelado.`, "error"); }
+        
+        if (window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR-${nrId}?`)) {
+            const finalData: AppData = {
+                nrs: currentData.nrs.map(nr => nr.id === nrId ? {...nr, isCaducado: true} : nr),
+                history: [
+                    {id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'CANCELADO', nrId: nrId, details: `Marcado como caducado.`},
+                    ...currentData.history
+                ]
+            };
+            await api.saveData(finalData);
+            appData = finalData;
+            showToast(`NR-${nrId} ha sido cancelado.`, 'info');
+            currentView = 'INICIO';
+            await reRender();
+        }
+    } catch (error) {
+        showToast("Error al cancelar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
     }
 }
+
+async function handleEditSearch() {
+    if (!componentContainer) return;
+    const searchInput = componentContainer.querySelector('#edit-search-id') as HTMLInputElement;
+    const formContainer = componentContainer.querySelector('#edit-form-container') as HTMLElement;
+    const searchId = searchInput.value.trim();
+
+    try {
+        let currentData = appData;
+        const foundNRs = currentData.nrs.filter(nr => nr.id === searchId && !nr.isCaducado);
+        
+        if (foundNRs.length > 0) {
+            const latestVersion = foundNRs.sort((a, b) => b.version - a.version)[0];
+            formContainer.dataset.fullId = latestVersion.fullId;
+            (componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value = latestVersion.expiryDate;
+            (componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value = latestVersion.expiryTime;
+            (componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked = latestVersion.isAmpliado;
+            componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input').forEach(cb => {
+                cb.checked = latestVersion.stations.includes(cb.value);
+            });
+            formContainer.style.display = 'block';
+        } else {
+            showToast(`NR-${searchId} no encontrado o está cancelado.`, 'info');
+            formContainer.style.display = 'none';
+        }
+    } catch (error) {
+        showToast("Error al buscar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
+    }
+}
+
 
 function handleExport() {
     const dataStr = JSON.stringify(appData, null, 2);
@@ -595,8 +672,13 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-            await api.saveData(parsedData);
-            appData = parsedData;
+            // FIX: The `action` property from the parsed JSON is inferred as a generic `string`,
+            // which is incompatible with the specific literal union type expected in `HistoryLog`.
+            // Casting through `any` tells TypeScript to trust the structure of the incoming data.
+            const dataToProcess: AppData = parsedData as any;
+            
+            await api.saveData(dataToProcess);
+            appData = dataToProcess;
             showToast("Datos importados y guardados.", 'success');
             await reRender();
         } catch (error) {
