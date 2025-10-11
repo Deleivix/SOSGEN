@@ -28,18 +28,20 @@ function parseWarningFromXml(xmlText: string): string | null {
 }
 
 // --- Helper Functions for forecast ---
+// This new mapping is crucial for correctly associating stations with the forecast zones from the XML.
 const STATION_ZONE_MAPPING: { [key: string]: string } = {
-    'La Guardia': 'SUR DE FISTERRA', 
-    'Vigo': 'SUR DE FISTERRA', 
+    'La Guardia': 'AGUAS COSTERAS DE PONTEVEDRA',
+    'Vigo': 'AGUAS COSTERAS DE PONTEVEDRA',
     'Finisterre': 'NORTE DE FISTERRA',
-    'A Coruña': 'NORTE DE FISTERRA', 
-    'Ortegal': 'CANTABRICO', 
-    'Navia': 'CANTABRICO',
-    'Cabo Peñas': 'CANTABRICO', 
-    'Santander': 'CANTABRICO', 
-    'Bilbao': 'CANTABRICO',
-    'Pasajes': 'CANTABRICO',
+    'A Coruña': 'NORTE DE FISTERRA',
+    'Ortegal': 'AGUAS COSTERAS DE LUGO',
+    'Navia': 'AGUAS COSTERAS DE ASTURIAS',
+    'Cabo Peñas': 'AGUAS COSTERAS DE ASTURIAS',
+    'Santander': 'AGUAS COSTERAS DE CANTABRIA',
+    'Bilbao': 'AGUAS COSTERAS DE BIZKAIA',
+    'Pasajes': 'AGUAS COSTERAS DE GIPUZKOA',
 };
+
 
 const numberWords: { [key: string]: number } = {
     'CERO': 0, 'UNO': 1, 'DOS': 2, 'TRES': 3, 'CUATRO': 4, 'CINCO': 5,

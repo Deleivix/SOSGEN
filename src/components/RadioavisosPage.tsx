@@ -671,8 +671,8 @@ function handleFileChange(event: Event) {
             
             // FIX: The 'action' property from parsed JSON is a generic `string`, which is not assignable
             // to the specific string literal type `HistoryLog['action']`.
-            // We cast to `any` to bypass the strict type check, assuming the imported data is valid.
-            const dataToProcess: AppData = parsedData as any;
+            // A double cast is used to bypass this strict type check, assuming the imported data is valid.
+            const dataToProcess: AppData = parsedData as unknown as AppData;
             
             await api.saveData(dataToProcess);
             appData = dataToProcess;
