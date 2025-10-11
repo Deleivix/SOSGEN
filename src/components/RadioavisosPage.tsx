@@ -28,7 +28,7 @@ type HistoryLog = {
     nrId: string; details: string;
 };
 type AppData = { nrs: NR[]; history: HistoryLog[]; };
-type View = 'INICIO' | 'AÑADIR' | 'EDITAR' | 'BORRAR' | 'BD' | 'HISTORIAL';
+type View = 'INICIO' | 'AÑADIR' | 'GESTIONAR' | 'EDITAR' | 'BD' | 'HISTORIAL';
 type SortDirection = 'ascending' | 'descending';
 type SortConfig<T> = { key: keyof T; direction: SortDirection };
 
@@ -421,7 +421,7 @@ function renderLocalManagerHTML(): string {
     console.log('[DEBUG:Render] ... rendering local manager CONTENT.');
     const views: { id: View, name: string }[] = [
         { id: 'INICIO', name: 'Inicio' }, { id: 'AÑADIR', name: 'Añadir Manual' },
-        { id: 'EDITAR', name: 'Editar' }, { id: 'BORRAR', name: 'Borrar/Cancelar' },
+        { id: 'GESTIONAR', name: 'Gestionar' },
         { id: 'BD', name: 'Base de Datos' }, { id: 'HISTORIAL', name: 'Historial' }
     ];
 
@@ -465,21 +465,52 @@ async function handleSwitchView(element: HTMLElement) {
     await reRender();
 }
 
-async function handleCompleteNr(element: HTMLElement) {
-    const nrId = element.dataset.nrId;
+async function handleGoToEdit(nrId: string) {
     if (!nrId) return;
-
-    state.currentView = 'EDITAR';
+    state.currentView = 'EDITAR'; 
     await reRender(); 
-
     const searchInput = state.componentContainer?.querySelector('#edit-search-id') as HTMLInputElement | null;
     const searchButton = state.componentContainer?.querySelector('button[data-action="edit-search"]') as HTMLButtonElement | null;
-    
     if (searchInput && searchButton) {
         searchInput.value = nrId;
         searchButton.click(); 
     }
 }
+
+async function handleCompleteNr(element: HTMLElement) {
+    const nrId = element.dataset.nrId;
+    if (nrId) {
+        await handleGoToEdit(nrId);
+    }
+}
+
+async function handleCancelNR(nrId: string) {
+    const user = getCurrentUser();
+    if (!user) return showToast("Error de sesión.", "error");
+
+    try {
+        if (!state.appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) {
+            return showToast(`El NR ${nrId} no existe o ya está cancelado.`, "error");
+        }
+        if (!window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR ${nrId}?`)) {
+            return;
+        }
+        const finalData: AppData = {
+            nrs: state.appData.nrs.map(nr => (nr.id === nrId ? {...nr, isCaducado: true} : nr)),
+            history: [
+                {id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: nrId, details: `Marcado como caducado.`},
+                ...state.appData.history
+            ]
+        };
+        await api.saveData(finalData);
+        state.appData = finalData;
+        showToast(`${nrId} ha sido cancelado.`, 'info');
+        await reRender();
+    } catch (error) {
+        showToast("Error al cancelar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
+    }
+}
+
 
 async function handleSort(element: HTMLElement) {
     const key = element.dataset.sortKey;
@@ -524,8 +555,8 @@ function attachEventListeners(container: HTMLElement) {
                 case 'add-clear': state.currentView = 'AÑADIR'; await reRender(); break;
                 case 'edit-search': await handleEditSearch(); break;
                 case 'edit-save': await handleEditSave(); break;
-                case 'delete-nr': await handleDeleteNR(); break;
-                case 'cancel-nr': await handleCancelNR(); break;
+                case 'go-to-edit': await handleGoToEdit(actionElement.dataset.nrId!); break;
+                case 'cancel-nr': await handleCancelNR(actionElement.dataset.nrId!); break;
                 case 'complete-nr': await handleCompleteNr(actionElement); break;
             }
         } else if (target.closest('th[data-sort-key]')) {
@@ -669,66 +700,6 @@ async function handleEditSave() {
     }
 }
 
-async function handleDeleteNR() {
-    const user = getCurrentUser();
-    if (!user) return showToast("Error de sesión.", "error");
-    if (!state.componentContainer) return;
-
-    const nrId = (state.componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
-    if (!nrId) return;
-
-    try {
-        if (!state.appData.nrs.some(nr => nr.id === nrId)) return showToast(`El NR ${nrId} no existe.`, "error");
-        
-        if (window.confirm(`¡ADVERTENCIA!\n\nEstá a punto de ELIMINAR permanentemente el NR ${nrId} y todas sus versiones.\nEsta acción no se puede deshacer. ¿Continuar?`)) {
-            const finalData: AppData = {
-                nrs: state.appData.nrs.filter(nr => nr.id !== nrId),
-                history: [
-                    { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'BORRADO', nrId: nrId, details: `Eliminado permanentemente.` },
-                    ...state.appData.history
-                ]
-            };
-            await api.saveData(finalData);
-            state.appData = finalData;
-            showToast(`${nrId} ha sido eliminado.`, 'info');
-            state.currentView = 'INICIO';
-            await reRender();
-        }
-    } catch (error) {
-        showToast("Error al eliminar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
-    }
-}
-
-async function handleCancelNR() {
-    const user = getCurrentUser();
-    if (!user) return showToast("Error de sesión.", "error");
-    if (!state.componentContainer) return;
-
-    const nrId = (state.componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
-    if (!nrId) return;
-    
-    try {
-        if (!state.appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) return showToast(`El NR ${nrId} no existe o ya está cancelado.`, "error");
-        
-        if (window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR ${nrId}?`)) {
-            const finalData: AppData = {
-                nrs: state.appData.nrs.map(nr => nr.id === nrId ? {...nr, isCaducado: true} : nr),
-                history: [
-                    {id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: nrId, details: `Marcado como caducado.`},
-                    ...state.appData.history
-                ]
-            };
-            await api.saveData(finalData);
-            state.appData = finalData;
-            showToast(`${nrId} ha sido cancelado.`, 'info');
-            state.currentView = 'INICIO';
-            await reRender();
-        }
-    } catch (error) {
-        showToast("Error al cancelar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
-    }
-}
-
 async function handleEditSearch() {
     if (!state.componentContainer) return;
     const container = state.componentContainer;
@@ -809,8 +780,8 @@ function renderCurrentViewContent(): string {
     switch (state.currentView) {
         case 'INICIO': return renderMainView();
         case 'AÑADIR': return renderAddView();
+        case 'GESTIONAR': return renderGestionarView();
         case 'EDITAR': return renderEditView();
-        case 'BORRAR': return renderDeleteView();
         case 'BD': return renderDbView();
         case 'HISTORIAL': return renderHistoryView();
         default: return `<p>Vista no encontrada</p>`;
@@ -922,6 +893,47 @@ function renderAddView(): string {
     `;
 }
 
+function renderGestionarView(): string {
+    const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado).sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
+
+    if (activeNRs.length === 0) {
+        return `<p class="drill-placeholder">No hay NRs vigentes para gestionar.</p>`;
+    }
+
+    return `
+        <div class="table-wrapper">
+             <table class="reference-table data-table">
+                <thead>
+                    <tr>
+                        <th>NR</th>
+                        <th>Versión</th>
+                        <th>Caducidad (UTC)</th>
+                        <th>EECC</th>
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${activeNRs.map(nr => `
+                        <tr>
+                            <td>${nr.id}</td>
+                            <td>v${nr.version}</td>
+                            <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
+                            <td>${nr.stations.length}</td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    <button class="secondary-btn" data-action="go-to-edit" data-nr-id="${nr.id}">Editar</button>
+                                    <button class="tertiary-btn" data-action="cancel-nr" data-nr-id="${nr.id}">Cancelar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+
 function renderEditView(): string {
      return `
         <div class="form-group" style="display: flex; align-items: flex-end; gap: 1rem;">
@@ -942,24 +954,6 @@ function renderEditView(): string {
             <div class="button-container">
                 <button class="primary-btn" data-action="edit-save" style="margin-top:0;">GUARDAR CAMBIOS</button>
             </div>
-        </div>
-    `;
-}
-
-function renderDeleteView(): string {
-    return `
-        <div class="form-group">
-            <label for="delete-nr-id">ID del NR a Borrar o Cancelar (ej: 2013/2024)</label>
-            <input type="text" id="delete-nr-id" class="simulator-input"/>
-        </div>
-        <div class="warning-box">
-            <h3>¡ADVERTENCIA!</h3>
-            <p><b>ELIMINAR:</b> Borra el NR y todas sus versiones permanentemente del sistema. No se podrá recuperar.</p>
-            <p><b>CANCELAR:</b> Marca el NR como caducado, pero mantiene su registro. Es la opción recomendada.</p>
-        </div>
-        <div class="button-container">
-            <button class="tertiary-btn" data-action="delete-nr">ELIMINAR</button>
-            <button class="secondary-btn" data-action="cancel-nr" style="color: #d46b08; border-color: #d46b08;">CANCELAR</button>
         </div>
     `;
 }
