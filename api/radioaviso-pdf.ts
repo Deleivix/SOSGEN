@@ -3,7 +3,7 @@ import { URLSearchParams } from 'url';
 
 /**
  * This handler fetches the official PDF for a given radio warning.
- * It now correctly handles session cookies required by the ASP.NET backend.
+ * It now correctly handles session cookies and all required ASP.NET form fields.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -31,7 +31,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const pageHtml = await pageResponse.text();
         
-        // Extract the ASP.NET session cookie, which is required for postbacks.
         const cookieHeader = pageResponse.headers.get('set-cookie');
         let sessionIdCookie: string | null = null;
         if (cookieHeader) {
@@ -54,9 +53,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             formData.append(match[1], match[2]);
         }
 
-        // Step 3: Set the specific target for the PDF link.
+        // Step 3: Add/overwrite required fields for the postback.
         formData.set('__EVENTTARGET', target);
         formData.set('__EVENTARGUMENT', '');
+        
+        // This is for the ASP.NET AJAX UpdatePanel. Its value is critical.
+        // It's composed of the UpdatePanel's ID and the event target's ID.
+        formData.set(
+            'ctl00$ToolkitScriptManager1',
+            `ctl00$ContentPlaceHolder1$Radioavisos1$updFiltros|${target}`
+        );
+
+        // Add the current values of the filter controls. Even if empty, they are part of the form submission.
+        // We assume the default "all" values which are '0' for dropdowns and empty for text.
+        formData.set('ctl00$ContentPlaceHolder1$Radioavisos1$ddlTipo', '0');
+        formData.set('ctl00$ContentPlaceHolder1$Radioavisos1$ddlZona', '0');
+        formData.set('ctl00$ContentPlaceHolder1$Radioavisos1$txtTexto', '');
         
         // Step 4: Make the POST request, including the session cookie.
         const pdfResponse = await fetch(targetUrl, {
@@ -84,7 +96,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'inline; filename="radioaviso.pdf"');
         
-        // Manually pipe the web stream to the Node.js response stream for robustness.
         const reader = pdfResponse.body.getReader();
         while (true) {
             const { done, value } = await reader.read();
@@ -102,7 +113,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             details: errorMessage,
             target: target
         });
-        // Avoid sending another response if one has already started streaming.
         if (!res.headersSent) {
             res.status(500).json({
                 error: 'Failed to retrieve the PDF from the source.',
