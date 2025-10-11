@@ -1,4 +1,3 @@
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -191,7 +190,6 @@ function renderSalvamentoPanelHTML(): string {
                                 ${renderHeader('zona', 'Zona')}
                                 ${renderHeader('prioridad', 'Prioridad')}
                                 ${renderHeader('caducidad', 'Caducidad')}
-                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -203,11 +201,6 @@ function renderSalvamentoPanelHTML(): string {
                                 <td style="min-width: 150px;">${aviso.zona}</td>
                                 <td><span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span></td>
                                 <td>${aviso.caducidad}</td>
-                                <td style="text-align: center;">
-                                    <button class="secondary-btn" style="padding: 0.4rem 0.6rem;" data-action="fetch-pdf" data-event-target="${aviso.eventTarget}" title="Ver PDF oficial">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 1.5v3a1 1 0 0 0 1 1h3L9.5 1.5zM4.354 11.354a.5.5 0 0 1 0-.708l1.415-1.414a.5.5 0 1 1 .707.708L5.06 11.354a.5.5 0 0 1-.707 0m.707 1.414a.5.5 0 1 1-.707-.707l1.414-1.414a.5.5 0 1 1 .707.707L5.06 12.768zM6.5 11h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1 0-1m-1.5 1.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1 0-1m3.75-1.47a.5.5 0 0 1 .47.726l-1.32 2.64a.5.5 0 0 1-.94-.236l1.32-2.64a.5.5 0 0 1 .47-.236z"/></svg>
-                                    </button>
-                                </td>
                             </tr>
                         `).join('')}
                         </tbody>
@@ -224,7 +217,7 @@ function renderSalvamentoPanelHTML(): string {
                     <h3>Radioavisos Oficiales (Zonas N, NW, Coruña)</h3>
                     <a href="https://radioavisos.salvamentomaritimo.es/" target="_blank" rel="noopener noreferrer">
                         Ver fuente oficial
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>
                     </a>
                 </div>
                 <div class="salvamento-panel-controls">
@@ -380,14 +373,6 @@ async function handleDelegatedClick(e: Event) {
 
     const action = actionElement.dataset.action;
 
-    if (action === 'fetch-pdf') {
-        const eventTarget = actionElement.dataset.eventTarget;
-        if (eventTarget) {
-            handleFetchPdf(eventTarget);
-        }
-        return;
-    }
-
     // Handle sort clicks separately to avoid re-rendering the whole salvamento panel just for a sort
     const sortTh = target.closest<HTMLTableCellElement>('th[data-sort-key]');
     if (sortTh) {
@@ -440,23 +425,6 @@ async function handleDelegatedClick(e: Event) {
         case 'cancel-nr': await handleCancelNR(); break;
     }
 }
-
-function handleFetchPdf(eventTarget: string) {
-    if (!eventTarget) {
-        showToast("No se pudo encontrar el identificador del PDF.", "error");
-        return;
-    }
-    
-    const url = `/api/radioaviso-pdf?target=${encodeURIComponent(eventTarget)}`;
-    const pdfWindow = window.open(url, '_blank');
-
-    if (!pdfWindow) {
-        showToast('El navegador bloqueó la apertura de la nueva ventana. Por favor, habilite las ventanas emergentes.', 'error');
-    } else {
-        showToast("Solicitando PDF oficial...", "info");
-    }
-}
-
 
 async function handleUserSet(form: HTMLFormElement) {
     const input = form.querySelector('#username-input') as HTMLInputElement;
