@@ -101,7 +101,7 @@ const getMedioTags = (zona: string): string => {
 };
 
 // =================================================================================
-// --- SALVAMENTO MARÍTIMO PANEL & SYNC LOGIC ---
+// --- DATA PROCESSING & SYNC LOGIC ---
 // =================================================================================
 
 async function syncWithSalvamento() {
@@ -132,7 +132,7 @@ async function syncWithSalvamento() {
                 id: nrId,
                 version: 1,
                 fullId: `NR-${nrId}-1`,
-                stations: [], // Clave: Se añade incompleto
+                stations: [],
                 expiryDate: '',
                 expiryTime: '',
                 isAmpliado: false,
@@ -160,8 +160,6 @@ async function syncWithSalvamento() {
             await api.saveData(finalData);
             state.appData = finalData;
             showToast(`${nuevosNRs.length} nuevo(s) NR(s) importado(s) de SASEMAR.`, 'info');
-            console.log('[DEBUG] syncWithSalvamento: Save complete. Re-rendering.');
-            await reRender();
         } catch (error) {
             showToast("Error al guardar los NRs importados.", "error");
         }
@@ -170,42 +168,113 @@ async function syncWithSalvamento() {
     }
 }
 
-
-async function fetchAndRenderSalvamentoAvisos() {
-    console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Starting fetch.');
+async function updateSalvamentoData() {
+    console.log('[DEBUG] updateSalvamentoData: Starting fetch.');
     state.isSalvamentoLoading = true;
     state.salvamentoError = null;
     
-    const panelContainer = document.getElementById('salvamento-panel-container');
-    if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
-
     try {
-        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Fetching from /api/salvamento-avisos');
+        console.log('[DEBUG] updateSalvamentoData: Fetching from /api/salvamento-avisos');
         const response = await fetch('/api/salvamento-avisos');
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.details || 'Respuesta no válida del servidor.');
         }
-        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Fetch successful.');
+        console.log('[DEBUG] updateSalvamentoData: Fetch successful.');
         state.salvamentoAvisos = await response.json();
         state.lastSalvamentoUpdate = new Date();
         
-        await reRender(); 
-        
-        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Calling syncWithSalvamento.');
-        syncWithSalvamento();
+        console.log('[DEBUG] updateSalvamentoData: Calling syncWithSalvamento.');
+        await syncWithSalvamento();
 
     } catch (e) {
-        console.error("[DEBUG] fetchAndRenderSalvamentoAvisos: CATCH block.", e);
+        console.error("[DEBUG] updateSalvamentoData: CATCH block.", e);
         state.salvamentoAvisos = [];
         state.salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
-        await reRender();
     } finally {
-        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: FINALLY block.');
+        console.log('[DEBUG] updateSalvamentoData: FINALLY block.');
         state.isSalvamentoLoading = false;
-        const finalPanelContainer = document.getElementById('salvamento-panel-container');
-        if (finalPanelContainer) finalPanelContainer.innerHTML = renderSalvamentoPanelHTML();
     }
+}
+
+// =================================================================================
+// --- CORE RENDERING LOGIC ---
+// =================================================================================
+
+async function reRender() {
+    console.log(`[DEBUG] reRender: Triggered. isAppDataLoading=${state.isAppDataLoading}, appDataError=${state.appDataError}`);
+    if (!state.componentContainer) return;
+    const activeElementId = document.activeElement?.id;
+    
+    const salvamentoPanel = document.getElementById('salvamento-panel-container');
+    if (salvamentoPanel) salvamentoPanel.innerHTML = renderSalvamentoPanelHTML();
+
+    const localManagerContainer = document.getElementById('local-manager-container');
+    if(localManagerContainer) localManagerContainer.innerHTML = renderLocalManagerHTML();
+
+    const activeElement = activeElementId ? document.getElementById(activeElementId) : null;
+    if (activeElement instanceof HTMLElement) {
+        activeElement.focus();
+    }
+}
+
+async function loadInitialData() {
+    console.log('[DEBUG] loadInitialData: START. Setting isAppDataLoading = true.');
+    state.isAppDataLoading = true;
+    state.appDataError = null;
+    if (state.componentContainer) {
+        state.componentContainer.innerHTML = renderPageSkeleton();
+    }
+    
+    try {
+        console.log('[DEBUG] loadInitialData: Awaiting api.getData()');
+        state.appData = await api.getData();
+        console.log('[DEBUG] loadInitialData: api.getData() finished. Awaiting updateSalvamentoData()');
+        await updateSalvamentoData();
+        console.log('[DEBUG] loadInitialData: updateSalvamentoData() finished.');
+    } catch (error) {
+        console.error('[DEBUG] loadInitialData: CATCH block.', error);
+        const message = error instanceof Error ? error.message : "Error desconocido";
+        state.appDataError = message;
+    } finally {
+        console.log('[DEBUG] loadInitialData: FINALLY block. Setting isAppDataLoading = false.');
+        state.isAppDataLoading = false;
+        await reRender();
+        console.log('[DEBUG] loadInitialData: Final reRender complete.');
+    }
+}
+
+export function renderRadioavisos(container: HTMLElement) {
+    state.componentContainer = container;
+    if (!getCurrentUser()) {
+        container.innerHTML = `<div class="content-card"><p class="error">Debe iniciar sesión para acceder a esta herramienta.</p></div>`;
+        return;
+    }
+    
+    if (!(container as any).__radioavisosListenersAttached) {
+        container.innerHTML = `
+            <div id="salvamento-panel-container"></div>
+            <div class="content-card" style="max-width: 1400px; margin-top: 2rem;" id="local-manager-container"></div>
+        `;
+        attachEventListeners(container);
+        (container as any).__radioavisosListenersAttached = true;
+    }
+    
+    loadInitialData();
+}
+
+function renderPageSkeleton(): string {
+     return `
+        <div class="salvamento-panel">
+            <div class="salvamento-panel-header">
+                <div><h3>Radioavisos Oficiales (Zonas N, NW, Coruña)</h3></div>
+            </div>
+            <div class="loader-container"><div class="loader"></div></div>
+        </div>
+        <div class="content-card" style="max-width: 1400px; margin-top: 2rem;">
+            <div class="loader-container"><div class="loader"></div></div>
+        </div>
+     `;
 }
 
 function renderSalvamentoPanelHTML(): string {
@@ -213,7 +282,7 @@ function renderSalvamentoPanelHTML(): string {
     const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
 
     let content;
-    if (state.isSalvamentoLoading && state.salvamentoAvisos.length === 0) { // Show loader only on initial load
+    if (state.isSalvamentoLoading && state.salvamentoAvisos.length === 0) {
         content = `<div class="loader-container"><div class="loader"></div></div>`;
     } else if (state.salvamentoError) {
         content = `<p class="error" style="padding: 1rem; text-align: center;">${state.salvamentoError}</p>`;
@@ -310,91 +379,6 @@ function renderSalvamentoPanelHTML(): string {
     `;
 }
 
-// =================================================================================
-// --- CORE RENDERING LOGIC ---
-// =================================================================================
-
-async function reRender() {
-    console.log(`[DEBUG] reRender: Triggered. isAppDataLoading=${state.isAppDataLoading}, appDataError=${state.appDataError}`);
-    if (!state.componentContainer) return;
-    const activeElementId = document.activeElement?.id;
-    
-    // Render Salvamento Panel first as it's independent
-    const salvamentoPanel = document.getElementById('salvamento-panel-container');
-    if (salvamentoPanel) salvamentoPanel.innerHTML = renderSalvamentoPanelHTML();
-
-    // Then render the main local manager content
-    const localManagerContainer = document.getElementById('local-manager-container');
-    if(localManagerContainer) localManagerContainer.innerHTML = renderLocalManagerHTML();
-
-    const activeElement = activeElementId ? document.getElementById(activeElementId) : null;
-    if (activeElement instanceof HTMLElement) {
-        activeElement.focus();
-    }
-}
-
-async function loadInitialData() {
-    console.log('[DEBUG] loadInitialData: START. Setting isAppDataLoading = true.');
-    state.isAppDataLoading = true;
-    state.appDataError = null;
-    if (state.componentContainer) {
-        state.componentContainer.innerHTML = renderPageSkeleton();
-    }
-    
-    try {
-        console.log('[DEBUG] loadInitialData: Awaiting api.getData()');
-        state.appData = await api.getData();
-        console.log('[DEBUG] loadInitialData: api.getData() finished. Awaiting fetchAndRenderSalvamentoAvisos()');
-        await fetchAndRenderSalvamentoAvisos();
-        console.log('[DEBUG] loadInitialData: fetchAndRenderSalvamentoAvisos() finished.');
-    } catch (error) {
-        console.error('[DEBUG] loadInitialData: CATCH block.', error);
-        const message = error instanceof Error ? error.message : "Error desconocido";
-        state.appDataError = message;
-        await reRender();
-    } finally {
-        console.log('[DEBUG] loadInitialData: FINALLY block. Setting isAppDataLoading = false.');
-        state.isAppDataLoading = false;
-        await reRender();
-        console.log('[DEBUG] loadInitialData: Final reRender complete.');
-    }
-}
-
-export function renderRadioavisos(container: HTMLElement) {
-    state.componentContainer = container;
-    if (!getCurrentUser()) {
-        container.innerHTML = `<div class="content-card"><p class="error">Debe iniciar sesión para acceder a esta herramienta.</p></div>`;
-        return;
-    }
-    
-    // Attach event listeners only once
-    if (!(container as any).__radioavisosListenersAttached) {
-        container.innerHTML = `
-            <div id="salvamento-panel-container"></div>
-            <div class="content-card" style="max-width: 1400px; margin-top: 2rem;" id="local-manager-container"></div>
-        `;
-        attachEventListeners(container);
-        (container as any).__radioavisosListenersAttached = true;
-    }
-    
-    loadInitialData();
-}
-
-function renderPageSkeleton(): string {
-     return `
-        <div class="salvamento-panel">
-            <div class="salvamento-panel-header">
-                <div><h3>Radioavisos Oficiales (Zonas N, NW, Coruña)</h3></div>
-            </div>
-            <div class="loader-container"><div class="loader"></div></div>
-        </div>
-        <div class="content-card" style="max-width: 1400px; margin-top: 2rem;">
-            <div class="loader-container"><div class="loader"></div></div>
-        </div>
-     `;
-}
-
-
 function renderLocalManagerHTML(): string {
     const user = getCurrentUser();
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
@@ -442,6 +426,13 @@ function renderLocalManagerHTML(): string {
 // --- EVENT HANDLING ---
 // =================================================================================
 
+async function handleRefreshSalvamento() {
+    state.isSalvamentoLoading = true;
+    await reRender();
+    await updateSalvamentoData();
+    await reRender();
+}
+
 async function handleSwitchView(element: HTMLElement) {
     state.currentView = element.dataset.view as View;
     await reRender();
@@ -452,15 +443,14 @@ async function handleCompleteNr(element: HTMLElement) {
     if (!nrId) return;
 
     state.currentView = 'EDITAR';
-    await reRender(); // Re-render to show the edit view
+    await reRender(); 
 
-    // Now manipulate the edit view
     const searchInput = state.componentContainer?.querySelector('#edit-search-id') as HTMLInputElement | null;
     const searchButton = state.componentContainer?.querySelector('button[data-action="edit-search"]') as HTMLButtonElement | null;
     
     if (searchInput && searchButton) {
         searchInput.value = nrId;
-        searchButton.click(); // Programmatically trigger the search
+        searchButton.click(); 
     }
 }
 
@@ -499,7 +489,7 @@ function attachEventListeners(container: HTMLElement) {
         if (actionElement) {
             const action = actionElement.dataset.action;
             switch(action) {
-                case 'refresh-salvamento': await fetchAndRenderSalvamentoAvisos(); break;
+                case 'refresh-salvamento': await handleRefreshSalvamento(); break;
                 case 'switch-view': await handleSwitchView(actionElement); break;
                 case 'import': state.componentContainer?.querySelector<HTMLInputElement>('.file-input-hidden')?.click(); break;
                 case 'export': handleExport(); break;
