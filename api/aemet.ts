@@ -29,35 +29,72 @@ function parseWarningFromXml(xmlText: string): string | null {
 
 // --- Helper Functions for forecast ---
 const STATION_ZONE_MAPPING: { [key: string]: string } = {
-    'La Guardia': 'Pontevedra', 'Vigo': 'Pontevedra', 'Finisterre': 'A Coruña',
-    'A Coruña': 'A Coruña', 'Ortegal': 'Lugo', 'Navia': 'Asturias',
-    'Cabo Peñas': 'Asturias', 'Santander': 'Cantabria', 'Bilbao': 'Bizkaia',
-    'Pasajes': 'Gipuzkoa',
+    'La Guardia': 'SUR DE FISTERRA', 
+    'Vigo': 'SUR DE FISTERRA', 
+    'Finisterre': 'NORTE DE FISTERRA',
+    'A Coruña': 'NORTE DE FISTERRA', 
+    'Ortegal': 'CANTABRICO', 
+    'Navia': 'CANTABRICO',
+    'Cabo Peñas': 'CANTABRICO', 
+    'Santander': 'CANTABRICO', 
+    'Bilbao': 'CANTABRICO',
+    'Pasajes': 'CANTABRICO',
 };
+
+const numberWords: { [key: string]: number } = {
+    'CERO': 0, 'UNO': 1, 'DOS': 2, 'TRES': 3, 'CUATRO': 4, 'CINCO': 5,
+    'SEIS': 6, 'SIETE': 7, 'OCHO': 8, 'NUEVE': 9, 'DIEZ': 10,
+    'ONCE': 11, 'DOCE': 12
+};
+
 function parseForecastFromText(text: string) {
     const forecast = { windDirection: 'VAR', windForceBft: 0, waveHeightMeters: 0, visibilityKm: 10, weatherSummary: 'Despejado', weatherIcon: 'sunny' };
     const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
-    const windMatch = normalizedText.match(/(?:VIENTO|ARRECIANDO A|ROLANDO A|TENDIENDO A)\s+([A-Z\s/O]+?)\s+(\d+)(?:\s*[A-Z]\s+(\d+))?/);
-    if (windMatch) {
-        const directions = windMatch[1].replace(/COMPONENTE/i, '').trim().split(/\s+O\s+|\s*\/\s*/);
-        forecast.windDirection = directions[0].trim();
-        forecast.windForceBft = parseInt(windMatch[3] || windMatch[2], 10);
-    } else {
-        const variableMatch = normalizedText.match(/VARIABLE\s+(\d+)(?:\s+A\s+(\d+))?/);
-        if(variableMatch) {
-            forecast.windDirection = 'VAR';
-            forecast.windForceBft = parseInt(variableMatch[2] || variableMatch[1], 10);
+
+    // --- Wind Force Extraction (Improved Logic) ---
+    const allForces: number[] = [];
+    const wordRegex = new RegExp(`\\b(${Object.keys(numberWords).join('|')})\\b`, 'g');
+    const digitRegex = /\b(\d+)\b/g;
+
+    let match;
+    while((match = wordRegex.exec(normalizedText)) !== null) {
+        allForces.push(numberWords[match[1]]);
+    }
+    while((match = digitRegex.exec(normalizedText)) !== null) {
+        // Exclude wave heights by checking context
+        const context = normalizedText.substring(Math.max(0, match.index - 20), match.index);
+        if (!/METROS?|OLA|FONDO/.test(context)) {
+            allForces.push(parseInt(match[1], 10));
         }
     }
+    if (allForces.length > 0) {
+        forecast.windForceBft = Math.max(...allForces);
+    }
+
+    // --- Wind Direction Extraction (Improved Logic) ---
+    const dirRegex = /\b(NORTE|SURESTE|SUROESTE|NORESTE|NOROESTE|SUR|ESTE|OESTE|N|S|E|W|NE|NW|SE|SW|VARIABLE|VAR)\b/g;
+    const dirMatch = dirRegex.exec(normalizedText);
+    if (dirMatch) {
+        let dir = dirMatch[1];
+        if (dir.length > 3) { // It's a full word
+            dir = dir.replace('NORTE', 'N').replace('SUR', 'S').replace('ESTE', 'E').replace('OESTE', 'W');
+        }
+        forecast.windDirection = dir;
+    }
+
+    // --- Wave Height Extraction ---
     const waveMatch = normalizedText.match(/(?:MAR DE FONDO|OLAS)\s+.*?(\d+(?:\.\d+)?)(?:\s+A\s+(\d+(?:\.\d+)?))?\s+METROS?/);
     if (waveMatch) {
         forecast.waveHeightMeters = parseFloat(waveMatch[2] || waveMatch[1]);
     } else {
-        if (normalizedText.includes('FUERTE MAREJADA')) forecast.waveHeightMeters = 3.0;
+        if (normalizedText.includes('GRUESA')) forecast.waveHeightMeters = 5.0;
+        else if (normalizedText.includes('FUERTE MAREJADA')) forecast.waveHeightMeters = 3.0;
         else if (normalizedText.includes('MAREJADA')) forecast.waveHeightMeters = 1.8;
         else if (normalizedText.includes('MAREJADILLA')) forecast.waveHeightMeters = 0.8;
         else if (normalizedText.includes('RIZADA')) forecast.waveHeightMeters = 0.1;
     }
+
+    // --- Visibility and Weather Summary ---
     if (normalizedText.includes('NIEBLA') || normalizedText.includes('BRUMA') || normalizedText.includes('MALA')) {
         forecast.visibilityKm = 2;
         forecast.weatherSummary = 'Niebla o bruma';
@@ -71,7 +108,7 @@ function parseForecastFromText(text: string) {
     } else if (normalizedText.includes('TORMENTAS')) {
         forecast.weatherSummary = 'Tormentas';
         forecast.weatherIcon = 'thunderstorm';
-    } else if (normalizedText.includes('NUBO')) {
+    } else if (normalizedText.includes('NUBO') || normalizedText.includes('CUBIERTO')) {
         forecast.weatherSummary = 'Nuboso';
         forecast.weatherIcon = 'cloudy';
     }
@@ -146,16 +183,25 @@ async function getForecast() {
         fetchAndDecode(AEMET_URLS.GALICIA),
         fetchAndDecode(AEMET_URLS.CANTABRICO)
     ]);
-    const allXml = galiciaXml + cantabricoXml;
+
     const zoneForecasts = new Map<string, any>();
-    const zoneRegex = /<zona[^>]*nombre="([^"]+)"[^>]*>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/zona>/gi;
-    let match;
-    while ((match = zoneRegex.exec(allXml)) !== null) {
-        const zoneName = match[1].replace(/AGUAS COSTERAS DE /i, '').trim();
-        const textContent = match[2] || '';
-        const forecast = parseForecastFromText(textContent);
-        zoneForecasts.set(zoneName, forecast);
-    }
+
+    const processXml = (xmlText: string) => {
+        // Regex to find subzones which are more specific
+        const subzoneRegex = /<subzona[^>]*nombre="([^"]+)"[^>]*>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/subzona>/gi;
+        let match;
+        while ((match = subzoneRegex.exec(xmlText)) !== null) {
+            const zoneName = match[1].trim().toUpperCase();
+            const textContent = match[2] || '';
+            if (textContent) {
+                 zoneForecasts.set(zoneName, parseForecastFromText(textContent));
+            }
+        }
+    };
+    
+    processXml(galiciaXml);
+    processXml(cantabricoXml);
+
     const forecastData = [];
     for (const [stationName, zoneName] of Object.entries(STATION_ZONE_MAPPING)) {
         const zoneForecast = zoneForecasts.get(zoneName);
@@ -168,6 +214,7 @@ async function getForecast() {
     }
     return forecastData;
 }
+
 
 async function getBulletin(id: string) {
     const xml = await fetchAndDecode(AEMET_URLS[id]);
