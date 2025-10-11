@@ -1,5 +1,5 @@
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
-import { showToast } from "../utils/helpers";
+import { debounce, showToast } from "../utils/helpers";
 
 // =================================================================================
 // --- DATA TYPES & STATE MANAGEMENT ---
@@ -40,6 +40,9 @@ type AppData = {
     history: HistoryLog[];
 };
 type View = 'INICIO' | 'AÑADIR' | 'EDITAR' | 'BORRAR' | 'BD' | 'HISTORIAL';
+type SortDirection = 'ascending' | 'descending';
+type SortConfig<T> = { key: keyof T; direction: SortDirection };
+
 
 // --- Component-level State ---
 let user: string | null = null;
@@ -51,6 +54,12 @@ let salvamentoAvisos: SalvamentoAviso[] = [];
 let isSalvamentoLoading = false;
 let salvamentoError: string | null = null;
 let lastSalvamentoUpdate: Date | null = null;
+// --- State for Tables ---
+let nrFilterText = '';
+let historyFilterText = '';
+let nrSortConfig: SortConfig<NR> = { key: 'id', direction: 'ascending' };
+let historySortConfig: SortConfig<HistoryLog> = { key: 'timestamp', direction: 'descending' };
+
 
 // =================================================================================
 // --- API LAYER ---
@@ -127,24 +136,33 @@ function renderSalvamentoPanelHTML(): string {
     } else if (salvamentoAvisos.length === 0) {
         content = `<p class="drill-placeholder">No hay radioavisos disponibles en la fuente oficial.</p>`;
     } else {
-        content = `
-            <div class="salvamento-avisos-list">
-                ${salvamentoAvisos.map(aviso => `
-                    <div class="aviso-item" data-link="${aviso.pdfLink}" title="Haz clic para ver el PDF oficial">
-                        <div class="aviso-item-header">
-                            <h4 class="aviso-item-title">${aviso.num}</h4>
-                            <span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span>
+        const ZONAS_FILTRADAS = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
+        const filteredAvisos = salvamentoAvisos.filter(aviso =>
+            ZONAS_FILTRADAS.some(zona => aviso.zona.includes(zona))
+        );
+
+        if (filteredAvisos.length === 0) {
+            content = `<p class="drill-placeholder">No hay radioavisos vigentes para las zonas Costa N, NW y Coruña.</p>`;
+        } else {
+            content = `
+                <div class="salvamento-avisos-list">
+                    ${filteredAvisos.map(aviso => `
+                        <div class="aviso-item" data-link="${aviso.pdfLink}" title="Haz clic para ver el PDF oficial">
+                            <div class="aviso-item-header">
+                                <h4 class="aviso-item-title">${aviso.num}</h4>
+                                <span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span>
+                            </div>
+                            <p class="aviso-item-desc">${aviso.asunto}</p>
+                            <div class="aviso-item-details">
+                                <div><span>Zona:</span> <strong>${aviso.zona}</strong></div>
+                                <div><span>Emisión:</span> <strong>${aviso.emision}</strong></div>
+                                <div><span>Caducidad:</span> <strong>${aviso.caducidad}</strong></div>
+                            </div>
                         </div>
-                        <p class="aviso-item-desc">${aviso.asunto}</p>
-                        <div class="aviso-item-details">
-                            <div><span>Zona:</span> <strong>${aviso.zona}</strong></div>
-                            <div><span>Emisión:</span> <strong>${aviso.emision}</strong></div>
-                            <div><span>Caducidad:</span> <strong>${aviso.caducidad}</strong></div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
+                    `).join('')}
+                </div>
+            `;
+        }
     }
 
     return `
@@ -261,6 +279,23 @@ function attachEventListeners(container: HTMLElement) {
     container.addEventListener('click', handleDelegatedClick);
     container.addEventListener('submit', handleDelegatedSubmit);
     
+    const debouncedFilter = debounce(async (e: Event) => {
+        const input = e.target as HTMLInputElement;
+        if (input.dataset.filterTarget === 'nrs') {
+            nrFilterText = input.value;
+        } else if (input.dataset.filterTarget === 'history') {
+            historyFilterText = input.value;
+        }
+        await reRender();
+    }, 300);
+
+    container.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.dataset.action === 'filter') {
+            debouncedFilter(e);
+        }
+    });
+    
     container.addEventListener('change', (e) => {
         const target = e.target as HTMLInputElement;
         if (target.id === 'add-is-versionado') {
@@ -286,7 +321,6 @@ async function handleDelegatedSubmit(e: Event) {
 async function handleDelegatedClick(e: Event) {
     const target = e.target as HTMLElement;
     
-    // Handle aviso item click
     const avisoItem = target.closest<HTMLElement>('.aviso-item');
     if (avisoItem && avisoItem.dataset.link) {
         window.open(avisoItem.dataset.link, '_blank');
@@ -303,6 +337,26 @@ async function handleDelegatedClick(e: Event) {
         case 'switch-view':
             currentView = actionElement.dataset.view as View;
             await reRender();
+            break;
+        case 'sort':
+            const key = actionElement.dataset.sortKey;
+            const targetTable = actionElement.dataset.table;
+            if (key) {
+                if (targetTable === 'nrs') {
+                    const isSameKey = nrSortConfig.key === key;
+                    nrSortConfig = {
+                        key: key as keyof NR,
+                        direction: isSameKey && nrSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+                    };
+                } else if (targetTable === 'history') {
+                    const isSameKey = historySortConfig.key === key;
+                    historySortConfig = {
+                        key: key as keyof HistoryLog,
+                        direction: isSameKey && historySortConfig.direction === 'ascending' ? 'descending' : 'ascending',
+                    };
+                }
+                await reRender();
+            }
             break;
         case 'import':
             componentContainer?.querySelector<HTMLInputElement>('.file-input-hidden')?.click();
@@ -658,22 +712,69 @@ function renderDeleteView(): string {
 }
 
 function renderDbView(): string {
-    const activeNRs = appData.nrs.filter(nr => !nr.isCaducado).sort((a, b) => a.id.localeCompare(b.id));
-    if (activeNRs.length === 0) return `<p class="drill-placeholder">No hay radioavisos vigentes.</p>`;
+    const searchTerm = nrFilterText.toLowerCase();
+    const filteredNrs = appData.nrs.filter(nr => 
+        nr.id.toLowerCase().includes(searchTerm) ||
+        nr.fullId.toLowerCase().includes(searchTerm) ||
+        (nr.expiryDate && nr.expiryDate.includes(searchTerm))
+    );
+
+    const sortedNrs = [...filteredNrs].sort((a, b) => {
+        const key = nrSortConfig.key;
+        const aValue = a[key];
+        const bValue = b[key];
+        
+        let comparison = 0;
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+            comparison = aValue.localeCompare(bValue);
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+            comparison = aValue - bValue;
+        } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+            comparison = aValue === bValue ? 0 : aValue ? -1 : 1;
+        }
+
+        return nrSortConfig.direction === 'ascending' ? comparison : -comparison;
+    });
+
+    if (sortedNrs.length === 0) {
+        return `
+            <div class="filterable-table-header">
+                <input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${nrFilterText}" data-action="filter" data-filter-target="nrs">
+            </div>
+            <p class="drill-placeholder">No se encontraron NRs.</p>`;
+    }
+
+    const renderHeader = (key: keyof NR, label: string) => {
+        const isSorted = nrSortConfig.key === key;
+        const sortClass = isSorted ? `sort-${nrSortConfig.direction}` : '';
+        return `<th class="${sortClass}" data-action="sort" data-sort-key="${key}" data-table="nrs">${label}</th>`;
+    };
+
     return `
+        <div class="filterable-table-header">
+            <input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${nrFilterText}" data-action="filter" data-filter-target="nrs">
+        </div>
         <div class="table-wrapper">
              <table class="reference-table data-table">
                 <thead>
-                    <tr><th>NR</th><th>Versión</th><th>Fecha/Hora Cad. (UTC)</th>
-                    ${STATIONS_VHF.map(s => `<th>${s.replace(' VHF', '')}</th>`).join('')}
-                    ${STATIONS_MF.map(s => `<th>${s.replace(' MF', '')}</th>`).join('')}
+                    <tr>
+                        ${renderHeader('id', 'NR')}
+                        ${renderHeader('version', 'Versión')}
+                        ${renderHeader('expiryDate', 'Caducidad (UTC)')}
+                        <th>EECC</th>
+                        ${renderHeader('isAmpliado', 'Ampliado')}
+                        ${renderHeader('isCaducado', 'Caducado')}
                     </tr>
                 </thead>
                 <tbody>
-                    ${activeNRs.map(nr => `
-                        <tr>
-                            <td>NR-${nr.id}</td><td>v${nr.version}</td><td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
-                            ${ALL_STATIONS.map(s => `<td class="${nr.stations.includes(s) ? 'true-cell' : 'false-cell'}">${nr.stations.includes(s) ? '✔' : '✖'}</td>`).join('')}
+                    ${sortedNrs.map(nr => `
+                        <tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}">
+                            <td>NR-${nr.id}</td>
+                            <td>v${nr.version}</td>
+                            <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
+                            <td>${nr.stations.length}</td>
+                            <td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td>
+                            <td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -683,15 +784,69 @@ function renderDbView(): string {
 }
 
 function renderHistoryView(): string {
-    const sortedHistory = [...appData.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    if (sortedHistory.length === 0) return `<p class="drill-placeholder">No hay operaciones registradas.</p>`;
+    const searchTerm = historyFilterText.toLowerCase();
+    const filteredHistory = appData.history.filter(log =>
+        log.nrId.toLowerCase().includes(searchTerm) ||
+        log.user.toLowerCase().includes(searchTerm) ||
+        log.action.toLowerCase().includes(searchTerm) ||
+        log.details.toLowerCase().includes(searchTerm)
+    );
+
+     const sortedHistory = [...filteredHistory].sort((a, b) => {
+        const key = historySortConfig.key;
+        const aValue = a[key];
+        const bValue = b[key];
+        
+        let comparison = 0;
+        if (key === 'timestamp') {
+            comparison = new Date(aValue).getTime() - new Date(bValue).getTime();
+        } else {
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                comparison = aValue.localeCompare(bValue);
+            }
+        }
+
+        return historySortConfig.direction === 'ascending' ? comparison : -comparison;
+    });
+
+    if (sortedHistory.length === 0) {
+        return `
+            <div class="filterable-table-header">
+                <input type="search" class="filter-input" placeholder="Filtrar historial..." value="${historyFilterText}" data-action="filter" data-filter-target="history">
+            </div>
+            <p class="drill-placeholder">No hay operaciones registradas.</p>`;
+    }
+    
+    const renderHeader = (key: keyof HistoryLog, label: string) => {
+        const isSorted = historySortConfig.key === key;
+        const sortClass = isSorted ? `sort-${historySortConfig.direction}` : '';
+        return `<th class="${sortClass}" data-action="sort" data-sort-key="${key}" data-table="history">${label}</th>`;
+    };
+
     return `
+        <div class="filterable-table-header">
+            <input type="search" class="filter-input" placeholder="Filtrar historial..." value="${historyFilterText}" data-action="filter" data-filter-target="history">
+        </div>
         <div class="table-wrapper">
              <table class="reference-table data-table">
-                <thead><tr><th>NR</th><th>F/H Acción</th><th>Usuario</th><th>Acción</th><th>Detalles</th></tr></thead>
+                <thead>
+                    <tr>
+                        ${renderHeader('nrId', 'NR')}
+                        ${renderHeader('timestamp', 'F/H Acción')}
+                        ${renderHeader('user', 'Usuario')}
+                        ${renderHeader('action', 'Acción')}
+                        ${renderHeader('details', 'Detalles')}
+                    </tr>
+                </thead>
                 <tbody>
                     ${sortedHistory.map(log => `
-                        <tr><td>NR-${log.nrId}</td><td>${getFormattedDateTime(log.timestamp)}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>
+                        <tr>
+                            <td>NR-${log.nrId}</td>
+                            <td>${getFormattedDateTime(log.timestamp)}</td>
+                            <td>${log.user}</td>
+                            <td>${log.action}</td>
+                            <td>${log.details}</td>
+                        </tr>
                     `).join('')}
                 </tbody>
             </table>
