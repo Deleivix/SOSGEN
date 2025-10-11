@@ -14,7 +14,7 @@ type SalvamentoAviso = {
   subtipo: string;
   prioridad: string;
   caducidad: string;
-  pdfLink: string;
+  eventTarget: string; // The ID needed to fetch the PDF
 };
 
 type NR = {
@@ -189,7 +189,7 @@ function renderSalvamentoPanelHTML(): string {
                         </thead>
                         <tbody>
                         ${sortedAvisos.map(aviso => `
-                            <tr data-link="${aviso.pdfLink}" title="Haz clic para ver el PDF oficial">
+                            <tr data-event-target="${aviso.eventTarget}" title="Haz clic para ver el PDF oficial">
                                 <td>${aviso.num}</td>
                                 <td>${aviso.emision}</td>
                                 <td style="white-space: normal; min-width: 250px;">${aviso.asunto}</td>
@@ -363,9 +363,12 @@ async function handleDelegatedSubmit(e: Event) {
 async function handleDelegatedClick(e: Event) {
     const target = e.target as HTMLElement;
     
-    const tableRow = target.closest<HTMLTableRowElement>('tr[data-link]');
-    if (tableRow && tableRow.dataset.link) {
-        window.open(tableRow.dataset.link, '_blank');
+    const tableRow = target.closest<HTMLTableRowElement>('tr[data-event-target]');
+    if (tableRow && tableRow.dataset.eventTarget) {
+        const eventTarget = tableRow.dataset.eventTarget;
+        if (eventTarget) {
+            window.open(`/api/radioaviso-pdf?target=${encodeURIComponent(eventTarget)}`, '_blank');
+        }
         return;
     }
 
