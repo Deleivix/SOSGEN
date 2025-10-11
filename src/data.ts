@@ -1,3 +1,4 @@
+
 // --- DATA STRUCTURES ---
 export interface Template { title: string; template: string; }
 export interface Category { category: string; items: Template[]; }
@@ -27,7 +28,7 @@ export const APP_PAGE_ICONS = [
 ];
 
 export const APP_PAGES: Page[] = [
-    { name: 'Dashboard' },
+    { name: 'HOME' },
     { name: 'SOSGEN' },
     { name: 'Registro Océano' },
     { name: 'PROTOCOLO' },

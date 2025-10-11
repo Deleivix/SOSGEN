@@ -31,29 +31,21 @@ export default async function handler(
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { action, username, password, email } = request.body;
-    
-    if (action === 'register') {
-        if (!username || !password || !email) {
-            return response.status(400).json({ error: 'Usuario, contraseña y email son obligatorios.' });
-        }
-        if (!email.toLowerCase().includes('@cellnex')) {
-            return response.status(400).json({ error: 'Debe proporcionar un email de Cellnex válido.' });
-        }
-    } else if (action === 'login') {
-        if (!username || !password) {
-            return response.status(400).json({ error: 'Usuario y contraseña son obligatorios.' });
-        }
-    } else {
-        return response.status(400).json({ error: 'Acción no válida.' });
-    }
-
-    // Normalize username to uppercase to avoid case-sensitivity issues
-    const normalizedUsername = username.trim().toUpperCase();
-    const trimmedEmail = email ? email.trim() : '';
+    const { action } = request.body;
 
     try {
         if (action === 'register') {
+            const { username, password, email } = request.body;
+            if (!username || !password || !email) {
+                return response.status(400).json({ error: 'Usuario, contraseña y email son obligatorios.' });
+            }
+            if (!email.toLowerCase().includes('@cellnex')) {
+                return response.status(400).json({ error: 'Debe proporcionar un email de Cellnex válido.' });
+            }
+            
+            const normalizedUsername = username.trim().toUpperCase();
+            const trimmedEmail = email.trim();
+
             const { rows: existingUsers } = await sql`SELECT * FROM users WHERE username = ${normalizedUsername} OR email = ${trimmedEmail};`;
             if (existingUsers.length > 0) {
                  if (existingUsers[0].username === normalizedUsername) {
@@ -73,9 +65,17 @@ export default async function handler(
             return response.status(201).json({ success: true, message: 'User registered successfully.' });
 
         } else if (action === 'login') {
-            const { rows: users } = await sql`SELECT * FROM users WHERE username = ${normalizedUsername};`;
+            const { identifier, password } = request.body;
+            if (!identifier || !password) {
+                return response.status(400).json({ error: 'Identificador y contraseña son obligatorios.' });
+            }
+
+            const normalizedIdentifier = identifier.trim().toUpperCase(); // For username check
+            const trimmedIdentifier = identifier.trim(); // For email check
+
+            const { rows: users } = await sql`SELECT * FROM users WHERE username = ${normalizedIdentifier} OR email = ${trimmedIdentifier};`;
             if (users.length === 0) {
-                return response.status(401).json({ error: 'Usuario o contraseña no válidos.' });
+                return response.status(401).json({ error: 'Usuario, email o contraseña no válidos.' });
             }
 
             const user = users[0];
@@ -86,7 +86,7 @@ export default async function handler(
 
             // Use timingSafeEqual to prevent timing attacks on password verification
             if (storedHashBuffer.length !== suppliedHashBuffer.length || !crypto.timingSafeEqual(storedHashBuffer, suppliedHashBuffer)) {
-                 return response.status(401).json({ error: 'Usuario o contraseña no válidos.' });
+                 return response.status(401).json({ error: 'Usuario, email o contraseña no válidos.' });
             }
             
             // Return user object on successful login

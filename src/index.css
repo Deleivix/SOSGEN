@@ -1,4 +1,5 @@
 
+
 :root {
   --accent-color: #8BC34A;
   --accent-color-dark: #7aa841;
@@ -252,11 +253,13 @@ nav {
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
 }
-
+.nav-icon {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.5;
+    flex-shrink: 0;
+}
 .nav-link {
   font-family: var(--font-sans);
   font-size: 1rem;
@@ -274,12 +277,6 @@ nav {
   align-items: center;
   gap: 0.6rem;
 }
-.nav-icon {
-    width: 20px;
-    height: 20px;
-    stroke-width: 1.5;
-    flex-shrink: 0;
-}
 .nav-link:hover { color: var(--text-inverted); transform: translateY(-2px); }
 .nav-link.active { background-color: var(--accent-color); color: var(--text-inverted); }
 
@@ -287,6 +284,19 @@ nav {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+}
+
+.nav-user-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.nav-user-display svg {
+    fill: currentColor;
+    flex-shrink: 0;
 }
 
 /* Theme Switcher */

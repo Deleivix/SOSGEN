@@ -4,6 +4,7 @@
 */
 
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
+import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
 
 // =================================================================================
@@ -50,7 +51,6 @@ type SortConfig<T> = { key: keyof T; direction: SortDirection };
 
 
 // --- Component-level State ---
-let user: string | null = null;
 let appData: AppData = { nrs: [], history: [] };
 let isAppDataLoading = true;
 let appDataError: string | null = null;
@@ -270,25 +270,25 @@ async function reRender() {
 
 export function renderRadioavisos(container: HTMLElement) {
     componentContainer = container;
-    user = localStorage.getItem('nr_manager_user');
+    const user = getCurrentUser();
+
+    if (!user) {
+        container.innerHTML = `<div class="content-card"><p class="error">Debe iniciar sesión para acceder a esta herramienta.</p></div>`;
+        return;
+    }
     
     if (!(container as any).__radioavisosListenersAttached) {
         attachEventListeners(container);
         (container as any).__radioavisosListenersAttached = true;
     }
     
-    if (user) {
-        loadInitialData();
-        fetchAndRenderSalvamentoAvisos();
-    } else {
-        reRender(); // Renders the login prompt
-    }
+    loadInitialData();
+    fetchAndRenderSalvamentoAvisos();
 }
 
 function renderPageContent(): string {
-    if (!user) {
-        return renderLoginRegisterPrompt();
-    }
+    const user = getCurrentUser();
+    if (!user) return `<div class="content-card"><p class="error">Error de autenticación. Por favor, inicie sesión de nuevo.</p></div>`;
 
     if (isAppDataLoading) {
         return `<div class="content-card"><div class="loader-container"><div class="loader"></div></div></div>`;
@@ -321,7 +321,7 @@ function renderPageContent(): string {
                     <input type="file" accept=".json" class="file-input-hidden" style="display: none;" />
                     <button class="secondary-btn" data-action="export">Exportar</button>
                     <div style="font-size: 0.9rem; background-color: var(--bg-main); padding: 0.5rem 1rem; border-radius: 6px;">
-                        <strong>Usuario:</strong> ${user}
+                        <strong>Usuario:</strong> ${user.username}
                     </div>
                 </div>
             </div>
@@ -344,7 +344,6 @@ function renderPageContent(): string {
 
 function attachEventListeners(container: HTMLElement) {
     container.addEventListener('click', handleDelegatedClick);
-    container.addEventListener('submit', handleDelegatedSubmit);
     
     const debouncedFilter = debounce(async (e: Event) => {
         const input = e.target as HTMLInputElement;
@@ -382,12 +381,6 @@ function attachEventListeners(container: HTMLElement) {
             handleFileChange(e);
         }
     });
-}
-
-async function handleDelegatedSubmit(e: Event) {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    if (form.id === 'auth-form') await handleAuthSubmit(e as SubmitEvent);
 }
 
 async function handleDelegatedClick(e: Event) {
@@ -450,69 +443,9 @@ async function handleDelegatedClick(e: Event) {
     }
 }
 
-async function handleAuthSubmit(e: SubmitEvent) {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const submitter = e.submitter as HTMLButtonElement;
-    if (!form || !submitter) return;
-
-    const action = submitter.dataset.authAction;
-    const usernameInput = form.querySelector('#auth-username-input') as HTMLInputElement;
-    const passwordInput = form.querySelector('#auth-password-input') as HTMLInputElement;
-    const errorEl = form.querySelector('#auth-error-message') as HTMLElement;
-    
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value;
-
-    if (!username || !password) {
-        errorEl.textContent = 'Usuario y contraseña son obligatorios.';
-        return;
-    }
-
-    errorEl.textContent = '';
-    const originalButtonText = submitter.textContent;
-    submitter.disabled = true;
-    submitter.innerHTML = `<div class="spinner" style="width: 16px; height: 16px; border-width: 2px; display: inline-block; margin: 0 auto;"></div>`;
-    
-    // Disable the other button as well
-    const otherButton = form.querySelector<HTMLButtonElement>(`button:not([data-auth-action="${action}"])`);
-    if(otherButton) otherButton.disabled = true;
-
-    try {
-        const response = await fetch('/api/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, username, password })
-        });
-        
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Ocurrió un error.');
-        }
-
-        if (action === 'register') {
-            showToast('Usuario registrado con éxito. Por favor, inicie sesión.', 'success');
-        } else if (action === 'login') {
-            user = data.user.username;
-            localStorage.setItem('nr_manager_user', user!);
-            await loadInitialData();
-            fetchAndRenderSalvamentoAvisos();
-        }
-
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Error desconocido";
-        errorEl.textContent = message;
-        showToast(message, 'error');
-    } finally {
-        submitter.disabled = false;
-        submitter.innerHTML = originalButtonText || '';
-        if(otherButton) otherButton.disabled = false;
-    }
-}
-
-
 async function handleAddSubmit() {
+    const user = getCurrentUser();
+    if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
     if (!componentContainer) return;
 
     try {
@@ -540,7 +473,7 @@ async function handleAddSubmit() {
             if (previousVersions.length > 0) {
                 version = Math.max(...previousVersions.map(nr => nr.version)) + 1;
                 nrsToUpdate = nrsToUpdate.map(nr => nr.id === versionedFrom ? { ...nr, isCaducado: true } : nr);
-                currentData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a NR-${nrId}-${version}`});
+                currentData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a NR-${nrId}-${version}`});
             }
         }
         
@@ -556,7 +489,7 @@ async function handleAddSubmit() {
         const finalData: AppData = {
             nrs: [...nrsToUpdate, newNR],
             history: [
-                { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'AÑADIDO', nrId, details: `Añadida versión ${version} a ${stations.length} estaciones.` },
+                { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'AÑADIDO', nrId, details: `Añadida versión ${version} a ${stations.length} estaciones.` },
                 ...currentData.history
             ]
         };
@@ -573,7 +506,10 @@ async function handleAddSubmit() {
 }
 
 async function handleEditSave() {
+    const user = getCurrentUser();
+    if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
     if (!componentContainer) return;
+
     const formContainer = componentContainer.querySelector('#edit-form-container') as HTMLElement;
     const fullId = formContainer.dataset.fullId;
     if (!fullId) return;
@@ -598,7 +534,7 @@ async function handleEditSave() {
         } : nr);
 
         const updatedHistory = [
-            { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'EDITADO', nrId: nrToUpdate.id, details: `Editada versión ${nrToUpdate.version}.` },
+            { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'EDITADO', nrId: nrToUpdate.id, details: `Editada versión ${nrToUpdate.version}.` },
             ...currentData.history
         ];
 
@@ -615,7 +551,10 @@ async function handleEditSave() {
 }
 
 async function handleDeleteNR() {
+    const user = getCurrentUser();
+    if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
     if (!componentContainer) return;
+
     const nrId = (componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
     if (!nrId) return;
 
@@ -627,7 +566,7 @@ async function handleDeleteNR() {
             const finalData: AppData = {
                 nrs: currentData.nrs.filter(nr => nr.id !== nrId),
                 history: [
-                    { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'BORRADO', nrId: nrId, details: `Eliminado permanentemente.` },
+                    { id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'BORRADO', nrId: nrId, details: `Eliminado permanentemente.` },
                     ...currentData.history
                 ]
             };
@@ -643,7 +582,10 @@ async function handleDeleteNR() {
 }
 
 async function handleCancelNR() {
+    const user = getCurrentUser();
+    if (!user) return showToast("Error de sesión. Por favor, inicie sesión de nuevo.", "error");
     if (!componentContainer) return;
+
     const nrId = (componentContainer.querySelector('#delete-nr-id') as HTMLInputElement).value.trim();
     if (!nrId) return;
     
@@ -655,7 +597,7 @@ async function handleCancelNR() {
             const finalData: AppData = {
                 nrs: currentData.nrs.map(nr => nr.id === nrId ? {...nr, isCaducado: true} : nr),
                 history: [
-                    {id: Date.now().toString(), timestamp: new Date().toISOString(), user: user!, action: 'CANCELADO', nrId: nrId, details: `Marcado como caducado.`},
+                    {id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: nrId, details: `Marcado como caducado.`},
                     ...currentData.history
                 ]
             };
@@ -727,10 +669,7 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-            // FIX: The `action` property from the parsed JSON is a generic 'string',
-            // which is incompatible with the specific literal union type expected in `HistoryLog`.
-            // The `as unknown as AppData` double assertion tells TypeScript to trust the structure
-            // of the incoming data from the JSON file, resolving the type error.
+// Fix: A type assertion is needed here because JSON.parse returns `any`. The `action` property, in particular, needs to be trusted to match the specific string literals defined in the `HistoryLog` type.
             const dataToProcess = parsedData as unknown as AppData;
             
             await api.saveData(dataToProcess);
@@ -744,38 +683,13 @@ function handleFileChange(event: Event) {
             if (input) input.value = "";
         }
     };
+// Fix: Corrected typo from `readText` to `readAsText`.
     reader.readAsText(file);
 }
 
 // =================================================================================
 // --- HTML TEMPLATES FOR VIEWS ---
 // =================================================================================
-
-function renderLoginRegisterPrompt(): string {
-    return `
-        <div class="user-prompt-overlay">
-            <div class="user-prompt-box" style="max-width: 450px;">
-                <h2>Acceso al Gestor de Radioavisos</h2>
-                <p>Inicie sesión o regístrese para continuar.</p>
-                <form id="auth-form" style="margin-top: 1rem; text-align: left;">
-                    <div class="form-group">
-                        <label for="auth-username-input">Usuario</label>
-                        <input class="simulator-input" type="text" id="auth-username-input" autocomplete="username" required autofocus />
-                    </div>
-                     <div class="form-group" style="margin-top: 1rem;">
-                        <label for="auth-password-input">Contraseña</label>
-                        <input class="simulator-input" type="password" id="auth-password-input" autocomplete="current-password" required />
-                    </div>
-                    <div class="button-container" style="margin-top: 1.5rem; padding-top: 0; border-top: none;">
-                        <button type="submit" class="secondary-btn" data-auth-action="register" style="flex: 1;">Registrar</button>
-                        <button type="submit" class="primary-btn" data-auth-action="login" style="margin-top: 0; flex: 1;">Iniciar Sesión</button>
-                    </div>
-                    <div id="auth-error-message" class="error" style="text-align: center; margin-top: 1rem; color: var(--danger-color); min-height: 1em;"></div>
-                </form>
-            </div>
-        </div>
-    `;
-}
 
 function renderCurrentViewContent(): string {
     switch (currentView) {

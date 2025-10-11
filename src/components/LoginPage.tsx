@@ -14,8 +14,8 @@ export function renderLoginPage(container: HTMLElement, onLogin: (user: User) =>
                 <p class="login-subtitle">Asistente de comunicaciones marítimas con IA.</p>
                 <form id="auth-form" class="login-form">
                     <div class="form-group">
-                        <label for="auth-username-input">Usuario</label>
-                        <input class="simulator-input" type="text" id="auth-username-input" autocomplete="username" required autofocus />
+                        <label for="auth-identifier-input">Usuario o Email</label>
+                        <input class="simulator-input" type="text" id="auth-identifier-input" autocomplete="username" required autofocus />
                     </div>
                     <div class="form-group">
                         <label for="auth-email-input">Email (requerido para registro)</label>
@@ -48,26 +48,39 @@ async function handleAuthSubmit(e: Event, onLogin: (user: User) => void) {
     if (!form || !submitter) return;
 
     const action = submitter.dataset.authAction;
-    const usernameInput = form.querySelector('#auth-username-input') as HTMLInputElement;
+    const identifierInput = form.querySelector('#auth-identifier-input') as HTMLInputElement;
     const emailInput = form.querySelector('#auth-email-input') as HTMLInputElement;
     const passwordInput = form.querySelector('#auth-password-input') as HTMLInputElement;
     const errorEl = form.querySelector('#auth-error-message') as HTMLElement;
     
-    const username = usernameInput.value.trim();
+    const identifier = identifierInput.value.trim();
     const email = emailInput.value.trim();
     const password = passwordInput.value;
-
-    if (!username || !password) {
-        errorEl.textContent = 'Usuario y contraseña son obligatorios.';
-        return;
-    }
-
-    if (action === 'register' && (!email || !email.toLowerCase().includes('@cellnex'))) {
-        errorEl.textContent = 'Para registrarse, debe proporcionar un email de Cellnex válido.';
-        return;
-    }
-
+    
+    // Clear previous errors
     errorEl.textContent = '';
+    
+    const payload: any = { action, password };
+
+    if (action === 'register') {
+        payload.username = identifier; // For register, the first field is the username
+        payload.email = email;
+        if (!identifier || !email || !password) {
+            errorEl.textContent = 'Usuario, Email y Contraseña son obligatorios para registrarse.';
+            return;
+        }
+        if (!email.toLowerCase().includes('@cellnex')) {
+            errorEl.textContent = 'Para registrarse, debe proporcionar un email de Cellnex válido.';
+            return;
+        }
+    } else if (action === 'login') {
+        payload.identifier = identifier; // For login, the first field is username OR email
+        if (!identifier || !password) {
+            errorEl.textContent = 'Usuario/Email y Contraseña son obligatorios para iniciar sesión.';
+            return;
+        }
+    }
+    
     const originalButtonText = submitter.textContent;
     submitter.disabled = true;
     submitter.innerHTML = `<div class="spinner" style="width: 16px; height: 16px; border-width: 2px; display: inline-block; margin: 0 auto;"></div>`;
@@ -76,11 +89,6 @@ async function handleAuthSubmit(e: Event, onLogin: (user: User) => void) {
     if(otherButton) otherButton.disabled = true;
 
     try {
-        const payload: any = { action, username, password };
-        if (action === 'register') {
-            payload.email = email;
-        }
-
         const response = await fetch('/api/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
