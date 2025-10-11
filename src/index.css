@@ -1447,6 +1447,19 @@ body.dark-theme .category-badge.importante {
   background-color: var(--danger-color-dark);
   color: var(--bg-main-dark);
 }
+.category-badge.navtex {
+  background-color: var(--accent-color); /* Green */
+}
+.category-badge.fonia {
+  background-color: var(--info-color); /* Blue */
+}
+body.dark-theme .category-badge.navtex {
+  background-color: var(--accent-color-dark);
+}
+body.dark-theme .category-badge.fonia {
+  background-color: var(--info-color-dark);
+  color: var(--bg-main-dark);
+}
 
 
 /* --- Bitacora (Logbook) --- */

@@ -104,6 +104,26 @@ const getFormattedDateTime = (isoString?: string) => {
     }
 };
 
+const getMedioTags = (zona: string): string => {
+    const upperZona = zona.toUpperCase();
+    const zonasArray = upperZona.split(',').map(z => z.trim()).filter(Boolean);
+    
+    const hasCoruna = zonasArray.includes('CORUÑA');
+    const hasOtherZones = zonasArray.some(z => z !== 'CORUÑA');
+
+    let tags = '';
+
+    if (hasCoruna) {
+        tags += `<span class="category-badge navtex" style="margin-right: 4px;">NAVTEX</span>`;
+    }
+
+    if (hasOtherZones || !hasCoruna) {
+         tags += `<span class="category-badge fonia">FONÍA</span>`;
+    }
+
+    return tags;
+};
+
 // =================================================================================
 // --- SALVAMENTO MARÍTIMO PANEL ---
 // =================================================================================
@@ -192,6 +212,7 @@ function renderSalvamentoPanelHTML(): string {
                                 ${renderHeader('asunto', 'Asunto')}
                                 ${renderHeader('zona', 'Zona')}
                                 ${renderHeader('prioridad', 'Prioridad')}
+                                <th>Medio</th>
                                 ${renderHeader('caducidad', 'Caducidad')}
                             </tr>
                         </thead>
@@ -203,6 +224,7 @@ function renderSalvamentoPanelHTML(): string {
                                 <td style="white-space: normal; min-width: 250px;">${aviso.asunto}</td>
                                 <td style="min-width: 150px;">${aviso.zona}</td>
                                 <td><span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span></td>
+                                <td>${getMedioTags(aviso.zona)}</td>
                                 <td>${aviso.caducidad}</td>
                             </tr>
                         `).join('')}
@@ -220,7 +242,7 @@ function renderSalvamentoPanelHTML(): string {
                     <h3>Radioavisos Oficiales (Zonas N, NW, Coruña)</h3>
                     <a href="https://radioavisos.salvamentomaritimo.es/" target="_blank" rel="noopener noreferrer">
                         Ver fuente oficial
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>
                     </a>
                 </div>
                 <div class="salvamento-panel-controls">
@@ -669,10 +691,10 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-            // FIX: The 'action' property from JSON.parse is a generic string. By casting
-            // the parsed data to 'any', we can assign it to a strongly-typed variable,
-            // bypassing the strict check on the 'action' property's string literal union type.
-            const dataToProcess: AppData = parsedData as any;
+            // FIX: The 'action' property from JSON.parse results in a generic 'string' type.
+            // We cast the parsed data to `AppData` to assert that it conforms to our
+            // stricter type definition, which uses a string literal union for the 'action' property.
+            const dataToProcess = parsedData as unknown as AppData;
             
             await api.saveData(dataToProcess);
             appData = dataToProcess;
