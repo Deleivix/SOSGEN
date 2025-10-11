@@ -1,4 +1,5 @@
 
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -90,6 +91,31 @@ const getFormattedDateTime = (isoString?: string) => {
     }
 };
 
+function parseExpiry(caducidad: string): { expiryDate: string, expiryTime: string } {
+    if (!caducidad || !caducidad.includes(' ')) {
+        return { expiryDate: '', expiryTime: '' };
+    }
+    const parts = caducidad.split(' ');
+    if (parts.length < 2) return { expiryDate: '', expiryTime: '' };
+
+    const datePart = parts[0];
+    const timePart = parts[1];
+    
+    const dateParts = datePart.split('/');
+    if (dateParts.length < 3) return { expiryDate: '', expiryTime: '' };
+
+    const [day, month, year] = dateParts;
+
+    if (!day || !month || !year || !timePart || year.length !== 4) {
+        return { expiryDate: '', expiryTime: '' };
+    }
+
+    return {
+        expiryDate: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,
+        expiryTime: timePart
+    };
+}
+
 const getMedioTags = (zona: string): string => {
     const upperZona = zona.toUpperCase();
     const zonasArray = upperZona.split(',').map(z => z.trim()).filter(Boolean);
@@ -129,13 +155,14 @@ async function syncWithSalvamento() {
 
         if (!existeLocalmente) {
             hayCambios = true;
+            const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
             const newNR: NR = {
                 id: nrId,
                 version: 1,
-                fullId: `NR-${nrId}-1`,
+                fullId: `${nrId}-1`,
                 stations: [],
-                expiryDate: '',
-                expiryTime: '',
+                expiryDate: expiryDate,
+                expiryTime: expiryTime,
                 isAmpliado: false,
                 isCaducado: false
             };
@@ -553,7 +580,7 @@ async function handleAddSubmit() {
         const versionedFrom = versionadoCheckbox.checked ? (container.querySelector('#add-versioned-id') as HTMLInputElement).value.trim() : undefined;
         
         if (state.appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado && !versionedFrom)) {
-            return showToast(`Error: El NR-${nrId} ya existe y está vigente. Para crear una nueva versión, marque la casilla 'Versionado'.`, "error");
+            return showToast(`Error: El NR ${nrId} ya existe y está vigente. Para crear una nueva versión, marque la casilla 'Versionado'.`, "error");
         }
 
         let version = 1;
@@ -563,13 +590,13 @@ async function handleAddSubmit() {
             if (previousVersions.length > 0) {
                 version = Math.max(...previousVersions.map(nr => nr.version)) + 1;
                 nrsToUpdate = nrsToUpdate.map(nr => nr.id === versionedFrom ? { ...nr, isCaducado: true } : nr);
-                state.appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a NR-${nrId}-${version}`});
+                state.appData.history.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: versionedFrom, details: `Versionado a ${nrId}-${version}`});
             }
         }
         
         const expiryCheckbox = container.querySelector('#add-has-expiry') as HTMLInputElement;
         const newNR: NR = {
-            id: nrId, version, fullId: `NR-${nrId}-${version}`, stations,
+            id: nrId, version, fullId: `${nrId}-${version}`, stations,
             expiryDate: expiryCheckbox.checked ? (container.querySelector('#add-expiry-date') as HTMLInputElement).value : '',
             expiryTime: expiryCheckbox.checked ? (container.querySelector('#add-expiry-time') as HTMLInputElement).value : '',
             isAmpliado: (container.querySelector('#add-is-ampliado') as HTMLInputElement).checked,
@@ -586,7 +613,7 @@ async function handleAddSubmit() {
 
         await api.saveData(finalData);
         state.appData = finalData;
-        showToast(`NR-${nrId}-${version} añadido.`, 'success');
+        showToast(`${nrId}-${version} añadido.`, 'success');
         state.currentView = 'INICIO';
         await reRender();
     } catch (error) { 
@@ -634,7 +661,7 @@ async function handleEditSave() {
         };
         await api.saveData(finalData);
         state.appData = finalData;
-        showToast(`NR-${nrToUpdate.id} actualizado.`, 'success');
+        showToast(`${nrToUpdate.id} actualizado.`, 'success');
         state.currentView = 'INICIO';
         await reRender();
     } catch (error) { 
@@ -651,9 +678,9 @@ async function handleDeleteNR() {
     if (!nrId) return;
 
     try {
-        if (!state.appData.nrs.some(nr => nr.id === nrId)) return showToast(`El NR-${nrId} no existe.`, "error");
+        if (!state.appData.nrs.some(nr => nr.id === nrId)) return showToast(`El NR ${nrId} no existe.`, "error");
         
-        if (window.confirm(`¡ADVERTENCIA!\n\nEstá a punto de ELIMINAR permanentemente el NR-${nrId} y todas sus versiones.\nEsta acción no se puede deshacer. ¿Continuar?`)) {
+        if (window.confirm(`¡ADVERTENCIA!\n\nEstá a punto de ELIMINAR permanentemente el NR ${nrId} y todas sus versiones.\nEsta acción no se puede deshacer. ¿Continuar?`)) {
             const finalData: AppData = {
                 nrs: state.appData.nrs.filter(nr => nr.id !== nrId),
                 history: [
@@ -663,7 +690,7 @@ async function handleDeleteNR() {
             };
             await api.saveData(finalData);
             state.appData = finalData;
-            showToast(`NR-${nrId} ha sido eliminado.`, 'info');
+            showToast(`${nrId} ha sido eliminado.`, 'info');
             state.currentView = 'INICIO';
             await reRender();
         }
@@ -681,9 +708,9 @@ async function handleCancelNR() {
     if (!nrId) return;
     
     try {
-        if (!state.appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) return showToast(`El NR-${nrId} no existe o ya está cancelado.`, "error");
+        if (!state.appData.nrs.some(nr => nr.id === nrId && !nr.isCaducado)) return showToast(`El NR ${nrId} no existe o ya está cancelado.`, "error");
         
-        if (window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR-${nrId}?`)) {
+        if (window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR ${nrId}?`)) {
             const finalData: AppData = {
                 nrs: state.appData.nrs.map(nr => nr.id === nrId ? {...nr, isCaducado: true} : nr),
                 history: [
@@ -693,7 +720,7 @@ async function handleCancelNR() {
             };
             await api.saveData(finalData);
             state.appData = finalData;
-            showToast(`NR-${nrId} ha sido cancelado.`, 'info');
+            showToast(`${nrId} ha sido cancelado.`, 'info');
             state.currentView = 'INICIO';
             await reRender();
         }
@@ -722,7 +749,7 @@ async function handleEditSearch() {
             });
             formContainer.style.display = 'block';
         } else {
-            showToast(`NR-${searchId} no encontrado o está cancelado.`, 'info');
+            showToast(`NR ${searchId} no encontrado o está cancelado.`, 'info');
             formContainer.style.display = 'none';
         }
     } catch (error) {
@@ -804,7 +831,7 @@ function renderAttentionPanel(): string {
             <ul class="attention-list">
                 ${nrsNeedingAttention.map(nr => `
                     <li class="attention-item">
-                        <span>NR-${nr.id}</span>
+                        <span>${nr.id}</span>
                         <button class="primary-btn-small" data-action="complete-nr" data-nr-id="${nr.id}">Completar</button>
                     </li>
                 `).join('')}
@@ -823,10 +850,10 @@ function renderMainView(): string {
     const lastDeleted = lastAction('BORRADO');
     const activeNRs = nrs.filter(nr => !nr.isCaducado);
 
-    const vhfNrsByStation = STATIONS_VHF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => `NR-${nr.id}`)}), {} as Record<string, string[]>);
+    const vhfNrsByStation = STATIONS_VHF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id)}), {} as Record<string, string[]>);
     const maxVhfNrs = Math.max(0, ...Object.values(vhfNrsByStation).map(arr => arr.length));
     
-    const mfNrsByStation = STATIONS_MF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => `NR-${nr.id}`)}), {} as Record<string, string[]>);
+    const mfNrsByStation = STATIONS_MF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id)}), {} as Record<string, string[]>);
     const maxMfNrs = Math.max(0, ...Object.values(mfNrsByStation).map(arr => arr.length));
     
     return `
@@ -859,9 +886,9 @@ function renderMainView(): string {
         </div>
         <div class="stats-grid">
             <div class="stat-card"><div class="label">Total NRs vigentes:</div><div class="value green">${activeNRs.length}</div></div>
-            <div class="stat-card"><div class="label">Último NR añadido:</div><div class="value">${lastAdded ? `NR-${lastAdded.nrId}` : '-'}</div><small>Por: ${lastAdded?.user || '-'}</small></div>
-             <div class="stat-card"><div class="label">Último NR editado:</div><div class="value">${lastEdited ? `NR-${lastEdited.nrId}` : '-'}</div><small>Por: ${lastEdited?.user || '-'}</small></div>
-            <div class="stat-card"><div class="label">Último NR borrado:</div><div class="value red">${lastDeleted ? `NR-${lastDeleted.nrId}` : '-'}</div><small>Por: ${lastDeleted?.user || '-'}</small></div>
+            <div class="stat-card"><div class="label">Último NR añadido:</div><div class="value">${lastAdded ? lastAdded.nrId : '-'}</div><small>Por: ${lastAdded?.user || '-'}</small></div>
+             <div class="stat-card"><div class="label">Último NR editado:</div><div class="value">${lastEdited ? lastEdited.nrId : '-'}</div><small>Por: ${lastEdited?.user || '-'}</small></div>
+            <div class="stat-card"><div class="label">Último NR borrado:</div><div class="value red">${lastDeleted ? lastDeleted.nrId : '-'}</div><small>Por: ${lastDeleted?.user || '-'}</small></div>
         </div>
     `;
 }
@@ -968,7 +995,7 @@ function renderDbView(): string {
              <table class="reference-table data-table">
                 <thead><tr>${renderHeader('id', 'NR')}${renderHeader('version', 'Versión')}${renderHeader('expiryDate', 'Caducidad (UTC)')}<th>EECC</th>${renderHeader('isAmpliado', 'Ampliado')}${renderHeader('isCaducado', 'Caducado')}</tr></thead>
                 <tbody>
-                    ${sortedNrs.map(nr => `<tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}"><td>NR-${nr.id} ${nr.stations.length === 0 && !nr.isCaducado ? warningIcon : ''}</td><td>v${nr.version}</td><td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td><td>${nr.stations.length > 0 ? nr.stations.length : '-'}</td><td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td><td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td></tr>`).join('')}
+                    ${sortedNrs.map(nr => `<tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}"><td>${nr.id} ${nr.stations.length === 0 && !nr.isCaducado ? warningIcon : ''}</td><td>v${nr.version}</td><td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td><td>${nr.stations.length > 0 ? nr.stations.length : '-'}</td><td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td><td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td></tr>`).join('')}
                 </tbody>
             </table>
         </div>`;
@@ -1001,7 +1028,7 @@ function renderHistoryView(): string {
         <div class="table-wrapper">
              <table class="reference-table data-table">
                 <thead><tr>${renderHeader('nrId', 'NR')}${renderHeader('timestamp', 'F/H Acción')}${renderHeader('user', 'Usuario')}${renderHeader('action', 'Acción')}${renderHeader('details', 'Detalles')}</tr></thead>
-                <tbody>${sortedHistory.map(log => `<tr><td>NR-${log.nrId}</td><td>${getFormattedDateTime(log.timestamp)}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('')}</tbody>
+                <tbody>${sortedHistory.map(log => `<tr><td>${log.nrId}</td><td>${getFormattedDateTime(log.timestamp)}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('')}</tbody>
             </table>
         </div>`;
 }
