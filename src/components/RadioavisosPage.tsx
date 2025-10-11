@@ -57,17 +57,21 @@ let state = {
 
 const api = {
     getData: async (): Promise<AppData> => {
+        console.log('[DEBUG] api.getData: Fetching data from /api/radioavisos');
         const response = await fetch('/api/radioavisos');
         if (!response.ok) throw new Error('No se pudo obtener la información del servidor.');
+        console.log('[DEBUG] api.getData: Fetch successful.');
         return response.json();
     },
     saveData: async (data: AppData): Promise<void> => {
+        console.log('[DEBUG] api.saveData: Saving data to /api/radioavisos');
         const response = await fetch('/api/radioavisos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
         if (!response.ok) throw new Error('No se pudo guardar la información en el servidor.');
+        console.log('[DEBUG] api.saveData: Save successful.');
     },
 };
 
@@ -101,8 +105,12 @@ const getMedioTags = (zona: string): string => {
 // =================================================================================
 
 async function syncWithSalvamento() {
+    console.log('[DEBUG] syncWithSalvamento: Starting sync.');
     const user = getCurrentUser();
-    if (!user) return; // Cannot sync without a user
+    if (!user) {
+        console.log('[DEBUG] syncWithSalvamento: No user, skipping sync.');
+        return;
+    }
 
     const avisosOficiales = state.salvamentoAvisos;
     const nrsLocales = state.appData.nrs;
@@ -143,6 +151,7 @@ async function syncWithSalvamento() {
     }
 
     if (hayCambios) {
+        console.log(`[DEBUG] syncWithSalvamento: Found ${nuevosNRs.length} new NR(s) to sync. Saving...`);
         const finalData: AppData = {
             nrs: [...nrsLocales, ...nuevosNRs],
             history: [...nuevosLogs, ...state.appData.history]
@@ -151,16 +160,19 @@ async function syncWithSalvamento() {
             await api.saveData(finalData);
             state.appData = finalData;
             showToast(`${nuevosNRs.length} nuevo(s) NR(s) importado(s) de SASEMAR.`, 'info');
-            // Re-render after a successful background save to show the attention panel
+            console.log('[DEBUG] syncWithSalvamento: Save complete. Re-rendering.');
             await reRender();
         } catch (error) {
             showToast("Error al guardar los NRs importados.", "error");
         }
+    } else {
+        console.log('[DEBUG] syncWithSalvamento: No changes found.');
     }
 }
 
 
 async function fetchAndRenderSalvamentoAvisos() {
+    console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Starting fetch.');
     state.isSalvamentoLoading = true;
     state.salvamentoError = null;
     
@@ -168,24 +180,28 @@ async function fetchAndRenderSalvamentoAvisos() {
     if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
 
     try {
+        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Fetching from /api/salvamento-avisos');
         const response = await fetch('/api/salvamento-avisos');
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.details || 'Respuesta no válida del servidor.');
         }
+        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Fetch successful.');
         state.salvamentoAvisos = await response.json();
         state.lastSalvamentoUpdate = new Date();
         
         await reRender(); 
         
+        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: Calling syncWithSalvamento.');
         syncWithSalvamento();
 
     } catch (e) {
+        console.error("[DEBUG] fetchAndRenderSalvamentoAvisos: CATCH block.", e);
         state.salvamentoAvisos = [];
-        console.error("Salvamento Fetch Error:", e);
         state.salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
         await reRender();
     } finally {
+        console.log('[DEBUG] fetchAndRenderSalvamentoAvisos: FINALLY block.');
         state.isSalvamentoLoading = false;
         const finalPanelContainer = document.getElementById('salvamento-panel-container');
         if (finalPanelContainer) finalPanelContainer.innerHTML = renderSalvamentoPanelHTML();
@@ -299,6 +315,7 @@ function renderSalvamentoPanelHTML(): string {
 // =================================================================================
 
 async function reRender() {
+    console.log(`[DEBUG] reRender: Triggered. isAppDataLoading=${state.isAppDataLoading}, appDataError=${state.appDataError}`);
     if (!state.componentContainer) return;
     const activeElementId = document.activeElement?.id;
     
@@ -317,6 +334,7 @@ async function reRender() {
 }
 
 async function loadInitialData() {
+    console.log('[DEBUG] loadInitialData: START. Setting isAppDataLoading = true.');
     state.isAppDataLoading = true;
     state.appDataError = null;
     if (state.componentContainer) {
@@ -324,17 +342,21 @@ async function loadInitialData() {
     }
     
     try {
+        console.log('[DEBUG] loadInitialData: Awaiting api.getData()');
         state.appData = await api.getData();
+        console.log('[DEBUG] loadInitialData: api.getData() finished. Awaiting fetchAndRenderSalvamentoAvisos()');
         await fetchAndRenderSalvamentoAvisos();
+        console.log('[DEBUG] loadInitialData: fetchAndRenderSalvamentoAvisos() finished.');
     } catch (error) {
+        console.error('[DEBUG] loadInitialData: CATCH block.', error);
         const message = error instanceof Error ? error.message : "Error desconocido";
         state.appDataError = message;
         await reRender();
     } finally {
+        console.log('[DEBUG] loadInitialData: FINALLY block. Setting isAppDataLoading = false.');
         state.isAppDataLoading = false;
-        // FIX: Add a final re-render call here to ensure the UI updates
-        // after isAppDataLoading is set to false, resolving the race condition.
         await reRender();
+        console.log('[DEBUG] loadInitialData: Final reRender complete.');
     }
 }
 
@@ -378,9 +400,13 @@ function renderLocalManagerHTML(): string {
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
 
     if (state.isAppDataLoading) {
+        console.log('[DEBUG] renderLocalManagerHTML: Rendering loader because isAppDataLoading is true.');
         return `<div class="loader-container"><div class="loader"></div></div>`;
     }
-    if (state.appDataError) return `<p class="error">${state.appDataError}</p>`;
+    if (state.appDataError) {
+        console.log(`[DEBUG] renderLocalManagerHTML: Rendering error: ${state.appDataError}`);
+        return `<p class="error">${state.appDataError}</p>`;
+    }
 
     const views: { id: View, name: string }[] = [
         { id: 'INICIO', name: 'Inicio' }, { id: 'AÑADIR', name: 'Añadir Manual' },
