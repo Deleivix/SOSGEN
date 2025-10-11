@@ -187,14 +187,31 @@ async function getForecast() {
     const zoneForecasts = new Map<string, any>();
 
     const processXml = (xmlText: string) => {
-        // Regex to find subzones which are more specific
+        const zoneRegex = /<zona[^>]*nombre="([^"]+)"[^>]*>([\s\S]*?)<\/zona>/gi;
         const subzoneRegex = /<subzona[^>]*nombre="([^"]+)"[^>]*>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/subzona>/gi;
-        let match;
-        while ((match = subzoneRegex.exec(xmlText)) !== null) {
-            const zoneName = match[1].trim().toUpperCase();
-            const textContent = match[2] || '';
-            if (textContent) {
-                 zoneForecasts.set(zoneName, parseForecastFromText(textContent));
+        const textoRegex = /<texto>([\s\S]*?)<\/texto>/i;
+
+        let zoneMatch;
+        while ((zoneMatch = zoneRegex.exec(xmlText)) !== null) {
+            const zoneName = zoneMatch[1].trim().toUpperCase();
+            const zoneContent = zoneMatch[2];
+            
+            const subzoneMatches = [...zoneContent.matchAll(subzoneRegex)];
+            
+            if (subzoneMatches.length > 0) {
+                for (const subzoneMatch of subzoneMatches) {
+                    const subzoneName = subzoneMatch[1].trim().toUpperCase();
+                    const textContent = subzoneMatch[2] || '';
+                    if (textContent) {
+                        zoneForecasts.set(subzoneName, parseForecastFromText(textContent));
+                    }
+                }
+            } else {
+                const textoMatch = zoneContent.match(textoRegex);
+                const textContent = textoMatch ? (textoMatch[1] || '') : '';
+                if (textContent) {
+                    zoneForecasts.set(zoneName, parseForecastFromText(textContent));
+                }
             }
         }
     };
