@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -190,17 +191,23 @@ function renderSalvamentoPanelHTML(): string {
                                 ${renderHeader('zona', 'Zona')}
                                 ${renderHeader('prioridad', 'Prioridad')}
                                 ${renderHeader('caducidad', 'Caducidad')}
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
                         ${sortedAvisos.map(aviso => `
-                            <tr data-action="fetch-pdf" data-event-target="${aviso.eventTarget}" title="Haz clic para ver el PDF oficial">
+                            <tr>
                                 <td>${aviso.num}</td>
                                 <td>${aviso.emision}</td>
                                 <td style="white-space: normal; min-width: 250px;">${aviso.asunto}</td>
                                 <td style="min-width: 150px;">${aviso.zona}</td>
                                 <td><span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span></td>
                                 <td>${aviso.caducidad}</td>
+                                <td style="text-align: center;">
+                                    <button class="secondary-btn" style="padding: 0.4rem 0.6rem;" data-action="fetch-pdf" data-event-target="${aviso.eventTarget}" title="Ver PDF oficial">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 1.5v3a1 1 0 0 0 1 1h3L9.5 1.5zM4.354 11.354a.5.5 0 0 1 0-.708l1.415-1.414a.5.5 0 1 1 .707.708L5.06 11.354a.5.5 0 0 1-.707 0m.707 1.414a.5.5 0 1 1-.707-.707l1.414-1.414a.5.5 0 1 1 .707.707L5.06 12.768zM6.5 11h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1 0-1m-1.5 1.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1 0-1m3.75-1.47a.5.5 0 0 1 .47.726l-1.32 2.64a.5.5 0 0 1-.94-.236l1.32-2.64a.5.5 0 0 1 .47-.236z"/></svg>
+                                    </button>
+                                </td>
                             </tr>
                         `).join('')}
                         </tbody>

@@ -1,7 +1,10 @@
 
 
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { URLSearchParams } from 'url';
+// FIX: Import Readable from 'stream' to handle response streaming.
+import { Readable } from 'stream';
 
 /**
  * This handler fetches the official PDF for a given radio warning.
@@ -79,11 +82,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Step 5: Stream the PDF back to the client.
-        const pdfBuffer = await pdfResponse.arrayBuffer();
+        // FIX: Replaced buffer-based response with a streaming response to avoid 'Buffer' type issues and improve performance.
+        if (!pdfResponse.body) {
+            throw new Error('PDF response body is empty.');
+        }
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'inline; filename="radioaviso.pdf"');
-        res.send(Buffer.from(pdfBuffer));
+        
+        // Vercel function needs to wait for the stream to finish.
+        // The `Readable.fromWeb` correctly converts the web stream to a Node.js stream.
+        await new Promise<void>((resolve, reject) => {
+            const body = pdfResponse.body!;
+            // The `as any` cast helps bridge potential type mismatches between fetch's stream and Node's stream types.
+            const nodeStream = Readable.fromWeb(body as any);
+            nodeStream.pipe(res);
+            nodeStream.on('end', () => resolve());
+            nodeStream.on('error', (err) => reject(err));
+        });
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
@@ -92,9 +108,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             details: errorMessage,
             target: target
         });
-        return res.status(500).json({
-            error: 'Failed to retrieve the PDF from the source.',
-            details: errorMessage
-        });
+        // Avoid sending another response if one has already started streaming.
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Failed to retrieve the PDF from the source.',
+                details: errorMessage
+            });
+        }
     }
 }
