@@ -669,8 +669,9 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-// Fix: A type assertion is needed here because JSON.parse returns `any`. The `action` property, in particular, needs to be trusted to match the specific string literals defined in the `HistoryLog` type.
-            const dataToProcess = parsedData as unknown as AppData;
+            // Fix: The 'action' property from the parsed JSON is a generic string, which is not assignable to the specific string literals in `HistoryLog`.
+            // Casting to `any` bypasses this strict check, assuming the imported data is valid.
+            const dataToProcess = parsedData as any;
             
             await api.saveData(dataToProcess);
             appData = dataToProcess;
@@ -683,7 +684,7 @@ function handleFileChange(event: Event) {
             if (input) input.value = "";
         }
     };
-// Fix: Corrected typo from `readText` to `readAsText`.
+    // Fix: Corrected typo from `readText` to `readAsText`.
     reader.readAsText(file);
 }
 
