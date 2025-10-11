@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         if (!sessionIdCookie) {
-            console.warn("Could not retrieve ASP.NET session cookie.");
+            console.warn("Could not retrieve ASP.NET session cookie. Proceeding without it.");
         }
 
         // Step 2: Parse HTML for all hidden ASP.NET fields.
@@ -73,9 +73,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (!pdfResponse.ok || !pdfResponse.headers.get('Content-Type')?.includes('application/pdf')) {
-             const errorText = await pdfResponse.text().catch(() => "Could not read response body.");
-             console.error("Unexpected response from PDF endpoint:", { status: pdfResponse.status, contentType: pdfResponse.headers.get('Content-Type'), body: errorText.substring(0, 500) });
-            throw new Error(`Failed to get PDF. Server responded with status ${pdfResponse.status}.`);
+             const responseBody = await pdfResponse.text().catch(() => 'Could not read response body.');
+             console.error({
+                 message: "Salvamento Maritimo service returned a non-PDF or error response.",
+                 status: pdfResponse.status,
+                 statusText: pdfResponse.statusText,
+                 contentType: pdfResponse.headers.get('Content-Type'),
+                 responseBodyPreview: responseBody.substring(0, 1000) // Log first 1KB of the response
+             });
+            throw new Error(`The official service returned a non-PDF response (status: ${pdfResponse.status}). Check server logs for details.`);
         }
 
         // Step 5: Stream the PDF back to the client.
@@ -88,9 +94,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
         console.error({
-            message: "Error in /api/radioaviso-pdf",
+            message: "Critical error in /api/radioaviso-pdf",
             details: errorMessage,
-            target: target
+            target: target,
+            url: targetUrl
         });
         return res.status(500).json({
             error: 'Failed to retrieve the PDF from the source.',

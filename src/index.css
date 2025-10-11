@@ -1253,12 +1253,6 @@ body.dark-theme .warning-box {
 .reference-table th.sort-descending::after {
     content: '▼';
 }
-.reference-table tbody tr[data-action="fetch-pdf"] {
-    cursor: pointer;
-}
-.reference-table tbody tr[data-action="fetch-pdf"]:hover {
-    background-color: var(--bg-main);
-}
 
 /* --- Salvamento Maritimo Panel (Radioavisos) --- */
 .salvamento-panel {
@@ -1325,6 +1319,13 @@ body.dark-theme .category-badge.importante {
   background-color: var(--danger-color-dark);
   color: var(--bg-main-dark);
 }
+.salvamento-panel .reference-table tbody tr[data-action="fetch-pdf"] {
+    cursor: pointer;
+}
+.salvamento-panel .reference-table tbody tr[data-action="fetch-pdf"]:hover {
+    background-color: var(--bg-main);
+}
+
 
 /* --- Bitacora (Logbook) --- */
 .logbook-list { display: flex; flex-direction: column; gap: 1.5rem; }
