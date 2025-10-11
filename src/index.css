@@ -9,6 +9,8 @@
   --info-color-bg: #E3F2FD;
   --info-color-dark-bg: #1A2C3C;
   --info-color-dark: #90CAF9;
+  --warning-color: #FDD835; /* Yellow */
+  --warning-color-dark: #FFEE58; /* Lighter Yellow */
 
 
   /* Light Theme */
@@ -1445,6 +1447,14 @@ body.dark-theme .warning-box {
 }
 body.dark-theme .category-badge.importante {
   background-color: var(--danger-color-dark);
+  color: var(--bg-main-dark);
+}
+.category-badge.rutinaria {
+  background-color: var(--warning-color);
+  color: var(--bg-main-dark);
+}
+body.dark-theme .category-badge.rutinaria {
+  background-color: var(--warning-color-dark);
   color: var(--bg-main-dark);
 }
 .category-badge.navtex {

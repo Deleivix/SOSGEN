@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db, sql } from '@vercel/postgres';
 import crypto from 'crypto';
+// FIX: Import Buffer to make it available in the serverless function scope.
+import { Buffer } from 'buffer';
 
 // Function to hash password with a salt using a key derivation function for security
 const hashPassword = (password: string, salt: string): string => {

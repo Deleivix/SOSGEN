@@ -692,7 +692,7 @@ function handleFileChange(event: Event) {
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
             // FIX: The 'action' property from JSON.parse results in a generic 'string' type.
-            // We cast the parsed data to `AppData` to assert that it conforms to our
+            // We cast the parsed data to AppData to assert that it conforms to our
             // stricter type definition, which uses a string literal union for the 'action' property.
             const dataToProcess = parsedData as unknown as AppData;
             
