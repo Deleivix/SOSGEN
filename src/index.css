@@ -12,6 +12,10 @@
   --info-color-dark: #90CAF9;
   --warning-color: #FDD835; /* Yellow */
   --warning-color-dark: #FFEE58; /* Lighter Yellow */
+  --attention-color: #FF9800; /* Orange */
+  --attention-color-bg: #FFF3E0;
+  --attention-color-dark-bg: #4d2d00;
+  --attention-color-dark: #FFCC80;
 
 
   /* Light Theme */
@@ -1238,6 +1242,27 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 body.dark-theme .warning-box {
     background-color: var(--danger-color-dark-bg); color: var(--danger-color-dark);
 }
+.attention-panel {
+    background-color: var(--attention-color-bg);
+    border: 1px solid var(--attention-color);
+    border-left-width: 4px;
+    color: var(--attention-color);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+body.dark-theme .attention-panel {
+    background-color: var(--attention-color-dark-bg);
+    border-color: var(--attention-color-dark);
+    color: var(--attention-color-dark);
+}
+.attention-panel-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.attention-panel-header h4 { color: inherit; font-size: 1.1rem; margin: 0; }
+.attention-panel p { font-size: 0.9rem; margin-bottom: 1rem; }
+.attention-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.attention-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); padding: 0.75rem 1rem; border-radius: 6px; }
+.attention-item span { font-weight: 500; font-family: var(--font-mono); color: var(--text-primary); }
+.warning-icon { display: inline-block; vertical-align: middle; margin-left: 0.5rem; color: var(--attention-color); }
 .data-table .true-cell { color: var(--accent-color-dark); font-weight: bold; }
 .data-table .false-cell { color: var(--text-secondary); opacity: 0.7; }
 .filterable-table-header {

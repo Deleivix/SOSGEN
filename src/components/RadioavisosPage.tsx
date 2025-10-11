@@ -98,8 +98,66 @@ const getMedioTags = (zona: string): string => {
 };
 
 // =================================================================================
-// --- SALVAMENTO MARÍTIMO PANEL ---
+// --- SALVAMENTO MARÍTIMO PANEL & SYNC LOGIC ---
 // =================================================================================
+
+async function syncWithSalvamento() {
+    const user = getCurrentUser();
+    if (!user) return; // Cannot sync without a user
+
+    const avisosOficiales = state.salvamentoAvisos;
+    const nrsLocales = state.appData.nrs;
+
+    const ZONAS_RELEVANTES = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
+    const avisosRelevantes = avisosOficiales.filter(aviso => ZONAS_RELEVANTES.some(zona => aviso.zona.includes(zona)));
+
+    let nuevosNRs: NR[] = [];
+    let nuevosLogs: HistoryLog[] = [];
+    let hayCambios = false;
+
+    for (const aviso of avisosRelevantes) {
+        const nrId = aviso.num;
+        const existeLocalmente = nrsLocales.some(nr => nr.id === nrId && !nr.isCaducado);
+
+        if (!existeLocalmente) {
+            hayCambios = true;
+            const newNR: NR = {
+                id: nrId,
+                version: 1,
+                fullId: `NR-${nrId}-1`,
+                stations: [], // Clave: Se añade incompleto
+                expiryDate: '',
+                expiryTime: '',
+                isAmpliado: false,
+                isCaducado: false
+            };
+            nuevosNRs.push(newNR);
+            nuevosLogs.push({
+                id: `log-${Date.now()}-${nrId}`,
+                timestamp: new Date().toISOString(),
+                user: 'SISTEMA',
+                action: 'AÑADIDO',
+                nrId: nrId,
+                details: `Añadido automáticamente desde Salvamento Marítimo. Asunto: ${aviso.asunto}`
+            });
+        }
+    }
+
+    if (hayCambios) {
+        const finalData: AppData = {
+            nrs: [...nrsLocales, ...nuevosNRs],
+            history: [...nuevosLogs, ...state.appData.history]
+        };
+        try {
+            await api.saveData(finalData);
+            state.appData = finalData;
+            showToast(`${nuevosNRs.length} nuevo(s) NR(s) importado(s) de SASEMAR.`, 'info');
+        } catch (error) {
+            showToast("Error al guardar los NRs importados.", "error");
+        }
+    }
+}
+
 
 async function fetchAndRenderSalvamentoAvisos() {
     state.isSalvamentoLoading = true;
@@ -116,14 +174,15 @@ async function fetchAndRenderSalvamentoAvisos() {
         }
         state.salvamentoAvisos = await response.json();
         state.lastSalvamentoUpdate = new Date();
+        await syncWithSalvamento(); // Sincronizar después de obtener los datos
     } catch (e) {
         state.salvamentoAvisos = [];
         console.error("Salvamento Fetch Error:", e);
         state.salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo. Por favor, inténtelo de nuevo más tarde.';
     } finally {
         state.isSalvamentoLoading = false;
-        const panelContainer = document.getElementById('salvamento-panel-container');
-        if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
+        // Re-render both panels since sync might have changed appData
+        await reRender();
     }
 }
 
@@ -237,7 +296,13 @@ async function reRender() {
     if (!state.componentContainer) return;
     const activeElementId = document.activeElement?.id;
     
-    state.componentContainer.innerHTML = renderPageContent();
+    // Render Salvamento Panel first as it's independent
+    const salvamentoPanel = document.getElementById('salvamento-panel-container');
+    if (salvamentoPanel) salvamentoPanel.innerHTML = renderSalvamentoPanelHTML();
+
+    // Then render the main local manager content
+    const localManagerContainer = document.getElementById('local-manager-container');
+    if(localManagerContainer) localManagerContainer.innerHTML = renderLocalManagerHTML();
 
     const activeElement = activeElementId ? document.getElementById(activeElementId) : null;
     if (activeElement instanceof HTMLElement) {
@@ -248,16 +313,21 @@ async function reRender() {
 async function loadInitialData() {
     state.isAppDataLoading = true;
     state.appDataError = null;
-    await reRender();
+    if (state.componentContainer) {
+        state.componentContainer.innerHTML = renderPageSkeleton();
+    }
     
     try {
         state.appData = await api.getData();
+        await fetchAndRenderSalvamentoAvisos(); // This will trigger sync and a re-render
     } catch (error) {
         const message = error instanceof Error ? error.message : "Error desconocido";
         state.appDataError = message;
+        state.isAppDataLoading = false;
+        await reRender(); // Re-render to show the error
     } finally {
         state.isAppDataLoading = false;
-        await reRender();
+        // Don't re-render here, fetchAndRenderSalvamentoAvisos will do it.
     }
 }
 
@@ -274,52 +344,56 @@ export function renderRadioavisos(container: HTMLElement) {
     }
     
     loadInitialData();
-    fetchAndRenderSalvamentoAvisos();
 }
 
-function renderPageContent(): string {
+function renderPageSkeleton(): string {
+     return `
+        <div class="salvamento-panel">
+            <div class="salvamento-panel-header">
+                <div><h3>Radioavisos Oficiales (Zonas N, NW, Coruña)</h3></div>
+            </div>
+            <div class="loader-container"><div class="loader"></div></div>
+        </div>
+        <div class="content-card" style="max-width: 1400px; margin-top: 2rem;">
+            <div class="loader-container"><div class="loader"></div></div>
+        </div>
+     `;
+}
+
+
+function renderLocalManagerHTML(): string {
     const user = getCurrentUser();
-    if (!user) return `<div class="content-card"><p class="error">Error de autenticación. Por favor, inicie sesión de nuevo.</p></div>`;
+    if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
 
-    if (state.isAppDataLoading) {
-        return `<div class="content-card"><div class="loader-container"><div class="loader"></div></div></div>`;
-    }
+    if (state.isAppDataLoading) return `<div class="loader-container"><div class="loader"></div></div>`;
+    if (state.appDataError) return `<p class="error">${state.appDataError}</p>`;
 
-    if (state.appDataError) {
-        return `<div class="content-card"><p class="error">${state.appDataError}</p></div>`;
-    }
-    
     const views: { id: View, name: string }[] = [
-        { id: 'INICIO', name: 'Inicio' }, { id: 'AÑADIR', name: 'Añadir' },
+        { id: 'INICIO', name: 'Inicio' }, { id: 'AÑADIR', name: 'Añadir Manual' },
         { id: 'EDITAR', name: 'Editar' }, { id: 'BORRAR', name: 'Borrar/Cancelar' },
         { id: 'BD', name: 'Base de Datos' }, { id: 'HISTORIAL', name: 'Historial' }
     ];
 
     return `
-        <div id="salvamento-panel-container">
-            ${renderSalvamentoPanelHTML()}
+        <div class="form-divider" style="width: 100%; margin: -0.5rem auto 1.5rem auto;">
+            <span>Gestor Local</span>
         </div>
-        <div class="content-card" style="max-width: 1400px; margin-top: 2rem;">
-            <div class="form-divider" style="width: 100%; margin: -0.5rem auto 1.5rem auto;">
-                <span>Gestor Local</span>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-                <h2 class="content-card-title" style="margin: 0; padding: 0; border: none;">Gestor de Radioavisos (NR)</h2>
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <button class="secondary-btn" data-action="import">Importar</button>
-                    <input type="file" accept=".json" class="file-input-hidden" style="display: none;" />
-                    <button class="secondary-btn" data-action="export">Exportar</button>
-                    <div style="font-size: 0.9rem; background-color: var(--bg-main); padding: 0.5rem 1rem; border-radius: 6px;">
-                        <strong>Usuario:</strong> ${user.username}
-                    </div>
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+            <h2 class="content-card-title" style="margin: 0; padding: 0; border: none;">Gestor de Radioavisos (NR)</h2>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="secondary-btn" data-action="import">Importar</button>
+                <input type="file" accept=".json" class="file-input-hidden" style="display: none;" />
+                <button class="secondary-btn" data-action="export">Exportar</button>
+                <div style="font-size: 0.9rem; background-color: var(--bg-main); padding: 0.5rem 1rem; border-radius: 6px;">
+                    <strong>Usuario:</strong> ${user.username}
                 </div>
             </div>
-            <div class="info-nav-tabs">
-                ${views.map(v => `<button class="info-nav-btn ${state.currentView === v.id ? 'active' : ''}" data-view="${v.id}" data-action="switch-view">${v.name}</button>`).join('')}
-            </div>
-            <div id="radioavisos-view-content" style="margin-top: 2rem;">
-                ${renderCurrentViewContent()}
-            </div>
+        </div>
+        <div class="info-nav-tabs">
+            ${views.map(v => `<button class="info-nav-btn ${state.currentView === v.id ? 'active' : ''}" data-view="${v.id}" data-action="switch-view">${v.name}</button>`).join('')}
+        </div>
+        <div id="radioavisos-view-content" style="margin-top: 2rem;">
+            ${renderCurrentViewContent()}
         </div>
     `;
 }
@@ -331,6 +405,23 @@ function renderPageContent(): string {
 async function handleSwitchView(element: HTMLElement) {
     state.currentView = element.dataset.view as View;
     await reRender();
+}
+
+async function handleCompleteNr(element: HTMLElement) {
+    const nrId = element.dataset.nrId;
+    if (!nrId) return;
+
+    state.currentView = 'EDITAR';
+    await reRender(); // Re-render to show the edit view
+
+    // Now manipulate the edit view
+    const searchInput = state.componentContainer?.querySelector('#edit-search-id') as HTMLInputElement | null;
+    const searchButton = state.componentContainer?.querySelector('button[data-action="edit-search"]') as HTMLButtonElement | null;
+    
+    if (searchInput && searchButton) {
+        searchInput.value = nrId;
+        searchButton.click(); // Programmatically trigger the search
+    }
 }
 
 async function handleSort(element: HTMLElement) {
@@ -356,9 +447,6 @@ async function handleSort(element: HTMLElement) {
             key: key as keyof SalvamentoAviso,
             direction: isSameKey && state.salvamentoSortConfig.direction === 'ascending' ? 'descending' : 'ascending',
         };
-        const panelContainer = document.getElementById('salvamento-panel-container');
-        if (panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
-        return; 
     }
     await reRender();
 }
@@ -381,6 +469,7 @@ function attachEventListeners(container: HTMLElement) {
                 case 'edit-save': await handleEditSave(); break;
                 case 'delete-nr': await handleDeleteNR(); break;
                 case 'cancel-nr': await handleCancelNR(); break;
+                case 'complete-nr': await handleCompleteNr(actionElement); break;
             }
         } else if (target.closest('th[data-sort-key]')) {
             await handleSort(target.closest('th[data-sort-key]')!);
@@ -392,12 +481,7 @@ function attachEventListeners(container: HTMLElement) {
         const target = input.dataset.filterTarget;
         if (target === 'nrs') state.nrFilterText = input.value;
         else if (target === 'history') state.historyFilterText = input.value;
-        else if (target === 'salvamento') {
-            state.salvamentoFilterText = input.value;
-            const panelContainer = document.getElementById('salvamento-panel-container');
-            if(panelContainer) panelContainer.innerHTML = renderSalvamentoPanelHTML();
-            return;
-        }
+        else if (target === 'salvamento') state.salvamentoFilterText = input.value;
         await reRender();
     }, 300);
 
@@ -499,6 +583,10 @@ async function handleEditSave() {
         }
 
         const updatedStations = Array.from(container.querySelectorAll<HTMLInputElement>('#edit-stations-group input:checked')).map(cb => cb.value);
+        if (updatedStations.length === 0) {
+            return showToast("Debe seleccionar al menos una estación para guardar.", "error");
+        }
+        
         const updatedNrs = state.appData.nrs.map(nr => nr.fullId === fullId ? {
             ...nr,
             expiryDate: (container.querySelector('#edit-expiry-date') as HTMLInputElement).value,
@@ -671,6 +759,30 @@ function renderCurrentViewContent(): string {
     }
 }
 
+function renderAttentionPanel(): string {
+    const nrsNeedingAttention = state.appData.nrs.filter(nr => nr.stations.length === 0 && !nr.isCaducado);
+    if (nrsNeedingAttention.length === 0) return '';
+
+    return `
+        <div class="attention-panel">
+            <div class="attention-panel-header">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="warning-icon" viewBox="0 0 16 16"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>
+                <h4>Acciones Pendientes</h4>
+            </div>
+            <p>Los siguientes NRs han sido importados pero necesitan que se les asignen estaciones:</p>
+            <ul class="attention-list">
+                ${nrsNeedingAttention.map(nr => `
+                    <li class="attention-item">
+                        <span>NR-${nr.id}</span>
+                        <button class="primary-btn-small" data-action="complete-nr" data-nr-id="${nr.id}">Completar</button>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+    `;
+}
+
+
 function renderMainView(): string {
     const { history, nrs } = state.appData;
     const lastAction = (action: HistoryLog['action']) => [...history].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).find(h => h.action === action);
@@ -686,6 +798,7 @@ function renderMainView(): string {
     const maxMfNrs = Math.max(0, ...Object.values(mfNrsByStation).map(arr => arr.length));
     
     return `
+        ${renderAttentionPanel()}
         <div class="station-tables">
             <div class="station-table-container">
                 <h3>Estaciones VHF</h3>
@@ -814,6 +927,8 @@ function renderDbView(): string {
         const sortClass = isSorted ? `sort-${state.nrSortConfig.direction}` : '';
         return `<th class="${sortClass}" data-sort-key="${key}" data-table="nrs">${label}</th>`;
     };
+    
+    const warningIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="warning-icon" viewBox="0 0 16 16" title="Este NR requiere atención (faltan estaciones)."><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>`;
 
     return `
         <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div>
@@ -821,7 +936,7 @@ function renderDbView(): string {
              <table class="reference-table data-table">
                 <thead><tr>${renderHeader('id', 'NR')}${renderHeader('version', 'Versión')}${renderHeader('expiryDate', 'Caducidad (UTC)')}<th>EECC</th>${renderHeader('isAmpliado', 'Ampliado')}${renderHeader('isCaducado', 'Caducado')}</tr></thead>
                 <tbody>
-                    ${sortedNrs.map(nr => `<tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}"><td>NR-${nr.id}</td><td>v${nr.version}</td><td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td><td>${nr.stations.length}</td><td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td><td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td></tr>`).join('')}
+                    ${sortedNrs.map(nr => `<tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}"><td>NR-${nr.id} ${nr.stations.length === 0 && !nr.isCaducado ? warningIcon : ''}</td><td>v${nr.version}</td><td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td><td>${nr.stations.length > 0 ? nr.stations.length : '-'}</td><td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td><td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td></tr>`).join('')}
                 </tbody>
             </table>
         </div>`;
