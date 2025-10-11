@@ -202,8 +202,11 @@ async function updateSalvamentoData() {
 // =================================================================================
 
 async function reRender() {
-    console.log(`[DEBUG] reRender: Triggered. isAppDataLoading=${state.isAppDataLoading}, appDataError=${state.appDataError}`);
-    if (!state.componentContainer) return;
+    console.log('[DEBUG:Render] reRender called. State:', { isAppDataLoading: state.isAppDataLoading, appDataError: state.appDataError });
+    if (!state.componentContainer) {
+        console.error('[DEBUG:Render] reRender aborted: componentContainer is null.');
+        return;
+    }
     const activeElementId = document.activeElement?.id;
     
     const salvamentoPanel = document.getElementById('salvamento-panel-container');
@@ -216,6 +219,7 @@ async function reRender() {
     if (activeElement instanceof HTMLElement) {
         activeElement.focus();
     }
+    console.log('[DEBUG:Render] reRender completed DOM updates.');
 }
 
 async function loadInitialData() {
@@ -237,7 +241,7 @@ async function loadInitialData() {
         const message = error instanceof Error ? error.message : "Error desconocido";
         state.appDataError = message;
     } finally {
-        console.log('[DEBUG] loadInitialData: FINALLY block. Setting isAppDataLoading = false.');
+        console.log('[DEBUG] loadInitialData: FINALLY block. isAppDataLoading is now false. Triggering reRender...');
         state.isAppDataLoading = false;
         await reRender();
         console.log('[DEBUG] loadInitialData: Final reRender complete.');
@@ -278,17 +282,21 @@ function renderPageSkeleton(): string {
 }
 
 function renderSalvamentoPanelHTML(): string {
+    console.log('[DEBUG:Render] renderSalvamentoPanelHTML called. State:', { isSalvamentoLoading: state.isSalvamentoLoading, salvamentoError: state.salvamentoError });
     const spinnerIcon = `<svg class="spinner" style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
     const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
 
     let content;
     if (state.isSalvamentoLoading && state.salvamentoAvisos.length === 0) {
+        console.log('[DEBUG:Render] ... rendering salvamento SKELETON.');
         content = `<div class="loader-container"><div class="loader"></div></div>`;
     } else if (state.salvamentoError) {
+        console.log('[DEBUG:Render] ... rendering salvamento ERROR.');
         content = `<p class="error" style="padding: 1rem; text-align: center;">${state.salvamentoError}</p>`;
     } else if (state.salvamentoAvisos.length === 0) {
         content = `<p class="drill-placeholder">No hay radioavisos disponibles en la fuente oficial.</p>`;
     } else {
+        console.log('[DEBUG:Render] ... rendering salvamento CONTENT.');
         const ZONAS_FILTRADAS = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
         const searchTerm = state.salvamentoFilterText.toLowerCase();
         const filteredAvisos = state.salvamentoAvisos
@@ -380,18 +388,20 @@ function renderSalvamentoPanelHTML(): string {
 }
 
 function renderLocalManagerHTML(): string {
+    console.log('[DEBUG:Render] renderLocalManagerHTML called. State:', { isAppDataLoading: state.isAppDataLoading, appDataError: state.appDataError });
     const user = getCurrentUser();
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
 
     if (state.isAppDataLoading) {
-        console.log('[DEBUG] renderLocalManagerHTML: Rendering loader because isAppDataLoading is true.');
+        console.log('[DEBUG:Render] ... rendering local manager SKELETON.');
         return `<div class="loader-container"><div class="loader"></div></div>`;
     }
     if (state.appDataError) {
-        console.log(`[DEBUG] renderLocalManagerHTML: Rendering error: ${state.appDataError}`);
+        console.log(`[DEBUG:Render] ... rendering local manager ERROR: ${state.appDataError}`);
         return `<p class="error">${state.appDataError}</p>`;
     }
 
+    console.log('[DEBUG:Render] ... rendering local manager CONTENT.');
     const views: { id: View, name: string }[] = [
         { id: 'INICIO', name: 'Inicio' }, { id: 'AÑADIR', name: 'Añadir Manual' },
         { id: 'EDITAR', name: 'Editar' }, { id: 'BORRAR', name: 'Borrar/Cancelar' },
@@ -778,6 +788,7 @@ function handleFileChange(event: Event) {
 // =================================================================================
 
 function renderCurrentViewContent(): string {
+    console.log(`[DEBUG:Render] renderCurrentViewContent called for view: ${state.currentView}`);
     switch (state.currentView) {
         case 'INICIO': return renderMainView();
         case 'AÑADIR': return renderAddView();
@@ -814,6 +825,7 @@ function renderAttentionPanel(): string {
 
 
 function renderMainView(): string {
+    console.log('[DEBUG:Render] ... rendering MainView.');
     const { history, nrs } = state.appData;
     const lastAction = (action: HistoryLog['action']) => [...history].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).find(h => h.action === action);
     const lastAdded = lastAction('AÑADIDO');
