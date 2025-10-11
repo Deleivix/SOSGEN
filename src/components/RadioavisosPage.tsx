@@ -277,13 +277,17 @@ export function renderRadioavisos(container: HTMLElement) {
         (container as any).__radioavisosListenersAttached = true;
     }
     
-    loadInitialData();
-    fetchAndRenderSalvamentoAvisos();
+    if (user) {
+        loadInitialData();
+        fetchAndRenderSalvamentoAvisos();
+    } else {
+        reRender(); // Renders the login prompt
+    }
 }
 
 function renderPageContent(): string {
     if (!user) {
-        return renderUserPrompt();
+        return renderLoginRegisterPrompt();
     }
 
     if (isAppDataLoading) {
@@ -383,7 +387,7 @@ function attachEventListeners(container: HTMLElement) {
 async function handleDelegatedSubmit(e: Event) {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    if (form.id === 'user-prompt-form') await handleUserSet(form);
+    if (form.id === 'auth-form') await handleAuthSubmit(e as SubmitEvent);
 }
 
 async function handleDelegatedClick(e: Event) {
@@ -446,16 +450,67 @@ async function handleDelegatedClick(e: Event) {
     }
 }
 
-async function handleUserSet(form: HTMLFormElement) {
-    const input = form.querySelector('#username-input') as HTMLInputElement;
-    const username = input.value.trim().toUpperCase();
-    if (username) {
-        user = username;
-        localStorage.setItem('nr_manager_user', user);
-        await loadInitialData();
-        fetchAndRenderSalvamentoAvisos();
+async function handleAuthSubmit(e: SubmitEvent) {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const submitter = e.submitter as HTMLButtonElement;
+    if (!form || !submitter) return;
+
+    const action = submitter.dataset.authAction;
+    const usernameInput = form.querySelector('#auth-username-input') as HTMLInputElement;
+    const passwordInput = form.querySelector('#auth-password-input') as HTMLInputElement;
+    const errorEl = form.querySelector('#auth-error-message') as HTMLElement;
+    
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!username || !password) {
+        errorEl.textContent = 'Usuario y contraseña son obligatorios.';
+        return;
+    }
+
+    errorEl.textContent = '';
+    const originalButtonText = submitter.textContent;
+    submitter.disabled = true;
+    submitter.innerHTML = `<div class="spinner" style="width: 16px; height: 16px; border-width: 2px; display: inline-block; margin: 0 auto;"></div>`;
+    
+    // Disable the other button as well
+    const otherButton = form.querySelector<HTMLButtonElement>(`button:not([data-auth-action="${action}"])`);
+    if(otherButton) otherButton.disabled = true;
+
+    try {
+        const response = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, username, password })
+        });
+        
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Ocurrió un error.');
+        }
+
+        if (action === 'register') {
+            showToast('Usuario registrado con éxito. Por favor, inicie sesión.', 'success');
+        } else if (action === 'login') {
+            user = data.user.username;
+            localStorage.setItem('nr_manager_user', user!);
+            await loadInitialData();
+            fetchAndRenderSalvamentoAvisos();
+        }
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Error desconocido";
+        errorEl.textContent = message;
+        showToast(message, 'error');
+    } finally {
+        submitter.disabled = false;
+        submitter.innerHTML = originalButtonText || '';
+        if(otherButton) otherButton.disabled = false;
     }
 }
+
 
 async function handleAddSubmit() {
     if (!componentContainer) return;
@@ -672,10 +727,11 @@ function handleFileChange(event: Event) {
             const parsedData = JSON.parse(e.target?.result as string);
             if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato de archivo incorrecto.");
             
-            // FIX: The `action` property from the parsed JSON is inferred as a generic `string`,
+            // Fix for line 605: The `action` property from the parsed JSON is a generic `string`,
             // which is incompatible with the specific literal union type expected in `HistoryLog`.
-            // Casting through `any` tells TypeScript to trust the structure of the incoming data.
-            const dataToProcess: AppData = parsedData as any;
+            // A type assertion (`as AppData`) is used to tell TypeScript to trust the structure
+            // of the incoming data from the JSON file.
+            const dataToProcess = parsedData as AppData;
             
             await api.saveData(dataToProcess);
             appData = dataToProcess;
@@ -695,15 +751,26 @@ function handleFileChange(event: Event) {
 // --- HTML TEMPLATES FOR VIEWS ---
 // =================================================================================
 
-function renderUserPrompt(): string {
+function renderLoginRegisterPrompt(): string {
     return `
         <div class="user-prompt-overlay">
-            <div class="user-prompt-box">
-                <h2>Identificación de Usuario</h2>
-                <p>Por favor, introduce tu nombre o identificador.</p>
-                <form id="user-prompt-form" style="margin-top: 1rem;">
-                    <input class="simulator-input" type="text" id="username-input" placeholder="Ej: ASANDECA" required autofocus />
-                    <button type="submit" class="primary-btn">Guardar</button>
+            <div class="user-prompt-box" style="max-width: 450px;">
+                <h2>Acceso al Gestor de Radioavisos</h2>
+                <p>Inicie sesión o regístrese para continuar.</p>
+                <form id="auth-form" style="margin-top: 1rem; text-align: left;">
+                    <div class="form-group">
+                        <label for="auth-username-input">Usuario</label>
+                        <input class="simulator-input" type="text" id="auth-username-input" autocomplete="username" required autofocus />
+                    </div>
+                     <div class="form-group" style="margin-top: 1rem;">
+                        <label for="auth-password-input">Contraseña</label>
+                        <input class="simulator-input" type="password" id="auth-password-input" autocomplete="current-password" required />
+                    </div>
+                    <div class="button-container" style="margin-top: 1.5rem; padding-top: 0; border-top: none;">
+                        <button type="submit" class="secondary-btn" data-auth-action="register" style="flex: 1;">Registrar</button>
+                        <button type="submit" class="primary-btn" data-auth-action="login" style="margin-top: 0; flex: 1;">Iniciar Sesión</button>
+                    </div>
+                    <div id="auth-error-message" class="error" style="text-align: center; margin-top: 1rem; color: var(--danger-color); min-height: 1em;"></div>
                 </form>
             </div>
         </div>
