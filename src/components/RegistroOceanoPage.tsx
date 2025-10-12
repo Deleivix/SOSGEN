@@ -27,21 +27,18 @@ export function renderRegistroOceano(container: HTMLElement) {
                                             </div>
                                             <div class="reorg-controls" style="padding: 1rem 1.5rem 1rem; border-top: 1px solid var(--border-color);">
                                                 <div><h4>OP</h4><div class="buoy-selector-group" id="entrada-op-selector">
-                                                    <button class="buoy-selector-btn active" data-value="OWP-0X">OWP-0X</button>
-                                                    <button class="buoy-selector-btn" data-value="OWP-01">OWP-01</button>
+                                                    <button class="buoy-selector-btn active" data-value="OWP-01">OWP-01</button>
                                                     <button class="buoy-selector-btn" data-value="OWP-02">OWP-02</button>
                                                     <button class="buoy-selector-btn" data-value="OWP-03">OWP-03</button>
                                                     <button class="buoy-selector-btn" data-value="OWP-04">OWP-04</button>
                                                 </div></div>
                                                 <div><h4>CCR</h4><div class="buoy-selector-group" id="entrada-ccr-selector">
-                                                    <button class="buoy-selector-btn active" data-value="CCR XXXXX">XXXXX</button>
-                                                    <button class="buoy-selector-btn" data-value="CCR CORUÑA">CORUÑA</button>
+                                                    <button class="buoy-selector-btn active" data-value="CCR CORUÑA">CORUÑA</button>
                                                     <button class="buoy-selector-btn" data-value="CCR LAS PALMAS">LAS PALMAS</button>
                                                     <button class="buoy-selector-btn" data-value="CCR VALENCIA">VALENCIA</button>
                                                 </div></div>
                                                 <div><h4>Turno</h4><div class="buoy-selector-group" id="entrada-turno-selector">
-                                                    <button class="buoy-selector-btn active" data-value="turno de XXXX">XXXX</button>
-                                                    <button class="buoy-selector-btn" data-value="turno de MAÑANA">MAÑANA</button>
+                                                    <button class="buoy-selector-btn active" data-value="turno de MAÑANA">MAÑANA</button>
                                                     <button class="buoy-selector-btn" data-value="turno de TARDE">TARDE</button>
                                                     <button class="buoy-selector-btn" data-value="turno de NOCHE">NOCHE</button>
                                                 </div></div>
@@ -59,13 +56,11 @@ export function renderRegistroOceano(container: HTMLElement) {
                                             </div>
                                             <div class="reorg-controls" style="padding: 1rem 1.5rem 1rem; border-top: 1px solid var(--border-color);">
                                                 <div><h4>Banda</h4><div class="buoy-selector-group" id="comprobacion-banda-selector">
-                                                    <button class="buoy-selector-btn active" data-value="banda">...</button>
-                                                    <button class="buoy-selector-btn" data-value="VHF">VHF</button>
+                                                    <button class="buoy-selector-btn active" data-value="VHF">VHF</button>
                                                     <button class="buoy-selector-btn" data-value="MF/HF">MF/HF</button>
                                                 </div></div>
                                                 <div><h4>Resultado</h4><div class="buoy-selector-group" id="comprobacion-resultado-selector">
-                                                    <button class="buoy-selector-btn active" data-value="">...</button>
-                                                    <button class="buoy-selector-btn" data-value="OK">CHECK OK</button>
+                                                    <button class="buoy-selector-btn active" data-value="OK">CHECK OK</button>
                                                     <button class="buoy-selector-btn" data-value="NOT OK">CHECK NOT OK</button>
                                                 </div></div>
                                             </div>
@@ -82,13 +77,49 @@ export function renderRegistroOceano(container: HTMLElement) {
                                             </div>
                                             <div class="reorg-controls" style="padding: 1rem 1.5rem 1rem; border-top: 1px solid var(--border-color);">
                                                 <div><h4>Turno</h4><div class="buoy-selector-group" id="documentacion-turno-selector">
-                                                    <button class="buoy-selector-btn active" data-value="TURNO">...</button>
-                                                    <button class="buoy-selector-btn" data-value="MAÑANA">MAÑANA</button>
+                                                    <button class="buoy-selector-btn active" data-value="MAÑANA">MAÑANA</button>
                                                     <button class="buoy-selector-btn" data-value="TARDE">TARDE</button>
                                                     <button class="buoy-selector-btn" data-value="NOCHE">NOCHE</button>
                                                 </div></div>
                                             </div>
                                             <div class="template-card-body" id="template-text-documentacion" style="border-top: 1px solid var(--border-color);"></div>
+                                        </div>
+                                    `;
+                                }
+                                if (item.title === 'Generador de Registro de Transmisión') {
+                                    return `
+                                        <div class="template-card" data-template-id="transmision-generator">
+                                            <div class="template-card-header">
+                                                <h3 class="template-card-title">${item.title}</h3>
+                                                ${copyBtnHtml}
+                                            </div>
+                                            <div class="reorg-controls" style="padding: 1.5rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1.5rem;">
+                                                <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                                                    <div>
+                                                        <h4>Producto</h4>
+                                                        <div class="buoy-selector-group" id="transmision-producto-selector">
+                                                            <button class="buoy-selector-btn active" data-value="NR">NR</button>
+                                                            <button class="buoy-selector-btn" data-value="WX">WX</button>
+                                                            <button class="buoy-selector-btn" data-value="AT">AT</button>
+                                                        </div>
+                                                    </div>
+                                                    <div id="transmision-categoria-container">
+                                                        <h4>Categoría</h4>
+                                                        <div class="buoy-selector-group" id="transmision-categoria-selector">
+                                                            <button class="buoy-selector-btn active" data-value="Programado">Programado</button>
+                                                            <button class="buoy-selector-btn" data-value="Eventual">Eventual</button>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h4>Zona</h4>
+                                                        <div class="buoy-selector-group" id="transmision-zona-selector">
+                                                            <button class="buoy-selector-btn active" data-value="Costera">Costera</button>
+                                                            <button class="buoy-selector-btn" data-value="Alta Mar">Alta Mar</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="template-card-body" id="template-text-transmision-generator" style="border-top: 1px solid var(--border-color);"></div>
                                         </div>
                                     `;
                                 }
@@ -153,27 +184,67 @@ function initializeRegistroOceano(container: HTMLElement) {
 
         switch(templateId) {
             case 'entrada-guardia': {
-                const op = card.querySelector('#entrada-op-selector .active')?.getAttribute('data-value') || 'OWP-0X';
-                const ccr = card.querySelector('#entrada-ccr-selector .active')?.getAttribute('data-value') || 'CCR XXXXX';
-                const turno = card.querySelector('#entrada-turno-selector .active')?.getAttribute('data-value') || 'turno de XXXX';
+                const op = card.querySelector('#entrada-op-selector .active')?.getAttribute('data-value') || 'OWP-01';
+                const ccr = card.querySelector('#entrada-ccr-selector .active')?.getAttribute('data-value') || 'CCR CORUÑA';
+                const turno = card.querySelector('#entrada-turno-selector .active')?.getAttribute('data-value') || 'turno de MAÑANA';
                 newText = `Entrada de guardia, como Back Office Technician, gestionando "${op}" en el "${ccr}", "${turno}".`;
                 break;
             }
             case 'comprobacion-equipos': {
-                const banda = card.querySelector('#comprobacion-banda-selector .active')?.getAttribute('data-value') || 'banda';
-                const resultado = card.querySelector('#comprobacion-resultado-selector .active')?.getAttribute('data-value') || '';
+                const banda = card.querySelector('#comprobacion-banda-selector .active')?.getAttribute('data-value') || 'VHF';
+                const resultado = card.querySelector('#comprobacion-resultado-selector .active')?.getAttribute('data-value') || 'OK';
                 newText = `Realizada comprobación de equipos (${banda}), así como líneas telefónicas, DIVOS, Servicio Navtex, Grafana, AISWeb, NIMBUS y Service Desk. Resultado del check${resultado ? ' ' + resultado : ''}.`;
                 break;
             }
             case 'documentacion': {
-                const turno = card.querySelector('#documentacion-turno-selector .active')?.getAttribute('data-value') || 'TURNO';
+                const turno = card.querySelector('#documentacion-turno-selector .active')?.getAttribute('data-value') || 'MAÑANA';
                 newText = `Documentación turno de "${turno}".`;
                 break;
             }
+             case 'transmision-generator': {
+// FIX: Cast querySelector result to HTMLElement to access dataset property
+                const producto = (card.querySelector('#transmision-producto-selector .active') as HTMLElement)?.dataset.value || 'NR';
+// FIX: Cast querySelector result to HTMLElement to access dataset property
+                const categoria = (card.querySelector('#transmision-categoria-selector .active') as HTMLElement)?.dataset.value || 'Programado';
+// FIX: Cast querySelector result to HTMLElement to access dataset property
+                const zona = (card.querySelector('#transmision-zona-selector .active') as HTMLElement)?.dataset.value || 'Costera';
+
+                const categoriaContainer = card.querySelector<HTMLElement>('#transmision-categoria-container');
+                if (categoriaContainer) {
+                    categoriaContainer.style.display = producto === 'AT' ? 'none' : 'block';
+                }
+
+                if (producto === 'NR') {
+                    if (categoria === 'Programado') {
+                        const anuncio = zona === 'Costera' ? 'canal 16' : '2.182kHz';
+                        newText = `Realizada transmisión programada de Radioavisos en vigor, vía estaciones costeras correspondientes, previo anuncio en ${anuncio}.`;
+                    } else { // Eventual
+                        const via = zona === 'Costera' ? 'canales de trabajo' : 'frecuencias de trabajo';
+                        const dsc = zona === 'Costera' ? 'canal 70' : '2.187,5kHz';
+                        const anuncio = zona === 'Costera' ? 'canal 16' : '2.182kHz';
+                        newText = `Realizada transmisión eventual del Radiaviso “XXXX/XXXX”, vía ${via} de las Estaciones Costeras correspondientes, previa llamada selectiva digital (${dsc}), y anuncio en (${anuncio}).`;
+                    }
+                } else if (producto === 'WX') {
+                    if (categoria === 'Programado') {
+                        const para = zona === 'Costera' ? 'para Aguas Costeras' : 'para Alta Mar';
+                        const via = zona === 'Costera' ? 'canales de trabajo' : 'frecuencias de trabajo';
+                        const anuncio = zona === 'Costera' ? 'canal 16' : '2.182kHz';
+                        newText = `Realizada transmisión programada de Información Meteorológica y Marina ${para}, vía ${via} de las Estaciones Costeras correspondientes, previo aviso en ${anuncio}.`;
+                    } else { // Eventual
+                        const via = zona === 'Costera' ? 'canales' : 'frecuencias';
+                        newText = `Realizada transmisión eventual de Información Meteorológica y Marina, solicitada por el buque/embarcación “Nombre/CallSign”, vía ${via} de trabajo de la/s Estación/es Costera/s de “Añadir EECC”.`;
+                    }
+                } else if (producto === 'AT') {
+                    if (zona === 'Costera') {
+                        newText = `Realizada transmisión de Boletín de Fenómenos Adversos de Nivel “ROJO/NARANJA”, en vigor, vía canales de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (canal 70), y anuncio en canal 16.`;
+                    } else { // Alta Mar
+                        newText = `Realizada transmisión de Aviso de Temporal, vía frecuencias de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (2.187,5kHz), y anuncio en 2.182kHz.`;
+                    }
+                }
+                break;
+            }
             case 'reorganizacion': {
-// FIX: Cast selected element to HTMLElement to access dataset property.
                 const selectedCCR = (card.querySelector('#reorg-ccr-selector .active') as HTMLElement)?.dataset.value || '...';
-// FIX: Cast selected element to HTMLElement to access dataset property.
                 const selectedTurno = (card.querySelector('#reorg-turno-selector .active') as HTMLElement)?.dataset.value || '...';
                 newText = `Por contingencias, se reorganiza el servicio en el CCR CORUÑA hacia el ${selectedCCR} en turno de ${selectedTurno}.`;
                 textEl = card.querySelector('.template-text-reorganizacion'); // Special case for this card's text element
@@ -226,5 +297,6 @@ function initializeRegistroOceano(container: HTMLElement) {
     updateTemplateText('entrada-guardia');
     updateTemplateText('comprobacion-equipos');
     updateTemplateText('documentacion');
+    updateTemplateText('transmision-generator');
     updateTemplateText('reorganizacion');
 }

@@ -1,5 +1,3 @@
-
-
 // --- DATA STRUCTURES ---
 export interface Template { title: string; template: string; }
 export interface Category { category: string; items: Template[]; }
@@ -37,7 +35,7 @@ export const APP_PAGE_ICONS = [
 export const APP_PAGES: Page[] = [
     { name: 'HOME' },
     { name: 'SOSGEN' },
-    { name: 'Registro Océano' },
+    { name: 'OCEANO' },
     { name: 'PROTOCOLO' },
     { name: 'Radioavisos' },
     { name: 'METEOS' },
@@ -66,14 +64,7 @@ export const REGISTRO_OCEANO_DATA: Category[] = [
       {
         category: 'Transmisiones',
         items: [
-            { title: 'Transmisión programada WX Aguas Costeras', template: 'Realizada transmisión programada de Información Meteorológica y Marina para Aguas Costeras de “Añadir zona”, vía canales de trabajo de las Estaciones Costeras correspondientes, previo aviso en canal 16.' },
-            { title: 'Transmisión programada WX Alta Mar', template: 'Realizada transmisión programada de Información Meteorológica y Marina para Alta Mar, zonas de “Añadir zona”, vía frecuencias de trabajo de las Estaciones Costeras correspondientes, previo aviso en 2.182kHz.' },
-            { title: 'Transmisión programada NR', template: 'Realizada transmisión programada de Radioavisos en vigor, vía estaciones costeras correspondientes, previo anuncio en canal 16/2.182kHz.' },
-            { title: 'Transmisión eventual WX', template: 'Realizada transmisión eventual de Información Meteorológica y Marina para “Añadir zona”, solicitada por el buque/embarcación “Nombre/CallSign”, vía canal/es de trabajo de la/s Estación/es Costera/s de “Añadir EECC”.' },
-            { title: 'Transmisión eventual NR', template: 'Realizada transmisión eventual del Radiaviso “XXXX/XXXX”, vía canales/frecuencias de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (canal 70/2.187,5kHz), y anuncio en (canal16/2.182kHz).' },
-            { title: 'Transmisión eventual de NR por petición de Sasemar', template: 'Realizada transmisión eventual del Radiaviso “XXXX/XXXX” (TTT), vía canales/frecuencias de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (canal 70/2.187,5kHz), y anuncio en (canal16/2.182kHz).' },
-            { title: 'Transmisión AT', template: 'Realizada transmisión de Aviso de Temporal “AT-XXXX-XXXX”, vía frecuencias de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (2.187,5kHz), y anuncio en 2.182kHz.' },
-            { title: 'Transmisión Fenómenos Adversos', template: 'Realizada transmisión de Boletín de Fenómenos Adversos de Nivel “XXXXX”, en vigor para Aguas Costeras de “Añadir zona”, vía canales de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (canal 70), y anuncio en canal 16.' }
+            { title: 'Generador de Registro de Transmisión', template: '' },
         ]
       },
       { category: 'Radiocheck', items: [ { title: 'Formato Radiocheck', template: `Embarcación: “Nombre/Callsign”\nPosición: “Latitud-Longitud/Puerto”\nVía de contacto: “Tipo de comunicación, Estación Costera y canal”\nResultado TX: “1/5,…,5/5”\nResultado RX: “1/5,…,5/5”` } ] },
