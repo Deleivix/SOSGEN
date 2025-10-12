@@ -1,5 +1,6 @@
 
 
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -143,7 +144,7 @@ async function syncWithSalvamento() {
     const nrsLocales = state.appData.nrs;
 
     const ZONAS_RELEVANTES = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
-    const avisosRelevantes = avisosOficiales.filter(aviso => ZONAS_RELEVANTES.some(zona => aviso.zona.includes(zona)));
+    const avisosRelevantes = avisosOficiales.filter(aviso => ZONAS_RELEVANTES.some(zona => aviso.zona.toUpperCase().includes(zona)));
 
     let nuevosNRs: NR[] = [];
     let nuevosLogs: HistoryLog[] = [];
@@ -156,11 +157,16 @@ async function syncWithSalvamento() {
         if (!existeLocalmente) {
             hayCambios = true;
             const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
+            const initialStations: string[] = [];
+            if (aviso.zona.toUpperCase().includes('CORUÑA')) {
+                initialStations.push('Navtex');
+            }
+
             const newNR: NR = {
                 id: nrId,
                 version: 1,
                 fullId: `${nrId}-1`,
-                stations: [],
+                stations: initialStations,
                 expiryDate: expiryDate,
                 expiryTime: expiryTime,
                 isAmpliado: false,
@@ -173,7 +179,7 @@ async function syncWithSalvamento() {
                 user: 'SISTEMA',
                 action: 'AÑADIDO',
                 nrId: nrId,
-                details: `Añadido automáticamente desde Salvamento Marítimo. Asunto: ${aviso.asunto}`
+                details: `Añadido automáticamente desde SASEMAR. Asunto: ${aviso.asunto}`
             });
         }
     }
@@ -317,7 +323,7 @@ function renderSalvamentoPanelHTML(): string {
         const ZONAS_FILTRADAS = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
         const searchTerm = state.salvamentoFilterText.toLowerCase();
         const filteredAvisos = state.salvamentoAvisos
-            .filter(aviso => ZONAS_FILTRADAS.some(zona => aviso.zona.includes(zona)))
+            .filter(aviso => ZONAS_FILTRADAS.some(zona => aviso.zona.toUpperCase().includes(zona)))
             .filter(aviso => 
                 aviso.num.toLowerCase().includes(searchTerm) ||
                 aviso.asunto.toLowerCase().includes(searchTerm) ||
@@ -430,7 +436,7 @@ function renderLocalManagerHTML(): string {
             <span>Gestor Local</span>
         </div>
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-            <h2 class="content-card-title" style="margin: 0; padding: 0; border: none;">Gestor de Radioavisos (NR)</h2>
+            <h2 class="content-card-title" style="margin: 0; padding: 0; border: none;">Gestor de Radioavisos</h2>
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <button class="secondary-btn" data-action="import">Importar</button>
                 <input type="file" accept=".json" class="file-input-hidden" style="display: none;" />
@@ -826,6 +832,10 @@ function renderMainView(): string {
     
     const mfNrsByStation = STATIONS_MF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id)}), {} as Record<string, string[]>);
     const maxMfNrs = Math.max(0, ...Object.values(mfNrsByStation).map(arr => arr.length));
+
+    const STATIONS_NAVTEX = ['Navtex'];
+    const navtexNrsByStation = STATIONS_NAVTEX.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id)}), {} as Record<string, string[]>);
+    const maxNavtexNrs = Math.max(0, ...Object.values(navtexNrsByStation).map(arr => arr.length));
     
     return `
         ${renderAttentionPanel()}
@@ -850,6 +860,18 @@ function renderMainView(): string {
                          <tbody>
                             ${maxMfNrs === 0 ? `<tr><td colspan="${STATIONS_MF.length}" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` :
                             Array.from({ length: maxMfNrs }).map((_, r) => `<tr>${STATIONS_MF.map(s => `<td>${mfNrsByStation[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')}
+                         </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="station-table-container">
+                <h3>Estación NAVTEX</h3>
+                <div class="table-wrapper">
+                    <table class="station-table horizontal-table reference-table">
+                         <thead><tr><th>${STATIONS_NAVTEX[0]}</th></tr></thead>
+                         <tbody>
+                            ${maxNavtexNrs === 0 ? `<tr><td colspan="1" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` :
+                            Array.from({ length: maxNavtexNrs }).map((_, r) => `<tr><td>${navtexNrsByStation['Navtex']?.[r] || ''}</td></tr>`).join('')}
                          </tbody>
                     </table>
                 </div>
@@ -937,7 +959,7 @@ function renderGestionarView(): string {
 function renderEditView(): string {
      return `
         <div class="form-group" style="display: flex; align-items: flex-end; gap: 1rem;">
-            <div style="flex-grow: 1;"><label for="edit-search-id">Buscar NR por ID (ej: 2013/2024)</label><input type="text" id="edit-search-id" placeholder="ID del NR, sin versión" class="simulator-input"/></div>
+            <div style="flex-grow: 1;"><label for="edit-search-id">Buscar NR por ID (ej: 2237/2025)</label><input type="text" id="edit-search-id" placeholder="ID del NR, sin versión" class="simulator-input"/></div>
             <button class="primary-btn" data-action="edit-search" style="margin-top:0;">BUSCAR</button>
         </div>
         <div id="edit-form-container" style="display:none;">
