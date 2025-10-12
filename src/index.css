@@ -29,6 +29,7 @@
   --border-color-light: #E0E6ED;
   --shadow-color-light: rgba(0,0,0,0.05);
   --table-header-bg-light: #F1F3F5;
+  --bg-banner-light: linear-gradient(135deg, #495057, #343A40);
 
   /* Dark Theme */
   --bg-main-dark: #121212;
@@ -42,6 +43,7 @@
   --border-color-dark: #333333;
   --shadow-color-dark: rgba(0,0,0,0.2);
   --table-header-bg-dark: #2A2A2A;
+  --bg-banner-dark: linear-gradient(135deg, #282828, #1a1a1a);
 
   --font-sans: 'Roboto', -apple-system, system-ui, sans-serif;
   --font-mono: 'Roboto Mono', monospace;
@@ -72,6 +74,7 @@
   --table-header-bg: var(--table-header-bg-light);
   --buoy-stroke: var(--buoy-stroke-light);
   --buoy-water: var(--buoy-water-light);
+  --bg-banner: var(--bg-banner-light);
 }
 
 body.dark-theme {
@@ -88,6 +91,7 @@ body.dark-theme {
   --table-header-bg: var(--table-header-bg-dark);
   --buoy-stroke: var(--buoy-stroke-dark);
   --buoy-water: var(--buoy-water-dark);
+  --bg-banner: var(--bg-banner-dark);
 }
 
 /* --- Global & Base Styles --- */
@@ -298,7 +302,7 @@ nav {
     gap: 0.25rem;
 }
 .nav-user-display {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255,255,255,0.7);
     font-size: 0.8rem;
     font-weight: 500;
 }
@@ -319,10 +323,13 @@ nav {
 
 /* --- Component: Generic Content --- */
 .page-banner {
-  background: linear-gradient(rgba(45, 139, 139, 0.95), rgba(45, 139, 139, 0.95)),
-              url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"%3E%3Cpath fill="%232D8B8B" fill-opacity="0.2" d="M0 200 C 200 100, 200 300, 400 200 S 600 100, 800 200 V 400 H 0 Z"%3E%3C/path%3E%3C/svg%3E');
-  background-size: cover; border-radius: 12px; padding: 3rem 2rem;
-  text-align: center; color: #FFFFFF; margin-bottom: 2rem;
+  background: var(--bg-banner);
+  background-size: cover;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #FFFFFF;
+  margin-bottom: 2rem;
 }
 .banner-title {
   display: flex; align-items: center; justify-content: center; gap: 1rem;
@@ -649,15 +656,38 @@ body.dark-theme .pressure-trend-icon.falling { fill: var(--danger-color-dark); }
 
 /* --- Component: Registro Oceano --- */
 .registro-oceano-layout { display: flex; gap: 2rem; }
-.ro-sidebar { flex: 0 0 220px; background-color: #2D8B8B; border-radius: 8px; padding: 1rem; }
+.ro-sidebar {
+    flex: 0 0 220px;
+    background-color: var(--bg-main);
+    border-right: 1px solid var(--border-color);
+    padding: 1rem;
+    border-radius: 8px 0 0 8px;
+}
 .ro-content { flex: 1; min-width: 0; }
 .sub-nav-btn {
-  width: 100%; display: block; font-size: 0.95rem; padding: 0.75rem 1.25rem;
-  border: none; background: transparent; cursor: pointer; color: rgba(255, 255, 255, 0.85);
-  transition: all 0.2s; text-align: left; border-radius: 6px; font-weight: 500;
+  width: 100%;
+  display: block;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  text-align: left;
+  border-radius: 6px;
+  font-weight: 500;
 }
-.sub-nav-btn:hover { background-color: rgba(255, 255, 255, 0.1); color: white; transform: translateX(5px); }
-.sub-nav-btn.active { background-color: var(--accent-color); color: white; font-weight: 700; }
+.sub-nav-btn:hover {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  transform: translateX(5px);
+}
+.sub-nav-btn.active {
+  background-color: var(--accent-color);
+  color: white;
+  font-weight: 700;
+}
 .template-card {
   border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem;
   overflow: hidden; background-color: var(--bg-card); transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -796,6 +826,11 @@ body.dark-theme .pressure-trend-icon.falling { fill: var(--danger-color-dark); }
 }
 
 /* --- Component: Info Page & Reference --- */
+.info-table-wrapper {
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+}
 .info-nav-tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border-color); margin-bottom: 2rem; flex-wrap: wrap; }
 .info-nav-btn {
   font-family: var(--font-sans); font-size: 0.9rem; font-weight: 500; text-transform: uppercase;
@@ -805,7 +840,11 @@ body.dark-theme .pressure-trend-icon.falling { fill: var(--danger-color-dark); }
 }
 .info-nav-btn:hover { color: var(--text-primary); background-color: var(--bg-main); }
 .info-nav-btn.active { color: var(--accent-color-dark); font-weight: 700; background-color: var(--bg-card); border-bottom-color: var(--accent-color); }
-.vhf-tables-container { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+.vhf-tables-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
 .reference-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; color: var(--text-secondary); }
 .reference-table caption { font-size: 1.1rem; font-weight: 500; padding: 0.75rem; color: white; text-align: left; }
 .reference-table th, .reference-table td { border: 1px solid var(--border-color); padding: 0.75rem 1rem; text-align: left; vertical-align: middle; }
@@ -832,7 +871,11 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 }
 .translation-result .error { color: var(--danger-color); }
 .phone-directory-search { width: 100%; padding: 0.75rem 1rem; font-size: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-main); color: var(--text-primary); margin-bottom: 1.5rem; }
-.phone-directory-list { display: flex; flex-direction: column; gap: 1rem; }
+.phone-directory-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1rem;
+}
 .phone-entry-card { padding: 1rem; border-radius: 6px; background-color: var(--bg-main); border: 1px solid var(--border-color); }
 .phone-entry-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
 .phone-entry-name { font-weight: 500; color: var(--text-primary); font-size: 1.1rem; }
@@ -1046,6 +1089,28 @@ body.dark-theme .reference-table tbody tr:nth-child(even) { background-color: rg
 .simulation-info .info-divider { border: none; height: 1px; background-color: var(--border-color); margin: 1rem 0; }
 
 /* --- Component: Simulacro (Drill) --- */
+.simulacro-layout-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    gap: 2rem;
+    align-items: start;
+}
+.simulacro-side-panel {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  padding: 1.5rem;
+  width: 100%;
+}
+.floating-panel-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
 .drill-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
 .drill-actions .primary-btn { margin-top: 0; flex: 1 1 200px; }
 .drill-container .primary-btn { margin-bottom: 2rem; }
@@ -1089,22 +1154,6 @@ body.dark-theme .answer-option.incorrect { background-color: var(--danger-color-
     font-family: var(--font-mono);
     line-height: 1.6;
 }
-.floating-panel {
-  position: fixed;
-  top: 100px;
-  width: 280px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px var(--shadow-color);
-  padding: 1.5rem;
-  z-index: 900;
-  transition: all 0.3s ease;
-  animation: fadeIn 0.5s ease;
-}
-.drill-dashboard { left: 2rem; }
-.drill-calendar { right: 2rem; }
-.floating-panel-title { font-size: 1.1rem; font-weight: 500; color: var(--text-primary); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); }
 .stat-item { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.75rem; }
 .stat-item span:first-child { color: var(--text-secondary); }
 .stat-item span:last-child { font-weight: 500; color: var(--text-primary); }
@@ -1566,7 +1615,9 @@ body.dark-theme .skeleton {
 
 /* --- Responsive Design --- */
 @media (max-width: 1400px) {
-    .floating-panel { display: none; }
+    .simulacro-layout-grid {
+        grid-template-columns: 1fr;
+    }
 }
 @media (max-width: 1200px) {
     .nav-links-container { gap: 0.5rem; }

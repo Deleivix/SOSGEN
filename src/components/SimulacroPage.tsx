@@ -3,19 +3,21 @@ import { showToast } from "../utils/helpers";
 
 export function renderSimulacro(container: HTMLElement) {
     container.innerHTML = `
-        <div id="drill-dashboard-container"></div>
-        <div id="drill-calendar-container"></div>
-        <div class="content-card">
-             <h2 class="content-card-title">Simulador de Casos Prácticos GMDSS</h2>
-             <div class="drill-container">
-                 <div class="drill-actions">
-                     <button class="primary-btn" data-drill-type="dsc">Simulacro DSC (IA)</button>
-                     <button class="primary-btn" data-drill-type="radiotelephony">Simulacro Radiotelefonía (IA)</button>
+        <div class="simulacro-layout-grid">
+            <div id="drill-dashboard-container"></div>
+            <div class="content-card">
+                 <h2 class="content-card-title">Simulador de Casos Prácticos GMDSS</h2>
+                 <div class="drill-container">
+                     <div class="drill-actions">
+                         <button class="primary-btn" data-drill-type="dsc">Simulacro DSC (IA)</button>
+                         <button class="primary-btn" data-drill-type="radiotelephony">Simulacro Radiotelefonía (IA)</button>
+                     </div>
+                     <div id="drill-content" class="drill-content">
+                         <p class="drill-placeholder">Seleccione un tipo de simulacro para comenzar.</p>
+                     </div>
                  </div>
-                 <div id="drill-content" class="drill-content">
-                     <p class="drill-placeholder">Seleccione un tipo de simulacro para comenzar.</p>
-                 </div>
-             </div>
+            </div>
+            <div id="drill-calendar-container"></div>
         </div>
     `;
     initializeSimulacro();

@@ -1,4 +1,5 @@
 
+
 import { 
     QUICK_REFERENCE_DATA, 
     PHONE_DIRECTORY_DATA, 
@@ -64,18 +65,20 @@ export function renderInfo(container: HTMLElement) {
             ${VHF_FREQUENCIES_DATA.map(tableData => renderReferenceTable(tableData)).join('')}
         </div>`;
 
-    fullQuickRefData[3].content = renderReferenceTable(PHONETIC_ALPHABET_DATA);
+    fullQuickRefData[3].content = `<div class="info-table-wrapper">${renderReferenceTable(PHONETIC_ALPHABET_DATA)}</div>`;
     
-    fullQuickRefData[4].content = renderReferenceTable(Q_CODES_DATA);
+    fullQuickRefData[4].content = `<div class="info-table-wrapper">${renderReferenceTable(Q_CODES_DATA)}</div>`;
     
     fullQuickRefData[5].content = `
-        <h3 class="reference-table-subtitle">Escala Beaufort / Beaufort Wind Scale</h3>
-        ${renderReferenceTable(BEAUFORT_SCALE_DATA)}
-        <h3 class="reference-table-subtitle">Escala Douglas / Douglas Sea Scale</h3>
-        ${renderReferenceTable(DOUGLAS_SCALE_DATA)}`;
+        <div class="info-table-wrapper">
+            <h3 class="reference-table-subtitle">Escala Beaufort / Beaufort Wind Scale</h3>
+            ${renderReferenceTable(BEAUFORT_SCALE_DATA)}
+            <h3 class="reference-table-subtitle">Escala Douglas / Douglas Sea Scale</h3>
+            ${renderReferenceTable(DOUGLAS_SCALE_DATA)}
+        </div>`;
 
     fullQuickRefData[6].content = `
-        <div class="coord-converter">
+        <div class="coord-converter info-table-wrapper">
             <h3 class="reference-table-subtitle">Conversor de Coordenadas</h3>
             <p class="translator-desc">Introduzca un par de coordenadas (Latitud y Longitud) para convertirlas al formato estándar <strong>gg° mm,ddd' N/S ggg° mm,ddd' E/W</strong>. Use espacios como separadores.</p>
             <div class="converter-form">
@@ -86,23 +89,25 @@ export function renderInfo(container: HTMLElement) {
         </div>`;
         
     fullQuickRefData[7].content = `
-        <div class="nautical-translator">
-            <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
-            <p class="translator-desc">Traduce términos o frases cortas entre español e inglés.</p>
-            <textarea id="translator-input" class="styled-textarea" rows="3" placeholder="Ej: virar por avante"></textarea>
-            <button id="translator-btn" class="primary-btn">Traducir</button>
-            <div id="translator-result" class="translation-result"></div>
-        </div>
-        <h3 class="reference-table-subtitle">Términos Comunes / Common Terms</h3>
-        ${renderReferenceTable({
-            headers: ['Español', 'Inglés'],
-            rows: [
-                ['Babor', 'Port'], ['Estribor', 'Starboard'], ['Proa', 'Bow'], ['Popa', 'Stern'],
-                ['Barlovento', 'Windward'], ['Sotavento', 'Leeward'], ['Nudo', 'Knot'],
-                ['Ancla', 'Anchor'], ['Timón', 'Rudder'], ['Deriva', 'Leeway / Drift'],
-                ['Rumbo', 'Heading / Course'], ['Escora', 'Heel / List']
-            ]
-        })}`;
+        <div class="info-table-wrapper">
+            <div class="nautical-translator">
+                <h3 class="reference-table-subtitle">Traductor Náutico (IA)</h3>
+                <p class="translator-desc">Traduce términos o frases cortas entre español e inglés.</p>
+                <textarea id="translator-input" class="styled-textarea" rows="3" placeholder="Ej: virar por avante"></textarea>
+                <button id="translator-btn" class="primary-btn">Traducir</button>
+                <div id="translator-result" class="translation-result"></div>
+            </div>
+            <h3 class="reference-table-subtitle">Términos Comunes / Common Terms</h3>
+            ${renderReferenceTable({
+                headers: ['Español', 'Inglés'],
+                rows: [
+                    ['Babor', 'Port'], ['Estribor', 'Starboard'], ['Proa', 'Bow'], ['Popa', 'Stern'],
+                    ['Barlovento', 'Windward'], ['Sotavento', 'Leeward'], ['Nudo', 'Knot'],
+                    ['Ancla', 'Anchor'], ['Timón', 'Rudder'], ['Deriva', 'Leeway / Drift'],
+                    ['Rumbo', 'Heading / Course'], ['Escora', 'Heel / List']
+                ]
+            })}
+        </div>`;
 
     container.innerHTML = `
         <div class="content-card">

@@ -150,7 +150,7 @@ export async function renderDrillDashboard() {
     const avgScore = stats.totalQuestions > 0 ? (stats.totalCorrect / stats.totalQuestions) * 100 : 0;
 
     container.innerHTML = `
-        <div class="floating-panel drill-dashboard">
+        <div class="simulacro-side-panel">
             <h3 class="floating-panel-title">Estadísticas</h3>
             <div class="stat-item">
                 <span>Total Simulacros:</span>
@@ -235,7 +235,7 @@ export async function renderDrillCalendar() {
 
 
     container.innerHTML = `
-        <div class="floating-panel drill-calendar">
+        <div class="simulacro-side-panel">
             <h3 class="floating-panel-title">Calendario de Práctica</h3>
             ${calendarHtml}
             ${reminderHtml}

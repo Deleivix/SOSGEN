@@ -371,23 +371,11 @@ async function handleSwitchView(element: HTMLElement) {
 
 async function handleGoToEdit(fullId: string) {
     if (!fullId) return;
-    const baseId = getBaseId(fullId);
-    state.currentView = 'RADIOAVISOS'; 
-    await reRender(); 
-    const editForm = state.componentContainer?.querySelector('#edit-form-container') as HTMLElement | null;
-    const searchInput = state.componentContainer?.querySelector('#edit-search-id') as HTMLInputElement | null;
-    if (searchInput) searchInput.value = baseId;
-
-    const nrToEdit = state.appData.nrs.filter(nr => nr.baseId === baseId && !nr.isCaducado).sort((a, b) => b.version - a.version)[0];
-    if (nrToEdit && editForm && state.componentContainer) {
-        editForm.dataset.fullId = nrToEdit.id;
-        (state.componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value = nrToEdit.expiryDate;
-        (state.componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value = nrToEdit.expiryTime;
-        (state.componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked = nrToEdit.isAmpliado;
-        state.componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input').forEach(cb => cb.checked = nrToEdit.stations.includes(cb.value));
-        editForm.style.display = 'block';
-    } else if (editForm) {
-        editForm.style.display = 'none';
+    const nrToEdit = state.appData.nrs.find(nr => nr.id === fullId);
+    if (nrToEdit) {
+        renderEditNrModal(nrToEdit);
+    } else {
+        showToast(`No se encontró el NR ${fullId} para editar.`, 'error');
     }
 }
 
@@ -438,7 +426,6 @@ function attachEventListeners(container: HTMLElement) {
                 case 'refresh-salvamento': await handleRefreshSalvamento(); break;
                 case 'switch-view': await handleSwitchView(actionElement); break;
                 case 'add-submit': await handleAddSubmit(); break;
-                case 'edit-save': await handleEditSave(); break;
                 case 'go-to-edit': await handleGoToEdit(actionElement.dataset.nrId!); break;
                 case 'cancel-nr': await handleCancelNR(actionElement.dataset.nrId!); break;
             }
@@ -508,33 +495,40 @@ async function handleAddSubmit() {
     } catch (error) { showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error"); }
 }
 
-async function handleEditSave() {
+async function handleEditSubmit(formContainer: HTMLElement, fullId: string) {
     const user = getCurrentUser();
-    if (!user || !state.componentContainer) return;
-    const container = state.componentContainer;
-    const formContainer = container.querySelector('#edit-form-container') as HTMLElement;
-    const fullId = formContainer.dataset.fullId;
-    if (!fullId) return;
+    if (!user) return;
     try {
         const nrToUpdate = state.appData.nrs.find(nr => nr.id === fullId);
         if (!nrToUpdate) {
             showToast("El NR a editar ya no existe.", "error");
-            state.currentView = 'RADIOAVISOS';
-            return await loadInitialData();
+            return loadInitialData();
         }
-        const updatedStations = Array.from(container.querySelectorAll<HTMLInputElement>('#edit-stations-group input:checked')).map(cb => cb.value);
-        if (updatedStations.length === 0) return showToast("Debe seleccionar al menos una estación.", "error");
-        
+        const updatedStations = Array.from(formContainer.querySelectorAll<HTMLInputElement>('#modal-edit-stations-group input:checked')).map(cb => cb.value);
+        if (updatedStations.length === 0) {
+            showToast("Debe seleccionar al menos una estación.", "error");
+            return;
+        }
         const finalData: AppData = {
-            nrs: state.appData.nrs.map(nr => nr.id === fullId ? { ...nr, expiryDate: (container.querySelector('#edit-expiry-date') as HTMLInputElement).value, expiryTime: (container.querySelector('#edit-expiry-time') as HTMLInputElement).value, isAmpliado: (container.querySelector('#edit-is-ampliado') as HTMLInputElement).checked, stations: updatedStations } : nr),
+            nrs: state.appData.nrs.map(nr =>
+                nr.id === fullId
+                ? {
+                    ...nr,
+                    expiryDate: (formContainer.querySelector('#modal-edit-expiry-date') as HTMLInputElement).value,
+                    expiryTime: (formContainer.querySelector('#modal-edit-expiry-time') as HTMLInputElement).value,
+                    isAmpliado: (formContainer.querySelector('#modal-edit-is-ampliado') as HTMLInputElement).checked,
+                    stations: updatedStations
+                  }
+                : nr),
             history: [{ id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'EDITADO', nrId: getBaseId(fullId), details: `Editada versión ${nrToUpdate.version}.` }, ...state.appData.history]
         };
         await api.saveData(finalData);
         state.appData = finalData;
         showToast(`${fullId} actualizado.`, 'success');
-        state.currentView = 'RADIOAVISOS';
         await reRender();
-    } catch (error) { showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error"); }
+    } catch (error) {
+        showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error");
+    }
 }
 
 // =================================================================================
@@ -791,4 +785,63 @@ function renderHistoryView(): string {
                 <tbody>${sortedHistory.map(log => `<tr><td>${log.nrId}</td><td>${getFormattedDateTime(log.timestamp)}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('')}</tbody>
             </table>
         </div>`;
+}
+
+function renderEditNrModal(nr: NR) {
+    const modalId = `edit-nr-modal-${nr.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    if (document.getElementById(modalId)) return;
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.id = modalId;
+
+    modalOverlay.innerHTML = `
+        <div class="modal-content" style="max-width: 800px; text-align: left;">
+            <h2 class="modal-title">Editar NR: ${nr.id}</h2>
+            <form id="edit-nr-form-${nr.id.replace(/[^a-zA-Z0-9]/g, '-')}">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Fecha Caducidad (UTC)</label>
+                        <div style="display:flex; gap: 1rem;">
+                            <input type="date" id="modal-edit-expiry-date" class="simulator-input" value="${nr.expiryDate || ''}" />
+                            <input type="time" id="modal-edit-expiry-time" class="simulator-input" value="${nr.expiryTime || ''}" />
+                        </div>
+                    </div>
+                     <div class="form-group">
+                         <label style="margin-top: 1.5rem;"><input type="checkbox" id="modal-edit-is-ampliado" ${nr.isAmpliado ? 'checked' : ''} /> NR Ampliado</label>
+                    </div>
+                </div>
+                <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Marque las EECC:</h3>
+                <div class="checkbox-group" id="modal-edit-stations-group">
+                    ${ALL_STATIONS.map(station => `
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="modal-edit-${station.replace(/\s/g, '-')}" value="${station}" ${nr.stations.includes(station) ? 'checked' : ''}>
+                            <label for="modal-edit-${station.replace(/\s/g, '-')}">${station}</label>
+                        </div>
+                    `).join('')}
+                </div>
+            </form>
+            <div class="button-container" style="justify-content: flex-end; border-top:none; padding-top: 1rem;">
+                <button class="secondary-btn modal-cancel-btn">Cancelar</button>
+                <button class="primary-btn modal-save-btn" style="margin-top: 0; width: auto;">Guardar Cambios</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalOverlay);
+
+    const closeModal = () => modalOverlay.remove();
+    
+    modalOverlay.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target === modalOverlay || target.closest('.modal-cancel-btn')) {
+            closeModal();
+        } else if (target.closest('.modal-save-btn')) {
+            const form = modalOverlay.querySelector('form');
+            if(form) {
+                handleEditSubmit(form, nr.id).then(() => {
+                    closeModal();
+                });
+            }
+        }
+    });
 }
