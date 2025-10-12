@@ -147,63 +147,69 @@ async function syncWithSalvamento() {
         aviso.tipo.toUpperCase() === 'NAVTEX'
     );
 
-
-    let nuevosNRs: NR[] = [];
+    let nrsActualizados = [...nrsLocales];
     let nuevosLogs: HistoryLog[] = [];
     let hayCambios = false;
 
     for (const aviso of avisosRelevantes) {
         const nrId = aviso.num;
-        const existeLocalmente = nrsLocales.some(nr => nr.id === nrId && !nr.isCaducado);
+        const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
+        
+        const indiceLocal = nrsActualizados.findIndex(nr => nr.id === nrId && !nr.isCaducado);
 
-        if (!existeLocalmente) {
+        if (indiceLocal === -1) {
+            // --- ADD NEW NR ---
             hayCambios = true;
             const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
-            const initialStations: string[] = [];
-            // If it's a NAVTEX type, or the zone includes Coruña, assign it to Navtex station.
-            if (aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA')) {
-                initialStations.push('Navtex');
-            }
-
             const newNR: NR = {
-                id: nrId,
-                version: 1,
-                fullId: `${nrId}-1`,
-                stations: initialStations,
-                expiryDate: expiryDate,
-                expiryTime: expiryTime,
-                isAmpliado: false,
-                isCaducado: false
+                id: nrId, version: 1, fullId: `${nrId}-1`, stations: [],
+                expiryDate: expiryDate, expiryTime: expiryTime,
+                isAmpliado: false, isCaducado: false
             };
-            nuevosNRs.push(newNR);
+            if (isNavtexAviso) {
+                newNR.stations.push('Navtex');
+            }
+            nrsActualizados.push(newNR);
             nuevosLogs.push({
-                id: `log-${Date.now()}-${nrId}`,
-                timestamp: new Date().toISOString(),
-                user: 'SISTEMA',
-                action: 'AÑADIDO',
-                nrId: nrId,
-                details: `Añadido automáticamente desde SASEMAR. Asunto: ${aviso.asunto}`
+                id: `log-${Date.now()}-${nrId}`, timestamp: new Date().toISOString(), user: 'SISTEMA',
+                action: 'AÑADIDO', nrId: nrId, details: `Añadido automáticamente desde SASEMAR. ${isNavtexAviso ? 'Asignado a Navtex.' : ''}`
             });
+
+        } else {
+            // --- UPDATE EXISTING NR ---
+            const nrExistente = nrsActualizados[indiceLocal];
+            const alreadyHasNavtex = nrExistente.stations.includes('Navtex');
+
+            // If it's a NAVTEX advisory and the local NR doesn't have the Navtex station yet, add it.
+            if (isNavtexAviso && !alreadyHasNavtex) {
+                hayCambios = true;
+                nrExistente.stations.push('Navtex');
+                nuevosLogs.push({
+                    id: `log-${Date.now()}-${nrId}`, timestamp: new Date().toISOString(), user: 'SISTEMA',
+                    action: 'EDITADO', nrId: nrId, details: 'Añadida automáticamente la estación Navtex.'
+                });
+            }
         }
     }
 
     if (hayCambios) {
-        console.log(`[DEBUG] syncWithSalvamento: Found ${nuevosNRs.length} new NR(s) to sync. Saving...`);
+        console.log(`[DEBUG] syncWithSalvamento: Found changes. Saving...`);
         const finalData: AppData = {
-            nrs: [...nrsLocales, ...nuevosNRs],
+            nrs: nrsActualizados,
             history: [...nuevosLogs, ...state.appData.history]
         };
         try {
             await api.saveData(finalData);
             state.appData = finalData;
-            showToast(`${nuevosNRs.length} nuevo(s) NR(s) importado(s) de SASEMAR.`, 'info');
+            showToast(`Sincronización con SASEMAR completada.`, 'info');
         } catch (error) {
-            showToast("Error al guardar los NRs importados.", "error");
+            showToast("Error al guardar los NRs importados/actualizados.", "error");
         }
     } else {
         console.log('[DEBUG] syncWithSalvamento: No changes found.');
     }
 }
+
 
 async function updateSalvamentoData() {
     console.log('[DEBUG] updateSalvamentoData: Starting fetch.');
@@ -801,16 +807,42 @@ function renderCurrentViewContent(): string {
 }
 
 function renderAttentionPanel(): string {
-    const nrsNeedingAttention = state.appData.nrs.filter(nr => nr.stations.length === 0 && !nr.isCaducado);
-    if (nrsNeedingAttention.length === 0) return '';
+    const nonNavtexStations = [...STATIONS_VHF, ...STATIONS_MF];
+    
+    const nrsNeedingAttention = state.appData.nrs.filter(nr => {
+        if (nr.isCaducado) {
+            return false;
+        }
 
+        // Find the corresponding official advisory in the latest fetched data
+        const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num === nr.id);
+        
+        // Fallback: if we can't find the official aviso, check if it has 0 stations.
+        if (!officialAviso) {
+            return nr.stations.length === 0;
+        }
+
+        const upperZona = officialAviso.zona.toUpperCase();
+        
+        // An advisory needs a non-Navtex station if its zone is one of the main coastal areas.
+        const needsNonNavtexStation = upperZona.includes('ESPAÑA COSTA N') || upperZona.includes('ESPAÑA COSTA NW');
+        
+        // Check if it has any non-Navtex station assigned already.
+        const hasNonNavtexStation = nr.stations.some(s => nonNavtexStations.includes(s));
+        
+        // It's pending if it needs a non-Navtex station but doesn't have one yet.
+        return needsNonNavtexStation && !hasNonNavtexStation;
+    });
+
+    if (nrsNeedingAttention.length === 0) return '';
+    
     return `
         <div class="attention-panel">
             <div class="attention-panel-header">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="warning-icon" viewBox="0 0 16 16"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>
                 <h4>Acciones Pendientes</h4>
             </div>
-            <p>Los siguientes NRs han sido importados pero necesitan que se les asignen estaciones:</p>
+            <p>Los siguientes NRs han sido importados pero necesitan que se les asignen estaciones de VHF/MF:</p>
             <ul class="attention-list">
                 ${nrsNeedingAttention.map(nr => `
                     <li class="attention-item">
