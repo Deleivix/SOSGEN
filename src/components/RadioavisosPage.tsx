@@ -1,6 +1,3 @@
-
-
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -144,7 +141,12 @@ async function syncWithSalvamento() {
     const nrsLocales = state.appData.nrs;
 
     const ZONAS_RELEVANTES = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
-    const avisosRelevantes = avisosOficiales.filter(aviso => ZONAS_RELEVANTES.some(zona => aviso.zona.toUpperCase().includes(zona)));
+    
+    const avisosRelevantes = avisosOficiales.filter(aviso => 
+        ZONAS_RELEVANTES.some(zona => aviso.zona.toUpperCase().includes(zona)) ||
+        aviso.tipo.toUpperCase() === 'NAVTEX'
+    );
+
 
     let nuevosNRs: NR[] = [];
     let nuevosLogs: HistoryLog[] = [];
@@ -158,7 +160,8 @@ async function syncWithSalvamento() {
             hayCambios = true;
             const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
             const initialStations: string[] = [];
-            if (aviso.zona.toUpperCase().includes('CORUÑA')) {
+            // If it's a NAVTEX type, or the zone includes Coruña, assign it to Navtex station.
+            if (aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA')) {
                 initialStations.push('Navtex');
             }
 
@@ -323,7 +326,10 @@ function renderSalvamentoPanelHTML(): string {
         const ZONAS_FILTRADAS = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
         const searchTerm = state.salvamentoFilterText.toLowerCase();
         const filteredAvisos = state.salvamentoAvisos
-            .filter(aviso => ZONAS_FILTRADAS.some(zona => aviso.zona.toUpperCase().includes(zona)))
+            .filter(aviso => 
+                ZONAS_FILTRADAS.some(zona => aviso.zona.toUpperCase().includes(zona)) ||
+                aviso.tipo.toUpperCase() === 'NAVTEX'
+            )
             .filter(aviso => 
                 aviso.num.toLowerCase().includes(searchTerm) ||
                 aviso.asunto.toLowerCase().includes(searchTerm) ||
