@@ -630,7 +630,7 @@ function renderStationStatusTableHTML(): string {
             </div>
             <div class="stat-card">
                 <div class="label">Último NR borrado:</div>
-                <div class="value red">${lastDeleted ? lastDeleted.nrId : '-'}</div>
+                <div class="value">${lastDeleted ? lastDeleted.nrId : '-'}</div>
                  <div class="label">Por: ${lastDeleted ? lastDeleted.user : '-'}</div>
             </div>
         </div>

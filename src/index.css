@@ -39,7 +39,7 @@
   --bg-nav-bottom-start-dark: #282828;
   --bg-nav-bottom-end-dark: #1F5F5F;
   --text-primary-dark: #E0E0E0;
-  --text-secondary-dark: #A0A0A0;
+  --text-secondary-dark: #A0A000;
   --text-inverted-dark: #FFFFFF;
   --border-color-dark: #333333;
   --shadow-color-dark: rgba(0,0,0,0.2);
@@ -1411,13 +1411,15 @@ body.dark-theme .category-badge.rutinaria {
   color: var(--bg-main-dark);
 }
 .category-badge.navtex {
-  background-color: var(--accent-color); /* Green */
+  background-color: var(--attention-color); /* Orange */
+  color: white;
 }
 .category-badge.fonia {
   background-color: var(--info-color); /* Blue */
 }
 body.dark-theme .category-badge.navtex {
-  background-color: var(--accent-color-dark);
+  background-color: var(--attention-color-dark-bg);
+  color: var(--attention-color-dark);
 }
 body.dark-theme .category-badge.fonia {
   background-color: var(--info-color-dark);
