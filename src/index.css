@@ -1,4 +1,5 @@
 
+
 :root {
   --accent-color: #8BC34A;
   --accent-color-dark: #7aa841;
@@ -1394,6 +1395,14 @@ body.dark-theme .category-badge.fonia {
   background-color: var(--info-color-dark);
   color: var(--bg-main-dark);
 }
+.station-table th.header-vhf { background-color: var(--info-color-bg); }
+.station-table th.header-mf { background-color: #E8F5E9; } /* Light green */
+.station-table th.header-navtex { background-color: var(--bg-main); }
+
+body.dark-theme .station-table th.header-vhf { background-color: var(--info-color-dark-bg); }
+body.dark-theme .station-table th.header-mf { background-color: #1A331C; } /* Dark green */
+body.dark-theme .station-table th.header-navtex { background-color: var(--bg-card-dark); }
+
 
 /* --- Component: Bitacora (Logbook) --- */
 .logbook-list { display: flex; flex-direction: column; gap: 1.5rem; }

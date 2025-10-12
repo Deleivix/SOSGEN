@@ -1,3 +1,5 @@
+
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -26,7 +28,7 @@ type HistoryLog = {
     nrId: string; details: string;
 };
 type AppData = { nrs: NR[]; history: HistoryLog[]; };
-type View = 'INICIO' | 'AÑADIR' | 'GESTIONAR' | 'EDITAR' | 'BD' | 'HISTORIAL';
+type View = 'INICIO' | 'AÑADIR' | 'RADIOAVISOS' | 'EDITAR' | 'HISTORIAL';
 type SortDirection = 'ascending' | 'descending';
 type SortConfig<T> = { key: keyof T; direction: SortDirection };
 
@@ -439,8 +441,7 @@ function renderLocalManagerHTML(): string {
     console.log('[DEBUG:Render] ... rendering local manager CONTENT.');
     const views: { id: View, name: string }[] = [
         { id: 'INICIO', name: 'Inicio' }, { id: 'AÑADIR', name: 'Añadir Manual' },
-        { id: 'GESTIONAR', name: 'Gestionar' },
-        { id: 'BD', name: 'Base de Datos' }, { id: 'HISTORIAL', name: 'Historial' }
+        { id: 'RADIOAVISOS', name: 'Radioavisos' }, { id: 'HISTORIAL', name: 'Historial' }
     ];
 
     return `
@@ -798,9 +799,8 @@ function renderCurrentViewContent(): string {
     switch (state.currentView) {
         case 'INICIO': return renderMainView();
         case 'AÑADIR': return renderAddView();
-        case 'GESTIONAR': return renderGestionarView();
+        case 'RADIOAVISOS': return renderRadioavisosDbView();
         case 'EDITAR': return renderEditView();
-        case 'BD': return renderDbView();
         case 'HISTORIAL': return renderHistoryView();
         default: return `<p>Vista no encontrada</p>`;
     }
@@ -865,52 +865,36 @@ function renderMainView(): string {
     const lastDeleted = lastAction('BORRADO');
     const activeNRs = nrs.filter(nr => !nr.isCaducado);
 
-    const vhfNrsByStation = STATIONS_VHF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id)}), {} as Record<string, string[]>);
-    const maxVhfNrs = Math.max(0, ...Object.values(vhfNrsByStation).map(arr => arr.length));
-    
-    const mfNrsByStation = STATIONS_MF.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id)}), {} as Record<string, string[]>);
-    const maxMfNrs = Math.max(0, ...Object.values(mfNrsByStation).map(arr => arr.length));
-
     const STATIONS_NAVTEX = ['Navtex'];
-    const navtexNrsByStation = STATIONS_NAVTEX.reduce((acc, station) => ({...acc, [station]: activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id)}), {} as Record<string, string[]>);
-    const maxNavtexNrs = Math.max(0, ...Object.values(navtexNrsByStation).map(arr => arr.length));
+    const allTableStations = [...STATIONS_VHF, ...STATIONS_MF, ...STATIONS_NAVTEX];
+
+    const nrsByStation = allTableStations.reduce((acc, station) => {
+        acc[station] = activeNRs.filter(nr => nr.stations.includes(station)).map(nr => nr.id);
+        return acc;
+    }, {} as Record<string, string[]>);
+
+    const maxNrs = Math.max(0, ...Object.values(nrsByStation).map(arr => arr.length));
     
     return `
         ${renderAttentionPanel()}
         <div class="station-tables">
             <div class="station-table-container">
-                <h3>Estaciones VHF</h3>
+                <h3>Radioavisos Vigentes por Estación</h3>
                 <div class="table-wrapper">
                     <table class="station-table horizontal-table reference-table">
-                        <thead><tr>${STATIONS_VHF.map(s => `<th>${s.replace(' VHF', '')}</th>`).join('')}</tr></thead>
+                        <thead>
+                            <tr>
+                                ${STATIONS_VHF.map(s => `<th class="header-vhf">${s.replace(' VHF', '')}</th>`).join('')}
+                                ${STATIONS_MF.map(s => `<th class="header-mf">${s.replace(' MF', '')}</th>`).join('')}
+                                ${STATIONS_NAVTEX.map(s => `<th class="header-navtex">${s}</th>`).join('')}
+                            </tr>
+                        </thead>
                         <tbody>
-                            ${maxVhfNrs === 0 ? `<tr><td colspan="${STATIONS_VHF.length}" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` : 
-                            Array.from({ length: maxVhfNrs }).map((_, r) => `<tr>${STATIONS_VHF.map(s => `<td>${vhfNrsByStation[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')}
+                            ${maxNrs === 0 
+                                ? `<tr><td colspan="${allTableStations.length}" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` 
+                                : Array.from({ length: maxNrs }).map((_, r) => `<tr>${allTableStations.map(s => `<td>${nrsByStation[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')
+                            }
                         </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="station-table-container">
-                <h3>Estaciones MF</h3>
-                <div class="table-wrapper">
-                    <table class="station-table horizontal-table reference-table">
-                         <thead><tr>${STATIONS_MF.map(s => `<th>${s.replace(' MF', '')}</th>`).join('')}</tr></thead>
-                         <tbody>
-                            ${maxMfNrs === 0 ? `<tr><td colspan="${STATIONS_MF.length}" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` :
-                            Array.from({ length: maxMfNrs }).map((_, r) => `<tr>${STATIONS_MF.map(s => `<td>${mfNrsByStation[s]?.[r] || ''}</td>`).join('')}</tr>`).join('')}
-                         </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="station-table-container">
-                <h3>Estación NAVTEX</h3>
-                <div class="table-wrapper">
-                    <table class="station-table horizontal-table reference-table">
-                         <thead><tr><th>${STATIONS_NAVTEX[0]}</th></tr></thead>
-                         <tbody>
-                            ${maxNavtexNrs === 0 ? `<tr><td colspan="1" class="drill-placeholder" style="padding: 1rem;">No hay NRs vigentes.</td></tr>` :
-                            Array.from({ length: maxNavtexNrs }).map((_, r) => `<tr><td>${navtexNrsByStation['Navtex']?.[r] || ''}</td></tr>`).join('')}
-                         </tbody>
                     </table>
                 </div>
             </div>
@@ -953,47 +937,6 @@ function renderAddView(): string {
     `;
 }
 
-function renderGestionarView(): string {
-    const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado).sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
-
-    if (activeNRs.length === 0) {
-        return `<p class="drill-placeholder">No hay NRs vigentes para gestionar.</p>`;
-    }
-
-    return `
-        <div class="table-wrapper">
-             <table class="reference-table data-table">
-                <thead>
-                    <tr>
-                        <th>NR</th>
-                        <th>Versión</th>
-                        <th>Caducidad (UTC)</th>
-                        <th>EECC</th>
-                        <th style="text-align: center;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${activeNRs.map(nr => `
-                        <tr>
-                            <td>${nr.id}</td>
-                            <td>v${nr.version}</td>
-                            <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
-                            <td>${nr.stations.length}</td>
-                            <td>
-                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                                    <button class="secondary-btn" data-action="go-to-edit" data-nr-id="${nr.id}">Editar</button>
-                                    <button class="tertiary-btn" data-action="cancel-nr" data-nr-id="${nr.id}">Cancelar</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-
-
 function renderEditView(): string {
      return `
         <div class="form-group" style="display: flex; align-items: flex-end; gap: 1rem;">
@@ -1018,12 +961,13 @@ function renderEditView(): string {
     `;
 }
 
-function renderDbView(): string {
+function renderRadioavisosDbView(): string {
     const searchTerm = state.nrFilterText.toLowerCase();
-    const filteredNrs = state.appData.nrs.filter(nr => 
-        nr.id.toLowerCase().includes(searchTerm) ||
+    const filteredNrs = state.appData.nrs.filter(nr =>
+        !nr.isCaducado &&
+        (nr.id.toLowerCase().includes(searchTerm) ||
         nr.fullId.toLowerCase().includes(searchTerm) ||
-        (nr.expiryDate && nr.expiryDate.includes(searchTerm))
+        (nr.expiryDate && nr.expiryDate.includes(searchTerm)))
     );
     const sortedNrs = [...filteredNrs].sort((a, b) => {
         const { key, direction } = state.nrSortConfig;
@@ -1032,7 +976,7 @@ function renderDbView(): string {
     });
 
     if (sortedNrs.length === 0) {
-        return `<div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div><p class="drill-placeholder">No se encontraron NRs.</p>`;
+        return `<div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs vigentes..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div><p class="drill-placeholder">No se encontraron NRs vigentes.</p>`;
     }
 
     const renderHeader = (key: keyof NR, label: string) => {
@@ -1041,15 +985,27 @@ function renderDbView(): string {
         return `<th class="${sortClass}" data-sort-key="${key}" data-table="nrs">${label}</th>`;
     };
     
-    const warningIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="warning-icon" viewBox="0 0 16 16" title="Este NR requiere atención (faltan estaciones)."><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>`;
-
     return `
-        <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div>
+        <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs vigentes..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div>
         <div class="table-wrapper">
              <table class="reference-table data-table">
-                <thead><tr>${renderHeader('id', 'NR')}${renderHeader('version', 'Versión')}${renderHeader('expiryDate', 'Caducidad (UTC)')}<th>EECC</th>${renderHeader('isAmpliado', 'Ampliado')}${renderHeader('isCaducado', 'Caducado')}</tr></thead>
+                <thead><tr>${renderHeader('id', 'NR')}${renderHeader('version', 'Versión')}${renderHeader('expiryDate', 'Caducidad (UTC)')}<th>EECC</th>${renderHeader('isAmpliado', 'Ampliado')}<th style="text-align: center;">Acciones</th></tr></thead>
                 <tbody>
-                    ${sortedNrs.map(nr => `<tr style="${nr.isCaducado ? 'opacity: 0.5;' : ''}"><td>${nr.id} ${nr.stations.length === 0 && !nr.isCaducado ? warningIcon : ''}</td><td>v${nr.version}</td><td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td><td>${nr.stations.length > 0 ? nr.stations.length : '-'}</td><td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td><td class="${nr.isCaducado ? 'true-cell' : 'false-cell'}">${nr.isCaducado ? '✔' : '✖'}</td></tr>`).join('')}
+                    ${sortedNrs.map(nr => `
+                        <tr>
+                            <td>${nr.id}</td>
+                            <td>v${nr.version}</td>
+                            <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
+                            <td>${nr.stations.length > 0 ? nr.stations.length : '-'}</td>
+                            <td class="${nr.isAmpliado ? 'true-cell' : 'false-cell'}">${nr.isAmpliado ? '✔' : '✖'}</td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    <button class="secondary-btn" data-action="go-to-edit" data-nr-id="${nr.id}">Editar</button>
+                                    <button class="tertiary-btn" data-action="cancel-nr" data-nr-id="${nr.id}">Cancelar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
                 </tbody>
             </table>
         </div>`;
