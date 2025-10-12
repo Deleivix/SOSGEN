@@ -1207,16 +1207,39 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 .station-table.horizontal-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* Forces equal column widths */
+    border: none; /* Removes outer table border for a cleaner look */
 }
+
 .station-table.horizontal-table th, .station-table.horizontal-table td {
     text-align: center;
     white-space: nowrap;
-    font-size: 0.9rem;
-    padding: 0.6rem 0.5rem;
-    border: 1px solid var(--border-color);
+    overflow: hidden; /* Prevents long text from breaking the layout */
+    text-overflow: ellipsis; /* Adds '...' if text overflows */
+    font-size: 0.85rem; /* Slightly smaller for better fit */
+    padding: 0.8rem 0.5rem; /* Increased padding for more breathing room */
+    border: none;
+    border-bottom: 1px solid var(--border-color); /* Clean horizontal lines */
+    font-family: var(--font-mono); /* Monospaced font for IDs */
 }
-.station-table.horizontal-table thead {
-    background-color: var(--table-header-bg);
+
+.station-table.horizontal-table th {
+    font-family: var(--font-sans); /* Use standard font for headers */
+    font-weight: 500;
+    color: var(--text-primary);
+    border-bottom-width: 2px; /* Thicker line below headers */
+}
+
+.station-table.horizontal-table tbody tr:last-child td {
+    border-bottom: none; /* Remove border from the very last row */
+}
+
+/* Specific styling for the placeholder cell when the table is empty */
+.station-table.horizontal-table .drill-placeholder {
+    font-family: var(--font-sans);
+    color: var(--text-secondary);
+    font-style: italic;
+    padding: 2.5rem; /* More padding to make it look less cramped */
 }
 .stats-grid {
     display: grid;

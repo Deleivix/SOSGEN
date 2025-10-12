@@ -583,7 +583,7 @@ function renderStationStatusTableHTML(): string {
             tableBodyHtml += '<tr>';
             [...stationsByType.vhf, ...stationsByType.mf, ...stationsByType.navtex].forEach(stationName => {
                 const nr = nrsByStation[stationName]?.[i];
-                const displayText = nr ? `NR-${nr.baseId}` : ''; 
+                const displayText = nr ? nr.baseId : ''; 
                 tableBodyHtml += `<td>${displayText}</td>`;
             });
             tableBodyHtml += '</tr>';
