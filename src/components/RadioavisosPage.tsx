@@ -330,10 +330,10 @@ function renderLocalManagerHTML(): string {
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
 
     if (state.isAppDataLoading) {
-        return `<div class="content-card" style="max-width: none; width: 100%;"><div class="loader-container"><div class="loader"></div></div></div>`;
+        return `<div class="content-card"><div class="loader-container"><div class="loader"></div></div></div>`;
     }
     if (state.appDataError) {
-        return `<div class="content-card" style="max-width: none; width: 100%;"><p class="error">${state.appDataError}</p></div>`;
+        return `<div class="content-card"><p class="error">${state.appDataError}</p></div>`;
     }
 
     const views: { id: View, name: string }[] = [
@@ -342,7 +342,7 @@ function renderLocalManagerHTML(): string {
     ];
 
     return `
-        <div class="content-card" style="max-width: none; width: 100%;">
+        <div class="content-card">
             <div class="info-nav-tabs">
                 ${views.map(v => `<button class="info-nav-btn ${state.currentView === v.id ? 'active' : ''}" data-view="${v.id}" data-action="switch-view">${v.name}</button>`).join('')}
             </div>

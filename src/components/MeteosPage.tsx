@@ -379,7 +379,7 @@ function renderFinalLayout(data: { [key: string]: { spanish: string, error?: str
 }
 
 export function renderMeteos(container: HTMLElement) {
-    container.innerHTML = `<div class="content-card" style="max-width: 1400px;" id="meteos-content"></div>`;
+    container.innerHTML = `<div class="content-card" id="meteos-content"></div>`;
     
     fetchAndProcessBulletins();
     
