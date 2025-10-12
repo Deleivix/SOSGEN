@@ -100,15 +100,15 @@ const getFormattedDateTime = (isoString?: string) => {
 };
 
 function parseExpiry(caducidad: string): { expiryDate: string, expiryTime: string } {
-    if (!caducidad || !caducidad.includes(' ')) {
+    if (!caducidad) {
         return { expiryDate: '', expiryTime: '' };
     }
-    const parts = caducidad.split(' ');
+    const parts = caducidad.trim().split(/\s+/);
     if (parts.length < 2) return { expiryDate: '', expiryTime: '' };
 
     const datePart = parts[0];
-    const timePart = parts[1];
-    
+    const timePart = parts[1] ? parts[1].trim() : '';
+
     const dateParts = datePart.split('/');
     if (dateParts.length < 3) return { expiryDate: '', expiryTime: '' };
 
@@ -149,7 +149,9 @@ function isDstSpain(date: Date = new Date()): boolean {
 function getExpiryStatus(nr: NR): 'status-green' | 'status-yellow' | 'status-orange' {
     if (!nr.expiryDate || !nr.expiryTime) return 'status-green';
     try {
-        const expiryDateTime = new Date(`${nr.expiryDate}T${nr.expiryTime}Z`);
+        const expiryDateTime = new Date(`${nr.expiryDate}T${(nr.expiryTime || '').trim()}Z`);
+        if (isNaN(expiryDateTime.getTime())) return 'status-green';
+
         const now = new Date();
         if (expiryDateTime <= now) return 'status-green';
         const hoursUntilExpiry = (expiryDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -804,7 +806,7 @@ function renderEditNrModal(nr: NR) {
                         <label>Fecha Caducidad (UTC)</label>
                         <div style="display:flex; gap: 1rem;">
                             <input type="date" id="modal-edit-expiry-date" class="simulator-input" value="${nr.expiryDate || ''}" />
-                            <input type="time" id="modal-edit-expiry-time" class="simulator-input" value="${nr.expiryTime || ''}" />
+                            <input type="time" id="modal-edit-expiry-time" class="simulator-input" value="${(nr.expiryTime || '').trim()}" />
                         </div>
                     </div>
                      <div class="form-group">
