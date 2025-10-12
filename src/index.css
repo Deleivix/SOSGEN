@@ -1403,7 +1403,30 @@ body.dark-theme .category-badge.fonia {
 body.dark-theme .station-table th.header-vhf { background-color: var(--info-color-dark-bg); }
 body.dark-theme .station-table th.header-mf { background-color: #1A331C; } /* Dark green */
 body.dark-theme .station-table th.header-navtex { background-color: var(--bg-card-dark); }
-
+.status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.status-green { background-color: var(--accent-color); }
+.status-yellow { background-color: var(--warning-color); }
+body.dark-theme .status-yellow { background-color: var(--warning-color-dark); }
+.status-orange { background-color: var(--attention-color); }
+body.dark-theme .status-orange { background-color: var(--attention-color-dark); }
+.status-legend {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
 /* --- Component: Bitacora (Logbook) --- */
 .logbook-list { display: flex; flex-direction: column; gap: 1.5rem; }

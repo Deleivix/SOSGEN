@@ -127,6 +127,81 @@ const getMedioTags = (zona: string): string => {
     return tags;
 };
 
+/**
+ * Determines if a given date is within Daylight Saving Time for Spain.
+ * DST starts on the last Sunday of March and ends on the last Sunday of October.
+ */
+function isDstSpain(date: Date = new Date()): boolean {
+    const year = date.getFullYear();
+    // DST starts on the last Sunday of March at 01:00 UTC
+    const mar = new Date(Date.UTC(year, 2, 31));
+    const startDay = mar.getUTCDate() - mar.getUTCDay();
+    const dstStart = new Date(Date.UTC(year, 2, startDay, 1, 0, 0));
+
+    // DST ends on the last Sunday of October at 01:00 UTC
+    const oct = new Date(Date.UTC(year, 9, 31));
+    const endDay = oct.getUTCDate() - oct.getUTCDay();
+    const dstEnd = new Date(Date.UTC(year, 9, endDay, 1, 0, 0));
+    
+    return date >= dstStart && date < dstEnd;
+}
+
+function getExpiryStatus(nr: NR): 'status-green' | 'status-yellow' | 'status-orange' {
+    if (!nr.expiryDate || !nr.expiryTime) {
+        return 'status-green';
+    }
+
+    try {
+        const expiryDateTime = new Date(`${nr.expiryDate}T${nr.expiryTime}Z`);
+        const now = new Date();
+
+        if (expiryDateTime <= now) {
+            return 'status-green'; // Expired, will be filtered out on next refresh
+        }
+
+        const hoursUntilExpiry = (expiryDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+        if (hoursUntilExpiry > 24) {
+            return 'status-green';
+        }
+
+        // --- Timezone-aware shift calculation for Spanish time ---
+        const isDst = isDstSpain(now);
+        const spainOffsetHours = isDst ? 2 : 1;
+        
+        const nowInSpainTimezone = new Date(now.getTime() + spainOffsetHours * 3600 * 1000);
+        const currentSpainHour = nowInSpainTimezone.getUTCHours();
+        
+        const shiftEndInSpainTimezone = new Date(nowInSpainTimezone);
+        shiftEndInSpainTimezone.setUTCMinutes(0, 0, 0);
+        
+        // Spanish local time shifts: Mañana (7-15), Tarde (15-23), Noche (23-07)
+        if (currentSpainHour >= 7 && currentSpainHour < 15) {
+            shiftEndInSpainTimezone.setUTCHours(15);
+        } else if (currentSpainHour >= 15 && currentSpainHour < 23) {
+            shiftEndInSpainTimezone.setUTCHours(23);
+        } else {
+            if (currentSpainHour >= 23) { // After 23:00, shift ends next day
+                shiftEndInSpainTimezone.setUTCDate(shiftEndInSpainTimezone.getUTCDate() + 1);
+            }
+            shiftEndInSpainTimezone.setUTCHours(7);
+        }
+
+        // Convert the shift end time back to actual UTC for comparison
+        const actualShiftEndUTC = new Date(shiftEndInSpainTimezone.getTime() - spainOffsetHours * 3600 * 1000);
+        
+        if (expiryDateTime <= actualShiftEndUTC) {
+            return 'status-orange'; // Expires within the current Spanish shift
+        }
+        
+        return 'status-yellow'; // Expires within 24 hours but not in the current shift
+
+    } catch (e) {
+        return 'status-green'; // If date is invalid
+    }
+}
+
+
 // =================================================================================
 // --- DATA PROCESSING & SYNC LOGIC ---
 // =================================================================================
@@ -154,7 +229,7 @@ async function syncWithSalvamento() {
     let hayCambios = false;
 
     for (const aviso of avisosRelevantes) {
-        const nrId = aviso.num;
+        const nrId = aviso.num.replace(/^NR-/, '');
         const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
         
         const indiceLocal = nrsActualizados.findIndex(nr => nr.id === nrId && !nr.isCaducado);
@@ -385,7 +460,8 @@ function renderSalvamentoPanelHTML(): string {
                         </thead>
                         <tbody>
                         ${sortedAvisos.map(aviso => {
-                            const localNR = state.appData.nrs.find(nr => nr.id === aviso.num && !nr.isCaducado);
+                            const normalizedAvisoNum = aviso.num.replace(/^NR-/, '');
+                            const localNR = state.appData.nrs.find(nr => nr.id === normalizedAvisoNum && !nr.isCaducado);
                             const stationsText = localNR && localNR.stations.length > 0 
                                 ? localNR.stations.map(s => s.replace(/ (VHF|MF)$/, '').replace('Navtex', 'NTX')).join(', ') 
                                 : '---';
@@ -824,7 +900,7 @@ function renderAttentionPanel(): string {
         }
 
         // Find the corresponding official advisory in the latest fetched data
-        const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num === nr.id);
+        const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num.replace(/^NR-/, '') === nr.id);
         
         // Fallback: if we can't find the official aviso, check if it has 0 stations.
         if (!officialAviso) {
@@ -994,14 +1070,27 @@ function renderRadioavisosDbView(): string {
         return `<th class="${sortClass}" data-sort-key="${key}" data-table="nrs">${label}</th>`;
     };
     
+    const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>`;
+
     return `
         <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar NRs vigentes..." value="${state.nrFilterText}" data-action="filter" data-filter-target="nrs"></div>
         <div class="table-wrapper">
              <table class="reference-table data-table">
-                <thead><tr>${renderHeader('id', 'NR')}${renderHeader('version', 'Versión')}${renderHeader('expiryDate', 'Caducidad (UTC)')}<th>EECC</th>${renderHeader('isAmpliado', 'Ampliado')}<th style="text-align: center;">Acciones</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th title="Estado de Caducidad">${clockIcon}</th>
+                        ${renderHeader('id', 'NR')}
+                        ${renderHeader('version', 'Versión')}
+                        ${renderHeader('expiryDate', 'Caducidad (UTC)')}
+                        <th>EECC</th>
+                        ${renderHeader('isAmpliado', 'Ampliado')}
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
                 <tbody>
                     ${sortedNrs.map(nr => `
                         <tr>
+                            <td style="text-align: center;"><span class="status-dot ${getExpiryStatus(nr)}"></span></td>
                             <td>${nr.id}</td>
                             <td>v${nr.version}</td>
                             <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
@@ -1017,6 +1106,11 @@ function renderRadioavisosDbView(): string {
                     `).join('')}
                 </tbody>
             </table>
+        </div>
+        <div class="status-legend">
+            <div class="legend-item"><span class="status-dot status-orange"></span> Caduca en este turno</div>
+            <div class="legend-item"><span class="status-dot status-yellow"></span> Caduca en las próximas 24h</div>
+            <div class="legend-item"><span class="status-dot status-green"></span> Vigente (> 24h)</div>
         </div>`;
 }
 
