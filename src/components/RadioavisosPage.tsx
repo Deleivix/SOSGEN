@@ -1,3 +1,4 @@
+
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
@@ -697,7 +698,11 @@ function renderMasterNrTableHTML(): string {
                             <td>${nr.id}</td>
                             <td style="white-space: normal;">${officialAviso?.asunto || '---'}</td>
                             <td>${officialAviso?.zona || '---'}</td>
-                            <td>${nr.stations.length > 0 ? nr.stations.map(s => s.replace(/ (VHF|MF)$/, '').replace('Navtex', 'NTX')).join(', ') : '-'}</td>
+                            <td>${nr.stations.length > 0 ? nr.stations.map(s => {
+                                if (s.endsWith(' MF')) return s;
+                                if (s.endsWith(' VHF')) return s.replace(' VHF', '');
+                                return s;
+                            }).join(', ') : '-'}</td>
                             <td>
                                 ${officialAviso ? `<span class="category-badge ${officialAviso.prioridad.toLowerCase()}">${officialAviso.prioridad}</span>` : ''}
                             </td>
