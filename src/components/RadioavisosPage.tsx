@@ -185,39 +185,73 @@ async function syncWithSalvamento() {
     if (!user) return;
 
     const avisosOficiales = state.salvamentoAvisos;
-    const nrsLocales = state.appData.nrs;
-    const ZONAS_RELEVANTES = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
-    const avisosRelevantes = avisosOficiales.filter(aviso => ZONAS_RELEVANTES.some(zona => aviso.zona.toUpperCase().includes(zona)) || aviso.tipo.toUpperCase() === 'NAVTEX');
-
-    let nrsActualizados = [...nrsLocales];
+    let nrsActualizados = [...state.appData.nrs];
     let nuevosLogs: HistoryLog[] = [];
     let hayCambios = false;
 
-    for (const aviso of avisosRelevantes) {
-        const avisoId = aviso.num;
-        const avisoBaseId = getBaseId(avisoId);
-        const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
-        
-        const existingNRs = nrsActualizados.filter(nr => getBaseId(nr.id) === avisoBaseId && !nr.isCaducado);
-        
-        if (existingNRs.length === 0) {
-            hayCambios = true;
-            const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
-            const newNR: NR = { id: avisoId, baseId: avisoBaseId, version: 1, stations: [], expiryDate, expiryTime, isAmpliado: false, isCaducado: false };
-            if (isNavtexAviso) newNR.stations.push('Navtex');
-            nrsActualizados.push(newNR);
-            nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'AÑADIDO', nrId: avisoBaseId, details: `Añadido automáticamente desde SASEMAR. ${isNavtexAviso ? 'Asignado a Navtex.' : ''}` });
-        } else {
-            const latestVersionNR = existingNRs.sort((a,b) => b.version - a.version)[0];
-            const alreadyHasNavtex = latestVersionNR.stations.includes('Navtex');
+    const ZONAS_RELEVANTES = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
+    const avisosRelevantes = avisosOficiales.filter(aviso => 
+        ZONAS_RELEVANTES.some(zona => aviso.zona.toUpperCase().includes(zona)) || 
+        aviso.tipo.toUpperCase() === 'NAVTEX'
+    );
 
+    for (const aviso of avisosRelevantes) {
+        const avisoBaseId = getBaseId(aviso.num);
+        const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
+
+        const activeLocalVersion = nrsActualizados.find(nr => nr.baseId === avisoBaseId && !nr.isCaducado);
+
+        if (activeLocalVersion) {
+            // An active version exists. Just check if we need to add Navtex.
+            const alreadyHasNavtex = activeLocalVersion.stations.includes('Navtex');
             if (isNavtexAviso && !alreadyHasNavtex) {
                 hayCambios = true;
-                const index = nrsActualizados.findIndex(nr => nr.id === latestVersionNR.id);
-                if(index > -1) {
+                const index = nrsActualizados.findIndex(nr => nr.id === activeLocalVersion.id);
+                if (index > -1) {
                     nrsActualizados[index].stations.push('Navtex');
-                    nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: 'Añadida automáticamente la estación Navtex.' });
+                    nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: `Añadida automáticamente la estación Navtex a la versión ${activeLocalVersion.version}.` });
                 }
+            }
+        } else {
+            // No active version found. It's either a brand new NR, or a "revival" of a caducado one.
+            const allLocalVersions = nrsActualizados.filter(nr => nr.baseId === avisoBaseId);
+            const latestCaducadoVersion = allLocalVersions
+                .filter(nr => nr.isCaducado)
+                .sort((a, b) => b.version - a.version)[0]; // get the latest one
+
+            if (latestCaducadoVersion) {
+                // "Revival" case: Update the latest caducado version to be active again.
+                hayCambios = true;
+                const index = nrsActualizados.findIndex(nr => nr.id === latestCaducadoVersion.id);
+                if (index > -1) {
+                    const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
+                    nrsActualizados[index].isCaducado = false;
+                    nrsActualizados[index].expiryDate = expiryDate;
+                    nrsActualizados[index].expiryTime = expiryTime;
+                    
+                    if (isNavtexAviso && !nrsActualizados[index].stations.includes('Navtex')) {
+                        nrsActualizados[index].stations.push('Navtex');
+                    }
+                    
+                    nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: `Reactivado automáticamente (versión ${latestCaducadoVersion.version}) desde SASEMAR.` });
+                }
+            } else {
+                // Truly new NR case: No local versions exist at all for this baseId.
+                hayCambios = true;
+                const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
+                const newNR: NR = {
+                    id: `NR-${avisoBaseId}`,
+                    baseId: avisoBaseId,
+                    version: 1,
+                    stations: [],
+                    expiryDate,
+                    expiryTime,
+                    isAmpliado: false,
+                    isCaducado: false,
+                };
+                if (isNavtexAviso) newNR.stations.push('Navtex');
+                nrsActualizados.push(newNR);
+                nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'AÑADIDO', nrId: avisoBaseId, details: `Añadido automáticamente (versión 1) desde SASEMAR. ${isNavtexAviso ? 'Asignado a Navtex.' : ''}` });
             }
         }
     }
@@ -300,10 +334,10 @@ function renderLocalManagerHTML(): string {
     if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
 
     if (state.isAppDataLoading) {
-        return `<div class="content-card" style="max-width: 1400px;"><div class="loader-container"><div class="loader"></div></div></div>`;
+        return `<div class="content-card" style="max-width: none; width: 100%;"><div class="loader-container"><div class="loader"></div></div></div>`;
     }
     if (state.appDataError) {
-        return `<div class="content-card" style="max-width: 1400px;"><p class="error">${state.appDataError}</p></div>`;
+        return `<div class="content-card" style="max-width: none; width: 100%;"><p class="error">${state.appDataError}</p></div>`;
     }
 
     const views: { id: View, name: string }[] = [
@@ -312,7 +346,7 @@ function renderLocalManagerHTML(): string {
     ];
 
     return `
-        <div class="content-card" style="max-width: 1400px;">
+        <div class="content-card" style="max-width: none; width: 100%;">
              <div class="form-divider" style="width: 100%; margin: -0.5rem auto 1.5rem auto;">
                 <span>Gestor de Radioavisos</span>
             </div>
@@ -322,9 +356,6 @@ function renderLocalManagerHTML(): string {
                     <button class="secondary-btn" data-action="import">Importar</button>
                     <input type="file" accept=".json" class="file-input-hidden" style="display: none;" />
                     <button class="secondary-btn" data-action="export">Exportar</button>
-                    <div style="font-size: 0.9rem; background-color: var(--bg-main); padding: 0.5rem 1rem; border-radius: 6px;">
-                        <strong>Usuario:</strong> ${user.username}
-                    </div>
                 </div>
             </div>
             <div class="info-nav-tabs">
@@ -598,24 +629,9 @@ function renderCurrentViewContent(): string {
     }
 }
 
-function renderAttentionPanel(): string {
-    const nonNavtexStations = [...STATIONS_VHF, ...STATIONS_MF];
-    const nrsNeedingAttention = state.appData.nrs.filter(nr => {
-        if (nr.isCaducado) return false;
-        const officialAviso = state.salvamentoAvisos.find(aviso => getBaseId(aviso.num) === getBaseId(nr.id));
-        if (!officialAviso) return nr.stations.length === 0;
-        const upperZona = officialAviso.zona.toUpperCase();
-        const needsNonNavtexStation = upperZona.includes('ESPAÑA COSTA N') || upperZona.includes('ESPAÑA COSTA NW');
-        const hasNonNavtexStation = nr.stations.some(s => nonNavtexStations.includes(s));
-        return needsNonNavtexStation && !hasNonNavtexStation;
-    });
-    if (nrsNeedingAttention.length === 0) return '';
-    return `<div class="attention-panel">...</div>`; // Simplified for brevity, original logic is complex
-}
-
 function renderUnifiedRadioavisosView(): string {
-    const spinnerIcon = `<svg class="spinner" ...></svg>`;
-    const refreshIcon = `<svg ...></svg>`;
+    const spinnerIcon = `<svg class="spinner" style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+    const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
     const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>`;
     
     let content = '';
@@ -651,12 +667,13 @@ function renderUnifiedRadioavisosView(): string {
                 <thead>
                     <tr>
                         <th title="Estado de Caducidad">${clockIcon}</th>
-                        ${renderHeader('id', 'NR (Gestor)')}
-                        <th style="min-width: 250px;">Asunto (Oficial)</th>
-                        <th style="min-width: 150px;">Zona (Oficial)</th>
-                        <th>Estaciones (Gestor)</th>
-                        <th>Prioridad/Medio</th>
-                        ${renderHeader('expiryDate', 'Caducidad (Gestor)')}
+                        ${renderHeader('id', 'NR')}
+                        <th style="min-width: 250px;">Asunto</th>
+                        <th style="min-width: 150px;">Zona</th>
+                        <th>Estaciones</th>
+                        <th>Prioridad</th>
+                        <th>Medio</th>
+                        ${renderHeader('expiryDate', 'Caducidad')}
                         <th style="text-align: center;">Acciones</th>
                     </tr>
                 </thead>
@@ -672,6 +689,8 @@ function renderUnifiedRadioavisosView(): string {
                             <td>${nr.stations.length > 0 ? nr.stations.map(s => s.replace(/ (VHF|MF)$/, '').replace('Navtex', 'NTX')).join(', ') : '-'}</td>
                             <td>
                                 ${officialAviso ? `<span class="category-badge ${officialAviso.prioridad.toLowerCase()}">${officialAviso.prioridad}</span>` : ''}
+                            </td>
+                            <td>
                                 ${officialAviso ? getMedioTags(officialAviso.zona) : ''}
                             </td>
                             <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
@@ -695,7 +714,6 @@ function renderUnifiedRadioavisosView(): string {
     }
 
     return `
-        ${renderAttentionPanel()}
         <div class="salvamento-panel-header" style="border-bottom: none; padding-bottom: 0; margin-bottom: 1.5rem;">
             <div class="filterable-table-header" style="margin-bottom: 0; flex-grow: 1;">
                 <input type="search" class="filter-input" placeholder="Filtrar radioavisos vigentes..." value="${state.filterText}" data-action="filter" data-filter-target="nrs">

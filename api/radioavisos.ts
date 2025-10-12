@@ -55,7 +55,8 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 expiry_date VARCHAR(20),
                 expiry_time VARCHAR(10),
                 is_ampliado BOOLEAN NOT NULL,
-                is_caducado BOOLEAN NOT NULL
+                is_caducado BOOLEAN NOT NULL,
+                UNIQUE(base_id, version)
             );
         `;
         // History table is now global, it stores the username in the "user" column for traceability
