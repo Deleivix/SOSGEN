@@ -1,5 +1,3 @@
-
-
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
@@ -562,17 +560,12 @@ function renderCurrentViewContent(): string {
 function renderStationStatusTableHTML(): string {
     const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado);
 
-    const stationsByType = {
-        vhf: STATIONS_VHF.map(s => s.replace(' VHF', '')),
-        mf: STATIONS_MF.map(s => s.replace(' MF', '')),
-        navtex: ['Navtex']
-    };
-
+    // Use full station names as keys to avoid conflicts (e.g., "Finisterre VHF" vs "Finisterre MF")
     const nrsByStation: { [key: string]: NR[] } = {};
-    ALL_STATIONS.forEach(station => {
-        nrsByStation[station.replace(/ (VHF|MF)$/, '')] = activeNRs
-            .filter(nr => nr.stations.includes(station))
-            .sort((a, b) => a.id.localeCompare(b.id));
+    ALL_STATIONS.forEach(stationFullName => {
+        nrsByStation[stationFullName] = activeNRs
+            .filter(nr => nr.stations.includes(stationFullName))
+            .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
     });
 
     const maxRows = Math.max(0, ...Object.values(nrsByStation).map(nrs => nrs.length));
@@ -583,14 +576,32 @@ function renderStationStatusTableHTML(): string {
     } else {
         for (let i = 0; i < maxRows; i++) {
             tableBodyHtml += '<tr>';
-            [...stationsByType.vhf, ...stationsByType.mf, ...stationsByType.navtex].forEach(stationName => {
-                const nr = nrsByStation[stationName]?.[i];
-                const displayText = nr ? nr.baseId : ''; 
-                tableBodyHtml += `<td>${displayText}</td>`;
+            
+            // Iterate through the stations in the correct display order
+            STATIONS_VHF.forEach(stationFullName => {
+                const nr = nrsByStation[stationFullName]?.[i];
+                tableBodyHtml += `<td>${nr ? nr.baseId : ''}</td>`;
             });
+            STATIONS_MF.forEach(stationFullName => {
+                const nr = nrsByStation[stationFullName]?.[i];
+                tableBodyHtml += `<td>${nr ? nr.baseId : ''}</td>`;
+            });
+            const navtexNr = nrsByStation['Navtex']?.[i];
+            tableBodyHtml += `<td>${navtexNr ? navtexNr.baseId : ''}</td>`;
+
             tableBodyHtml += '</tr>';
         }
     }
+    
+    // Headers generation needs to match the body order and display names
+    const headersHtml = `
+        <thead>
+            <tr>
+                ${STATIONS_VHF.map(s => `<th class="header-vhf">${s.replace(' VHF', '')}</th>`).join('')}
+                ${STATIONS_MF.map(s => `<th class="header-mf">${s}</th>`).join('')}
+                <th class="header-navtex">Navtex</th>
+            </tr>
+        </thead>`;
 
     const lastAdded = state.appData.history.find(h => h.action === 'AÑADIDO');
     const lastEdited = state.appData.history.find(h => h.action === 'EDITADO');
@@ -601,13 +612,7 @@ function renderStationStatusTableHTML(): string {
             <h3 style="text-align:center; padding: 0.75rem; margin:0;">Radioavisos Vigentes por Estación</h3>
             <div class="table-wrapper">
                 <table class="station-table horizontal-table">
-                    <thead>
-                        <tr>
-                            ${stationsByType.vhf.map(s => `<th class="header-vhf">${s}</th>`).join('')}
-                            ${stationsByType.mf.map(s => `<th class="header-mf">${s} MF</th>`).join('')}
-                            ${stationsByType.navtex.map(s => `<th class="header-navtex">${s}</th>`).join('')}
-                        </tr>
-                    </thead>
+                    ${headersHtml}
                     <tbody>
                         ${tableBodyHtml}
                     </tbody>
