@@ -3,8 +3,14 @@ import { db, sql } from '@vercel/postgres';
 
 // --- DATA TYPES ---
 type NR = {
-    id: string; version: number; fullId: string; stations: string[];
-    expiryDate: string; expiryTime: string; isAmpliado: boolean; isCaducado: boolean;
+    id: string; // The full ID, e.g., "NR-2237/2025" or "NR-2237/2025-2"
+    baseId: string; // The core part, e.g., "2237/2025"
+    version: number;
+    stations: string[];
+    expiryDate: string;
+    expiryTime: string;
+    isAmpliado: boolean;
+    isCaducado: boolean;
 };
 type HistoryLog = {
     id: string; timestamp: string; user: string; action: 'AÑADIDO' | 'EDITADO' | 'BORRADO' | 'CANCELADO';
@@ -49,8 +55,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 expiry_date VARCHAR(20),
                 expiry_time VARCHAR(10),
                 is_ampliado BOOLEAN NOT NULL,
-                is_caducado BOOLEAN NOT NULL,
-                UNIQUE(base_id, version)
+                is_caducado BOOLEAN NOT NULL
             );
         `;
         // History table is now global, it stores the username in the "user" column for traceability
@@ -74,7 +79,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
             await expireNRs(); // Expire NRs globally
 
             const [nrsResult, historyResult] = await Promise.all([
-                sql`SELECT id as "fullId", base_id as "id", version, stations, expiry_date as "expiryDate", expiry_time as "expiryTime", is_ampliado as "isAmpliado", is_caducado as "isCaducado" FROM nrs ORDER BY base_id, version;`,
+                sql`SELECT id, base_id as "baseId", version, stations, expiry_date as "expiryDate", expiry_time as "expiryTime", is_ampliado as "isAmpliado", is_caducado as "isCaducado" FROM nrs ORDER BY base_id, version;`,
                 sql`SELECT id, timestamp, "user", action, nr_id as "nrId", details FROM history ORDER BY timestamp DESC;`
             ]);
 
@@ -102,7 +107,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 for (const nr of newData.nrs) {
                     await client.sql`
                         INSERT INTO nrs (id, base_id, version, stations, expiry_date, expiry_time, is_ampliado, is_caducado)
-                        VALUES (${nr.fullId}, ${nr.id}, ${nr.version}, ${nr.stations as any}, ${nr.expiryDate}, ${nr.expiryTime}, ${nr.isAmpliado}, ${nr.isCaducado});
+                        VALUES (${nr.id}, ${nr.baseId}, ${nr.version}, ${nr.stations as any}, ${nr.expiryDate}, ${nr.expiryTime}, ${nr.isAmpliado}, ${nr.isCaducado});
                     `;
                 }
 
