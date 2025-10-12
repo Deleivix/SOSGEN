@@ -377,23 +377,32 @@ function renderSalvamentoPanelHTML(): string {
                                 ${renderHeader('emision', 'Emisión')}
                                 ${renderHeader('asunto', 'Asunto')}
                                 ${renderHeader('zona', 'Zona')}
+                                <th style="min-width: 150px;">Estaciones (Gestor)</th>
                                 ${renderHeader('prioridad', 'Prioridad')}
                                 <th>Medio</th>
                                 ${renderHeader('caducidad', 'Caducidad')}
                             </tr>
                         </thead>
                         <tbody>
-                        ${sortedAvisos.map(aviso => `
-                            <tr>
-                                <td>${aviso.num}</td>
-                                <td>${aviso.emision}</td>
-                                <td style="white-space: normal; min-width: 250px;">${aviso.asunto}</td>
-                                <td style="min-width: 150px;">${aviso.zona}</td>
-                                <td><span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span></td>
-                                <td>${getMedioTags(aviso.zona)}</td>
-                                <td>${aviso.caducidad}</td>
-                            </tr>
-                        `).join('')}
+                        ${sortedAvisos.map(aviso => {
+                            const localNR = state.appData.nrs.find(nr => nr.id === aviso.num && !nr.isCaducado);
+                            const stationsText = localNR && localNR.stations.length > 0 
+                                ? localNR.stations.map(s => s.replace(/ (VHF|MF)$/, '').replace('Navtex', 'NTX')).join(', ') 
+                                : '---';
+
+                            return `
+                                <tr>
+                                    <td>${aviso.num}</td>
+                                    <td>${aviso.emision}</td>
+                                    <td style="white-space: normal; min-width: 250px;">${aviso.asunto}</td>
+                                    <td style="min-width: 150px;">${aviso.zona}</td>
+                                    <td style="min-width: 150px;">${stationsText}</td>
+                                    <td><span class="category-badge ${aviso.prioridad.toLowerCase()}">${aviso.prioridad}</span></td>
+                                    <td>${getMedioTags(aviso.zona)}</td>
+                                    <td>${aviso.caducidad}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -885,7 +894,7 @@ function renderMainView(): string {
                         <thead>
                             <tr>
                                 ${STATIONS_VHF.map(s => `<th class="header-vhf">${s.replace(' VHF', '')}</th>`).join('')}
-                                ${STATIONS_MF.map(s => `<th class="header-mf">${s.replace(' MF', '')}</th>`).join('')}
+                                ${STATIONS_MF.map(s => `<th class="header-mf">${s}</th>`).join('')}
                                 ${STATIONS_NAVTEX.map(s => `<th class="header-navtex">${s}</th>`).join('')}
                             </tr>
                         </thead>

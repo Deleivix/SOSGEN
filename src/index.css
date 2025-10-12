@@ -1311,12 +1311,13 @@ body.dark-theme .attention-panel {
     content: '▼';
 }
 .salvamento-panel {
+  max-width: 1400px;
+  margin: 0 auto 2rem;
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 4px 12px var(--shadow-color);
-  margin-bottom: 2rem;
 }
 .salvamento-panel-header {
   display: flex;
