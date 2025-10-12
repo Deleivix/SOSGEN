@@ -303,10 +303,12 @@ async function reRender() {
     if (activeElement instanceof HTMLElement) activeElement.focus();
 }
 
-async function loadInitialData() {
-    state.isAppDataLoading = true;
-    state.appDataError = null;
-    await reRender(); // Show skeletons immediately
+async function loadInitialData(showLoadingState: boolean = true) {
+    if (showLoadingState) {
+        state.isAppDataLoading = true;
+        state.appDataError = null;
+        await reRender(); // Show skeletons immediately
+    }
     try {
         state.appData = await api.getData();
         await updateSalvamentoData();
@@ -314,7 +316,7 @@ async function loadInitialData() {
         const message = error instanceof Error ? error.message : "Error desconocido";
         state.appDataError = message;
     } finally {
-        state.isAppDataLoading = false;
+        state.isAppDataLoading = false; // Always set to false at the end
         await reRender();
     }
 }
@@ -400,9 +402,8 @@ async function handleCancelNR(baseId: string) {
             history: [{id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: baseId, details: `Marcadas todas las versiones como caducadas.`}, ...state.appData.history]
         };
         await api.saveData(finalData);
-        state.appData = finalData;
         showToast(`${baseId} ha sido cancelado.`, 'info');
-        await reRender();
+        await loadInitialData(false);
     } catch (error) {
         showToast("Error al cancelar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
     }
@@ -495,10 +496,9 @@ async function handleAddSubmit() {
         
         const finalData: AppData = { nrs: [...nrsToUpdate, newNR], history: historyToUpdate };
         await api.saveData(finalData);
-        state.appData = finalData;
         showToast(`${newId} añadido.`, 'success');
         state.currentView = 'RADIOAVISOS';
-        await reRender();
+        await loadInitialData(false);
     } catch (error) { showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error"); }
 }
 
@@ -530,9 +530,8 @@ async function handleEditSubmit(formContainer: HTMLElement, fullId: string) {
             history: [{ id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'EDITADO', nrId: getBaseId(fullId), details: `Editada versión ${nrToUpdate.version}.` }, ...state.appData.history]
         };
         await api.saveData(finalData);
-        state.appData = finalData;
         showToast(`${fullId} actualizado.`, 'success');
-        await reRender();
+        await loadInitialData(false);
     } catch (error) {
         showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error");
     }
