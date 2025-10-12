@@ -1,11 +1,19 @@
-import { ALL_STATIONS } from "../data";
+import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
-import { showToast } from "../utils/helpers";
+import { debounce, showToast } from "../utils/helpers";
 
-// --- STATE ---
+// =================================================================================
+// --- DATA TYPES & STATE ---
+// =================================================================================
+
+type SalvamentoAviso = {
+  num: string; emision: string; asunto: string; zona: string;
+  tipo: string; subtipo: string; prioridad: string; caducidad: string;
+  eventTarget: string;
+};
 type NR = {
-    id: string;
-    baseId: string;
+    id: string; // The full ID, e.g., "NR-2237/2025" or "NR-2237/2025-2"
+    baseId: string; // The core part, e.g., "2237/2025"
     version: number;
     stations: string[];
     expiryDate: string;
@@ -13,440 +21,834 @@ type NR = {
     isAmpliado: boolean;
     isCaducado: boolean;
 };
-
 type HistoryLog = {
-    id: string;
-    timestamp: string;
-    user: string;
+    id: string; timestamp: string; user: string;
     action: 'AÑADIDO' | 'EDITADO' | 'BORRADO' | 'CANCELADO';
-    nrId: string;
-    details: string;
+    nrId: string; details: string;
+};
+type AppData = { nrs: NR[]; history: HistoryLog[]; };
+type View = 'RADIOAVISOS' | 'AÑADIR' | 'HISTORIAL';
+type SortDirection = 'ascending' | 'descending';
+type SortConfig<T> = { key: keyof T; direction: SortDirection };
+
+// --- Centralized Component State ---
+let state = {
+    appData: { nrs: [] as NR[], history: [] as HistoryLog[] },
+    isAppDataLoading: true,
+    appDataError: null as string | null,
+    currentView: 'RADIOAVISOS' as View,
+    componentContainer: null as HTMLElement | null,
+    // Salvamento Data
+    salvamentoAvisos: [] as SalvamentoAviso[],
+    isSalvamentoLoading: false,
+    salvamentoError: null as string | null,
+    lastSalvamentoUpdate: null as Date | null,
+    // Unified Table State
+    filterText: '',
+    sortConfig: { key: 'id' as keyof NR, direction: 'ascending' as SortDirection },
+    // History Table State
+    historyFilterText: '',
+    historySortConfig: { key: 'timestamp' as keyof HistoryLog, direction: 'descending' as SortDirection },
 };
 
-type SalvamentoAviso = {
-    num: string;
-    emision: string;
-    asunto: string;
-    zona: string;
-    tipo: string;
-    subtipo: string;
-    prioridad: string;
-    caducidad: string;
-};
+// =================================================================================
+// --- API LAYER ---
+// =================================================================================
 
-let appData: { nrs: NR[], history: HistoryLog[] } = { nrs: [], history: [] };
-let salvamentoAvisos: SalvamentoAviso[] = [];
-let isLoadingNRs = false;
-let isLoadingSalvamento = false;
-
-// --- API INTERACTIONS ---
-async function fetchData() {
-    isLoadingNRs = true;
-    isLoadingSalvamento = true;
-    renderAll();
-
-    const nrPromise = fetch('/api/radioavisos').then(res => {
-        if (!res.ok) throw new Error('Failed to fetch NR data');
-        return res.json();
-    });
-
-    const salvamentoPromise = fetch('/api/salvamento-avisos').then(res => {
-        if (!res.ok) throw new Error('Failed to fetch Salvamento avisos');
-        return res.json();
-    });
-
-    const [nrResult, salvamentoResult] = await Promise.allSettled([nrPromise, salvamentoPromise]);
-
-    if (nrResult.status === 'fulfilled') {
-        appData = nrResult.value;
-    } else {
-        showToast(nrResult.reason.message, 'error');
-        appData = { nrs: [], history: [] };
-    }
-    isLoadingNRs = false;
-
-    if (salvamentoResult.status === 'fulfilled') {
-        salvamentoAvisos = salvamentoResult.value;
-    } else {
-        showToast(salvamentoResult.reason.message, 'error');
-        salvamentoAvisos = [];
-    }
-    isLoadingSalvamento = false;
-
-    renderAll();
-}
-
-async function saveData() {
-    try {
+const api = {
+    getData: async (): Promise<AppData> => {
+        const response = await fetch('/api/radioavisos');
+        if (!response.ok) throw new Error('No se pudo obtener la información del servidor.');
+        return response.json();
+    },
+    saveData: async (data: AppData): Promise<void> => {
         const response = await fetch('/api/radioavisos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(appData)
+            body: JSON.stringify(data),
         });
-        if (!response.ok) throw new Error('Failed to save data to server');
-        showToast('Datos guardados correctamente.', 'success');
+        if (!response.ok) throw new Error('No se pudo guardar la información en el servidor.');
+    },
+};
+
+// =================================================================================
+// --- HELPER FUNCTIONS ---
+// =================================================================================
+
+function getBaseId(fullId: string): string {
+    return (fullId || '').replace(/^NR-/, '').split('-')[0];
+}
+
+function getVersion(fullId: string): number {
+    const parts = (fullId || '').split('-');
+    return parts.length > 2 ? parseInt(parts[2], 10) : 1;
+}
+
+const getFormattedDateTime = (isoString?: string) => {
+    if (!isoString) return '-';
+    try {
+        const date = new Date(isoString);
+        return date.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+    } catch {
+        return isoString;
+    }
+};
+
+function parseExpiry(caducidad: string): { expiryDate: string, expiryTime: string } {
+    if (!caducidad) {
+        return { expiryDate: '', expiryTime: '' };
+    }
+    const parts = caducidad.trim().split(/\s+/);
+    if (parts.length < 2) return { expiryDate: '', expiryTime: '' };
+
+    const datePart = parts[0];
+    let timePart = parts[1] ? parts[1].trim() : '';
+
+    // Pad the hour if it's a single digit (e.g., "9:46" -> "09:46")
+    if (timePart.includes(':')) {
+        const timeComponents = timePart.split(':');
+        if (timeComponents.length === 2) {
+            timeComponents[0] = timeComponents[0].padStart(2, '0');
+            timePart = timeComponents.join(':');
+        }
+    }
+
+    const dateParts = datePart.split('/');
+    if (dateParts.length < 3) return { expiryDate: '', expiryTime: '' };
+
+    const [day, month, year] = dateParts;
+
+    if (!day || !month || !year || !timePart || year.length !== 4) {
+        return { expiryDate: '', expiryTime: '' };
+    }
+
+    return {
+        expiryDate: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,
+        expiryTime: timePart
+    };
+}
+
+
+const getMedioTags = (zona: string): string[] => {
+    const upperZona = zona.toUpperCase();
+    const zonasArray = upperZona.split(',').map(z => z.trim()).filter(Boolean);
+    const hasCoruna = zonasArray.includes('CORUÑA');
+    const hasOtherZones = zonasArray.some(z => z !== 'CORUÑA');
+    const tags: string[] = [];
+    if (hasCoruna) tags.push('NAVTEX');
+    if (hasOtherZones || !hasCoruna) tags.push('FONÍA');
+    return tags;
+};
+
+function isDstSpain(date: Date = new Date()): boolean {
+    const year = date.getFullYear();
+    const mar = new Date(Date.UTC(year, 2, 31));
+    const startDay = mar.getUTCDate() - mar.getUTCDay();
+    const dstStart = new Date(Date.UTC(year, 2, startDay, 1, 0, 0));
+    const oct = new Date(Date.UTC(year, 9, 31));
+    const endDay = oct.getUTCDate() - oct.getUTCDay();
+    const dstEnd = new Date(Date.UTC(year, 9, endDay, 1, 0, 0));
+    return date >= dstStart && date < dstEnd;
+}
+
+function getExpiryStatus(nr: NR): 'status-green' | 'status-yellow' | 'status-orange' {
+    if (!nr.expiryDate || !nr.expiryTime) return 'status-green';
+    try {
+        const expiryDateTime = new Date(`${nr.expiryDate}T${(nr.expiryTime || '').trim()}Z`);
+        if (isNaN(expiryDateTime.getTime())) return 'status-green';
+
+        const now = new Date();
+        if (expiryDateTime <= now) return 'status-green';
+        const hoursUntilExpiry = (expiryDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+        if (hoursUntilExpiry > 24) return 'status-green';
+        
+        const spainOffsetHours = isDstSpain(now) ? 2 : 1;
+        const nowInSpainTimezone = new Date(now.getTime() + spainOffsetHours * 3600 * 1000);
+        const currentSpainHour = nowInSpainTimezone.getUTCHours();
+        const shiftEndInSpainTimezone = new Date(nowInSpainTimezone);
+        shiftEndInSpainTimezone.setUTCMinutes(0, 0, 0);
+        
+        if (currentSpainHour >= 7 && currentSpainHour < 15) shiftEndInSpainTimezone.setUTCHours(15);
+        else if (currentSpainHour >= 15 && currentSpainHour < 23) shiftEndInSpainTimezone.setUTCHours(23);
+        else {
+            if (currentSpainHour >= 23) shiftEndInSpainTimezone.setUTCDate(shiftEndInSpainTimezone.getUTCDate() + 1);
+            shiftEndInSpainTimezone.setUTCHours(7);
+        }
+        
+        const actualShiftEndUTC = new Date(shiftEndInSpainTimezone.getTime() - spainOffsetHours * 3600 * 1000);
+        if (expiryDateTime <= actualShiftEndUTC) return 'status-orange';
+        return 'status-yellow';
     } catch (e) {
-        console.error(e);
-        showToast('Error al guardar los datos.', 'error');
+        return 'status-green';
     }
 }
 
-// --- LOGIC ---
-function addHistoryLog(action: HistoryLog['action'], nr: NR, details: string) {
+// =================================================================================
+// --- DATA PROCESSING & SYNC LOGIC ---
+// =================================================================================
+
+async function syncWithSalvamento() {
     const user = getCurrentUser();
     if (!user) return;
-    const newLog: HistoryLog = {
-        id: `log-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        user: user.username,
-        action,
-        nrId: nr.baseId,
-        details
-    };
-    appData.history.unshift(newLog);
-    if (appData.history.length > 100) appData.history.pop();
-}
 
-// --- RENDER FUNCTIONS ---
-function renderAll() {
-    renderNRManagement();
-    renderHistory();
-    renderSalvamentoAvisos();
-}
+    const avisosOficiales = state.salvamentoAvisos;
+    let nrsActualizados = [...state.appData.nrs];
+    let nuevosLogs: HistoryLog[] = [];
+    let hayCambios = false;
 
-function renderNRManagement() {
-    const container = document.getElementById('nr-management-content');
-    if (!container) return;
+    const ZONAS_RELEVANTES = ['ESPAÑA COSTA N', 'ESPAÑA COSTA NW', 'CORUÑA'];
+    const avisosRelevantes = avisosOficiales.filter(aviso => 
+        ZONAS_RELEVANTES.some(zona => aviso.zona.toUpperCase().includes(zona)) || 
+        aviso.tipo.toUpperCase() === 'NAVTEX'
+    );
 
-    if (isLoadingNRs) {
-        container.innerHTML = `<div class="loader-container"><div class="loader"></div></div>`;
-        return;
+    for (const aviso of avisosRelevantes) {
+        const avisoBaseId = getBaseId(aviso.num);
+        const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
+
+        const activeLocalVersion = nrsActualizados.find(nr => nr.baseId === avisoBaseId && !nr.isCaducado);
+
+        if (activeLocalVersion) {
+            const alreadyHasNavtex = activeLocalVersion.stations.includes('Navtex');
+            if (isNavtexAviso && !alreadyHasNavtex) {
+                hayCambios = true;
+                const index = nrsActualizados.findIndex(nr => nr.id === activeLocalVersion.id);
+                if (index > -1) {
+                    nrsActualizados[index].stations.push('Navtex');
+                    nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: `Añadida automáticamente la estación Navtex a la versión ${activeLocalVersion.version}.` });
+                }
+            }
+        } else {
+            const allLocalVersions = nrsActualizados.filter(nr => nr.baseId === avisoBaseId);
+            const latestCaducadoVersion = allLocalVersions
+                .filter(nr => nr.isCaducado)
+                .sort((a, b) => b.version - a.version)[0]; 
+
+            if (latestCaducadoVersion) {
+                hayCambios = true;
+                const index = nrsActualizados.findIndex(nr => nr.id === latestCaducadoVersion.id);
+                if (index > -1) {
+                    const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
+                    nrsActualizados[index].isCaducado = false;
+                    nrsActualizados[index].expiryDate = expiryDate;
+                    nrsActualizados[index].expiryTime = expiryTime;
+                    
+                    if (isNavtexAviso && !nrsActualizados[index].stations.includes('Navtex')) {
+                        nrsActualizados[index].stations.push('Navtex');
+                    }
+                    
+                    nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: `Reactivado automáticamente (versión ${latestCaducadoVersion.version}) desde SASEMAR.` });
+                }
+            } else {
+                hayCambios = true;
+                const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
+                const newNR: NR = {
+                    id: `NR-${avisoBaseId}`,
+                    baseId: avisoBaseId,
+                    version: 1,
+                    stations: [],
+                    expiryDate,
+                    expiryTime,
+                    isAmpliado: false,
+                    isCaducado: false,
+                };
+                if (isNavtexAviso) newNR.stations.push('Navtex');
+                nrsActualizados.push(newNR);
+                nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'AÑADIDO', nrId: avisoBaseId, details: `Añadido automáticamente (versión 1) desde SASEMAR. ${isNavtexAviso ? 'Asignado a Navtex.' : ''}` });
+            }
+        }
     }
 
-    const activeNRs = appData.nrs.filter(nr => !nr.isCaducado);
-    const expiredNRs = appData.nrs.filter(nr => nr.isCaducado);
+    if (hayCambios) {
+        const finalData: AppData = { nrs: nrsActualizados, history: [...nuevosLogs, ...state.appData.history] };
+        try {
+            await api.saveData(finalData);
+            state.appData = finalData;
+            showToast(`Sincronización con SASEMAR completada.`, 'info');
+        } catch (error) {
+            showToast("Error al guardar los NRs importados/actualizados.", "error");
+        }
+    }
+}
 
-    container.innerHTML = `
-        <div class="nr-list-section">
-            <h3 class="nr-section-title">Radioavisos Activos (${activeNRs.length})</h3>
-            <div id="active-nrs-list" class="nr-list">
-                ${activeNRs.length > 0 ? activeNRs.map(renderNREntry).join('') : '<p class="drill-placeholder">No hay radioavisos activos.</p>'}
+async function updateSalvamentoData() {
+    state.isSalvamentoLoading = true;
+    state.salvamentoError = null;
+    try {
+        const response = await fetch('/api/salvamento-avisos');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || 'Respuesta no válida del servidor.');
+        }
+        state.salvamentoAvisos = await response.json();
+        state.lastSalvamentoUpdate = new Date();
+        await syncWithSalvamento();
+    } catch (e) {
+        state.salvamentoAvisos = [];
+        state.salvamentoError = 'No se pudo conectar con la fuente oficial de Salvamento Marítimo.';
+    } finally {
+        state.isSalvamentoLoading = false;
+    }
+}
+
+// =================================================================================
+// --- CORE RENDERING LOGIC ---
+// =================================================================================
+
+async function reRender() {
+    if (!state.componentContainer) return;
+    const activeElementId = document.activeElement?.id;
+    state.componentContainer.innerHTML = renderLocalManagerHTML();
+    const activeElement = activeElementId ? document.getElementById(activeElementId) : null;
+    if (activeElement instanceof HTMLElement) activeElement.focus();
+}
+
+async function loadInitialData() {
+    state.isAppDataLoading = true;
+    state.appDataError = null;
+    await reRender(); // Show skeletons immediately
+    try {
+        state.appData = await api.getData();
+        await updateSalvamentoData();
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Error desconocido";
+        state.appDataError = message;
+    } finally {
+        state.isAppDataLoading = false;
+        await reRender();
+    }
+}
+
+export function renderRadioavisos(container: HTMLElement) {
+    state.componentContainer = container;
+    if (!getCurrentUser()) {
+        container.innerHTML = `<div class="content-card"><p class="error">Debe iniciar sesión para acceder a esta herramienta.</p></div>`;
+        return;
+    }
+    if (!(container as any).__radioavisosListenersAttached) {
+        attachEventListeners(container);
+        (container as any).__radioavisosListenersAttached = true;
+    }
+    loadInitialData();
+}
+
+function renderLocalManagerHTML(): string {
+    const user = getCurrentUser();
+    if (!user) return `<div class="content-card"><p class="error">Error de autenticación.</p></div>`;
+
+    if (state.isAppDataLoading) {
+        return `<div class="content-card"><div class="loader-container"><div class="loader"></div></div></div>`;
+    }
+    if (state.appDataError) {
+        return `<div class="content-card"><p class="error">${state.appDataError}</p></div>`;
+    }
+
+    const views: { id: View, name: string }[] = [
+        { id: 'RADIOAVISOS', name: 'Radioavisos' }, { id: 'AÑADIR', name: 'Añadir Manual' },
+        { id: 'HISTORIAL', name: 'Historial' }
+    ];
+
+    return `
+        <div class="content-card">
+            <div class="info-nav-tabs">
+                ${views.map(v => `<button class="info-nav-btn ${state.currentView === v.id ? 'active' : ''}" data-view="${v.id}" data-action="switch-view">${v.name}</button>`).join('')}
             </div>
-        </div>
-        <div class="nr-list-section">
-            <h3 class="nr-section-title">Radioavisos Caducados/Cancelados (${expiredNRs.length})</h3>
-            <div id="expired-nrs-list" class="nr-list">
-                 ${expiredNRs.length > 0 ? expiredNRs.map(renderNREntry).join('') : '<p class="drill-placeholder">No hay radioavisos caducados.</p>'}
+            <div id="radioavisos-view-content" style="margin-top: 2rem;">
+                ${renderCurrentViewContent()}
             </div>
         </div>
     `;
 }
 
-function renderNREntry(nr: NR): string {
-    const expiryDT = nr.expiryDate && nr.expiryTime ? new Date(`${nr.expiryDate}T${nr.expiryTime}:00Z`).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A';
-    const isCancelled = appData.history.some(h => h.nrId === nr.baseId && h.action === 'CANCELADO' && !h.details.includes('versión'));
+// =================================================================================
+// --- EVENT HANDLING ---
+// =================================================================================
 
-    let statusClass = '';
-    let statusText = '';
-    if (nr.isCaducado) {
-        statusClass = 'caducado';
-        statusText = isCancelled ? 'Cancelado' : 'Caducado';
-    } else if (nr.isAmpliado) {
-        statusClass = 'ampliado';
-        statusText = 'Ampliado';
+async function handleRefreshSalvamento() {
+    state.isSalvamentoLoading = true;
+    await reRender();
+    await updateSalvamentoData();
+    await reRender();
+}
+
+async function handleSwitchView(element: HTMLElement) {
+    state.currentView = element.dataset.view as View;
+    await reRender();
+}
+
+async function handleGoToEdit(fullId: string) {
+    if (!fullId) return;
+    const nrToEdit = state.appData.nrs.find(nr => nr.id === fullId);
+    if (nrToEdit) {
+        renderEditNrModal(nrToEdit);
+    } else {
+        showToast(`No se encontró el NR ${fullId} para editar.`, 'error');
+    }
+}
+
+async function handleCancelNR(baseId: string) {
+    const user = getCurrentUser();
+    if (!user) return showToast("Error de sesión.", "error");
+    try {
+        if (!state.appData.nrs.some(nr => nr.baseId === baseId && !nr.isCaducado)) {
+            return showToast(`El NR ${baseId} no existe o ya está cancelado.`, "error");
+        }
+        if (!window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR ${baseId}?`)) return;
+        
+        const finalData: AppData = {
+            nrs: state.appData.nrs.map(nr => (nr.baseId === baseId ? {...nr, isCaducado: true} : nr)),
+            history: [{id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: baseId, details: `Marcadas todas las versiones como caducadas.`}, ...state.appData.history]
+        };
+        await api.saveData(finalData);
+        state.appData = finalData;
+        showToast(`${baseId} ha sido cancelado.`, 'info');
+        await reRender();
+    } catch (error) {
+        showToast("Error al cancelar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
+    }
+}
+
+async function handleSort(element: HTMLElement) {
+    const key = element.dataset.sortKey;
+    const targetTable = element.dataset.table;
+    if (!key) return;
+
+    if (targetTable === 'nrs') {
+        const isSameKey = state.sortConfig.key === key;
+        state.sortConfig = { key: key as keyof NR, direction: isSameKey && state.sortConfig.direction === 'ascending' ? 'descending' : 'ascending' };
+    } else if (targetTable === 'history') {
+        const isSameKey = state.historySortConfig.key === key;
+        state.historySortConfig = { key: key as keyof HistoryLog, direction: isSameKey && state.historySortConfig.direction === 'ascending' ? 'descending' : 'ascending' };
+    }
+    await reRender();
+}
+
+function attachEventListeners(container: HTMLElement) {
+    container.addEventListener('click', async (e) => {
+        const target = e.target as HTMLElement;
+        const actionElement = target.closest<HTMLElement>('[data-action]');
+        if (actionElement) {
+            const action = actionElement.dataset.action;
+            switch(action) {
+                case 'refresh-salvamento': await handleRefreshSalvamento(); break;
+                case 'switch-view': await handleSwitchView(actionElement); break;
+                case 'add-submit': await handleAddSubmit(); break;
+                case 'go-to-edit': await handleGoToEdit(actionElement.dataset.nrId!); break;
+                case 'cancel-nr': await handleCancelNR(actionElement.dataset.nrId!); break;
+            }
+        } else if (target.closest('th[data-sort-key]')) {
+            await handleSort(target.closest('th[data-sort-key]')!);
+        }
+    });
+    
+    const debouncedFilter = debounce(async (e: Event) => {
+        const input = e.target as HTMLInputElement;
+        const target = input.dataset.filterTarget;
+        if (target === 'nrs') state.filterText = input.value;
+        else if (target === 'history') state.historyFilterText = input.value;
+        await reRender();
+    }, 300);
+
+    container.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.dataset.action === 'filter') debouncedFilter(e);
+    });
+    
+    container.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.id === 'add-is-versionado') (document.getElementById('add-versioned-id-container') as HTMLElement).style.display = target.checked ? 'block' : 'none';
+        else if (target.id === 'add-has-expiry') (document.getElementById('add-expiry-inputs') as HTMLElement).style.display = target.checked ? 'flex' : 'none';
+    });
+}
+
+async function handleAddSubmit() {
+    const user = getCurrentUser();
+    if (!user || !state.componentContainer) return;
+    const container = state.componentContainer;
+    try {
+        const nrNum = (container.querySelector('#add-nr-num') as HTMLInputElement).value.trim();
+        const nrYear = (container.querySelector('#add-nr-year') as HTMLInputElement).value.trim();
+        if (!nrNum || !nrYear) return showToast("El número y el año del NR son obligatorios.", "error");
+        const baseId = `${nrNum}/${nrYear}`;
+        const stations = Array.from(container.querySelectorAll<HTMLInputElement>('#add-stations-group input:checked')).map(cb => cb.value);
+        if (stations.length === 0) return showToast("Debe seleccionar al menos una estación.", "error");
+        const versionadoCheckbox = container.querySelector('#add-is-versionado') as HTMLInputElement;
+        const versionedFrom = versionadoCheckbox.checked ? (container.querySelector('#add-versioned-id') as HTMLInputElement).value.trim() : undefined;
+        if (state.appData.nrs.some(nr => nr.baseId === baseId && !nr.isCaducado && !versionedFrom)) return showToast(`Error: El NR ${baseId} ya existe y está vigente.`, "error");
+        
+        let version = 1;
+        let nrsToUpdate = [...state.appData.nrs];
+        let historyToUpdate = [...state.appData.history];
+        if (versionedFrom) {
+            const versionedFromBaseId = getBaseId(`NR-${versionedFrom}`);
+            const previousVersions = nrsToUpdate.filter(nr => nr.baseId === versionedFromBaseId);
+            if (previousVersions.length > 0) {
+                version = Math.max(...previousVersions.map(nr => nr.version)) + 1;
+                nrsToUpdate = nrsToUpdate.map(nr => nr.baseId === versionedFromBaseId ? { ...nr, isCaducado: true } : nr);
+                historyToUpdate.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: versionedFromBaseId, details: `Versionado a ${baseId}`});
+            }
+        }
+        const newId = version === 1 ? `NR-${baseId}` : `NR-${baseId}-${version}`;
+        const expiryCheckbox = container.querySelector('#add-has-expiry') as HTMLInputElement;
+        const newNR: NR = { id: newId, baseId: baseId, version, stations, expiryDate: expiryCheckbox.checked ? (container.querySelector('#add-expiry-date') as HTMLInputElement).value : '', expiryTime: expiryCheckbox.checked ? (container.querySelector('#add-expiry-time') as HTMLInputElement).value : '', isAmpliado: (container.querySelector('#add-is-ampliado') as HTMLInputElement).checked, isCaducado: false };
+        historyToUpdate.unshift({ id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'AÑADIDO', nrId: baseId, details: `Añadida versión ${version}.` });
+        
+        const finalData: AppData = { nrs: [...nrsToUpdate, newNR], history: historyToUpdate };
+        await api.saveData(finalData);
+        state.appData = finalData;
+        showToast(`${newId} añadido.`, 'success');
+        state.currentView = 'RADIOAVISOS';
+        await reRender();
+    } catch (error) { showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error"); }
+}
+
+async function handleEditSubmit(formContainer: HTMLElement, fullId: string) {
+    const user = getCurrentUser();
+    if (!user) return;
+    try {
+        const nrToUpdate = state.appData.nrs.find(nr => nr.id === fullId);
+        if (!nrToUpdate) {
+            showToast("El NR a editar ya no existe.", "error");
+            return loadInitialData();
+        }
+        const updatedStations = Array.from(formContainer.querySelectorAll<HTMLInputElement>('#modal-edit-stations-group input:checked')).map(cb => cb.value);
+        if (updatedStations.length === 0) {
+            showToast("Debe seleccionar al menos una estación.", "error");
+            return;
+        }
+        const finalData: AppData = {
+            nrs: state.appData.nrs.map(nr =>
+                nr.id === fullId
+                ? {
+                    ...nr,
+                    expiryDate: (formContainer.querySelector('#modal-edit-expiry-date') as HTMLInputElement).value,
+                    expiryTime: (formContainer.querySelector('#modal-edit-expiry-time') as HTMLInputElement).value,
+                    isAmpliado: (formContainer.querySelector('#modal-edit-is-ampliado') as HTMLInputElement).checked,
+                    stations: updatedStations
+                  }
+                : nr),
+            history: [{ id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'EDITADO', nrId: getBaseId(fullId), details: `Editada versión ${nrToUpdate.version}.` }, ...state.appData.history]
+        };
+        await api.saveData(finalData);
+        state.appData = finalData;
+        showToast(`${fullId} actualizado.`, 'success');
+        await reRender();
+    } catch (error) {
+        showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error");
+    }
+}
+
+// =================================================================================
+// --- HTML TEMPLATES FOR VIEWS ---
+// =================================================================================
+
+function renderCurrentViewContent(): string {
+    switch (state.currentView) {
+        case 'RADIOAVISOS':
+            return `
+                ${renderStationStatusTableHTML()}
+                <div class="form-divider" style="width: 100%; margin: 2.5rem auto 2rem auto;">
+                    <span>Listado Detallado y Acciones</span>
+                </div>
+                ${renderMasterNrTableHTML()}
+            `;
+        case 'AÑADIR': return renderAddView();
+        case 'HISTORIAL': return renderHistoryView();
+        default: return `<p>Vista no encontrada</p>`;
+    }
+}
+
+function renderStationStatusTableHTML(): string {
+    const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado);
+
+    const stationsByType = {
+        vhf: STATIONS_VHF.map(s => s.replace(' VHF', '')),
+        mf: STATIONS_MF.map(s => s.replace(' MF', '')),
+        navtex: ['Navtex']
+    };
+
+    const nrsByStation: { [key: string]: NR[] } = {};
+    ALL_STATIONS.forEach(station => {
+        nrsByStation[station.replace(/ (VHF|MF)$/, '')] = activeNRs
+            .filter(nr => nr.stations.includes(station))
+            .sort((a, b) => a.id.localeCompare(b.id));
+    });
+
+    const maxRows = Math.max(0, ...Object.values(nrsByStation).map(nrs => nrs.length));
+
+    let tableBodyHtml = '';
+    if (maxRows === 0) {
+        tableBodyHtml = `<tr><td colspan="${ALL_STATIONS.length}" class="drill-placeholder">No hay NRs vigentes asignados a estaciones.</td></tr>`;
+    } else {
+        for (let i = 0; i < maxRows; i++) {
+            tableBodyHtml += '<tr>';
+            [...stationsByType.vhf, ...stationsByType.mf, ...stationsByType.navtex].forEach(stationName => {
+                const nr = nrsByStation[stationName]?.[i];
+                const displayText = nr ? nr.baseId : ''; 
+                tableBodyHtml += `<td>${displayText}</td>`;
+            });
+            tableBodyHtml += '</tr>';
+        }
+    }
+
+    const lastAdded = state.appData.history.find(h => h.action === 'AÑADIDO');
+    const lastEdited = state.appData.history.find(h => h.action === 'EDITADO');
+    const lastDeleted = state.appData.history.find(h => h.action === 'BORRADO' || h.action === 'CANCELADO');
+
+    return `
+        <div class="station-table-container">
+            <h3 style="text-align:center; padding: 0.75rem; margin:0;">Radioavisos Vigentes por Estación</h3>
+            <div class="table-wrapper">
+                <table class="station-table horizontal-table">
+                    <thead>
+                        <tr>
+                            ${stationsByType.vhf.map(s => `<th class="header-vhf">${s}</th>`).join('')}
+                            ${stationsByType.mf.map(s => `<th class="header-mf">${s} MF</th>`).join('')}
+                            ${stationsByType.navtex.map(s => `<th class="header-navtex">${s}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableBodyHtml}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Total NRs vigentes:</div>
+                <div class="value green">${activeNRs.length}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Último NR añadido:</div>
+                <div class="value">${lastAdded ? lastAdded.nrId : '-'}</div>
+                <div class="label">Por: ${lastAdded ? lastAdded.user : '-'}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Último NR editado:</div>
+                <div class="value">${lastEdited ? lastEdited.nrId : '-'}</div>
+                 <div class="label">Por: ${lastEdited ? lastEdited.user : '-'}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Último NR borrado:</div>
+                <div class="value">${lastDeleted ? lastDeleted.nrId : '-'}</div>
+                 <div class="label">Por: ${lastDeleted ? lastDeleted.user : '-'}</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderMasterNrTableHTML(): string {
+    const spinnerIcon = `<svg class="spinner" style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+    const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
+    const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>`;
+    
+    let content = '';
+    const searchTerm = state.filterText.toLowerCase();
+    const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado);
+    
+    const filteredNrs = activeNRs.filter(nr => {
+        const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num.includes(nr.baseId));
+        return nr.id.toLowerCase().includes(searchTerm) ||
+               (officialAviso?.asunto.toLowerCase().includes(searchTerm)) ||
+               (officialAviso?.zona.toLowerCase().includes(searchTerm)) ||
+               (nr.stations.join(', ').toLowerCase().includes(searchTerm));
+    });
+
+    const sortedNrs = [...filteredNrs].sort((a, b) => {
+        const { key, direction } = state.sortConfig;
+        const valueA = a[key];
+        const valueB = b[key];
+        const comparison = String(valueA).localeCompare(String(valueB), undefined, { numeric: true });
+        return direction === 'ascending' ? comparison : -comparison;
+    });
+
+    if (sortedNrs.length === 0) {
+        content = `<p class="drill-placeholder">No se encontraron NRs vigentes para los filtros aplicados.</p>`;
+    } else {
+        const renderHeader = (key: keyof NR, label: string) => {
+            const isSorted = state.sortConfig.key === key;
+            const sortClass = isSorted ? `sort-${state.sortConfig.direction}` : '';
+            return `<th class="${sortClass}" data-sort-key="${key}" data-table="nrs">${label}</th>`;
+        };
+
+        content = `
+        <div class="table-wrapper">
+             <table class="reference-table data-table">
+                <thead>
+                    <tr>
+                        <th title="Estado de Caducidad">${clockIcon}</th>
+                        ${renderHeader('id', 'NR')}
+                        <th style="min-width: 250px;">Asunto</th>
+                        <th style="min-width: 150px;">Zona</th>
+                        <th>Estaciones</th>
+                        <th>Prioridad</th>
+                        <th>Medio</th>
+                        ${renderHeader('expiryDate', 'Caducidad')}
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                ${sortedNrs.map(nr => {
+                    const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num.includes(nr.baseId));
+                    const medios = officialAviso ? getMedioTags(officialAviso.zona) : [];
+                    return `
+                        <tr>
+                            <td style="text-align: center;"><span class="status-dot ${getExpiryStatus(nr)}"></span></td>
+                            <td>${nr.id}</td>
+                            <td style="white-space: normal;">${officialAviso?.asunto || '---'}</td>
+                            <td>${officialAviso?.zona || '---'}</td>
+                            <td>${nr.stations.length > 0 ? nr.stations.map(s => s.replace(/ (VHF|MF)$/, '').replace('Navtex', 'NTX')).join(', ') : '-'}</td>
+                            <td>
+                                ${officialAviso ? `<span class="category-badge ${officialAviso.prioridad.toLowerCase()}">${officialAviso.prioridad}</span>` : ''}
+                            </td>
+                            <td>
+                                ${medios.map(m => `<span class="category-badge ${m.toLowerCase()}" style="margin-right: 4px;">${m}</span>`).join('')}
+                            </td>
+                            <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    <button class="secondary-btn" data-action="go-to-edit" data-nr-id="${nr.id}">Editar</button>
+                                    <button class="tertiary-btn" data-action="cancel-nr" data-nr-id="${nr.baseId}">Cancelar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="status-legend">
+            <div class="legend-item"><span class="status-dot status-orange"></span> Caduca en este turno</div>
+            <div class="legend-item"><span class="status-dot status-yellow"></span> Caduca en las próximas 24h</div>
+            <div class="legend-item"><span class="status-dot status-green"></span> Vigente (> 24h)</div>
+        </div>`;
     }
 
     return `
-        <div class="nr-entry ${statusClass}" data-nr-id="${nr.id}">
-            <div class="nr-entry-main">
-                <strong class="nr-id">${nr.id.replace('NR-', '')}</strong>
-                <span class="nr-stations">${nr.stations.join(', ')}</span>
-                <span class="nr-expiry">Caduca: ${expiryDT}</span>
-                ${statusText ? `<span class="nr-status">${statusText}</span>` : ''}
+        <div class="salvamento-panel-header" style="border-bottom: none; padding-bottom: 0; margin-bottom: 1.5rem;">
+            <div class="filterable-table-header" style="margin-bottom: 0; flex-grow: 1;">
+                <input type="search" class="filter-input" placeholder="Filtrar radioavisos vigentes..." value="${state.filterText}" data-action="filter" data-filter-target="nrs">
             </div>
-            <div class="nr-entry-actions">
-                ${!nr.isCaducado ? `
-                    <button class="tertiary-btn" data-action="edit">Editar</button>
-                    <button class="tertiary-btn" data-action="cancel">Cancelar</button>
-                ` : ''}
-                <button class="tertiary-btn" data-action="delete">Borrar</button>
+            <div class="salvamento-panel-controls">
+                ${state.lastSalvamentoUpdate ? `<span class="last-update-text">${getFormattedDateTime(state.lastSalvamentoUpdate.toISOString())}</span>` : ''}
+                <button class="secondary-btn update-btn" data-action="refresh-salvamento" ${state.isSalvamentoLoading ? 'disabled' : ''}>
+                    ${state.isSalvamentoLoading ? spinnerIcon : refreshIcon}
+                    <span>${state.isSalvamentoLoading ? 'Actualizando...' : 'Actualizar'}</span>
+                </button>
             </div>
         </div>
+        ${state.salvamentoError ? `<p class="error" style="text-align: center; margin-bottom: 1rem;">${state.salvamentoError}</p>` : ''}
+        ${content}
     `;
 }
 
-function renderHistory() {
-    const container = document.getElementById('nr-history-content');
-    if (!container) return;
-
-    if (isLoadingNRs) {
-        container.innerHTML = `<div class="loader-container"><div class="loader"></div></div>`;
-        return;
-    }
-    
-    container.innerHTML = `
-        <div class="history-log-list">
-            ${appData.history.length > 0 ? appData.history.map(log => `
-                <div class="history-log-entry">
-                    <span class="log-timestamp">${new Date(log.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' })}</span>
-                    <span class="log-user">${log.user}</span>
-                    <span class="log-action log-action-${log.action.toLowerCase()}">${log.action}</span>
-                    <span class="log-details"><strong>${log.nrId}:</strong> ${log.details}</span>
+function renderAddView(): string {
+    const currentYear = new Date().getFullYear();
+    return `
+        <div class="form-grid">
+            <div class="form-group" style="flex-direction: row; gap: 1rem; align-items: flex-end;">
+                <div style="flex:1;"><label for="add-nr-num">NR (Número)</label><input type="text" id="add-nr-num" placeholder="2013" class="simulator-input" /></div>
+                <span style="font-size: 1.5rem;">/</span>
+                <div style="flex:1;"><label for="add-nr-year">Año</label><input type="text" id="add-nr-year" value="${currentYear}" class="simulator-input" /></div>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="add-is-versionado" /> Versionado de un NR anterior</label>
+                <div id="add-versioned-id-container" style="display:none;">
+                    <input type="text" id="add-versioned-id" placeholder="ID anterior (ej: 1550/2024)" class="simulator-input"/>
                 </div>
-            `).join('') : '<p class="drill-placeholder">No hay historial de cambios.</p>'}
+            </div>
+            <div class="form-group"><label><input type="checkbox" id="add-has-expiry" checked /> Fecha Caducidad (UTC)</label><div id="add-expiry-inputs" style="display:flex; gap: 1rem;"><input type="date" id="add-expiry-date" class="simulator-input" /><input type="time" id="add-expiry-time" class="simulator-input" /></div></div>
+            <div class="form-group"><label><input type="checkbox" id="add-is-ampliado" /> NR Ampliado</label></div>
+        </div>
+        <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Marque las EECC:</h3>
+        <div class="checkbox-group" id="add-stations-group">
+            ${ALL_STATIONS.map(station => `<div class="checkbox-item"><input type="checkbox" id="add-${station}" value="${station}"><label for="add-${station}">${station}</label></div>`).join('')}
+        </div>
+        <div class="button-container">
+            <button class="primary-btn" data-action="add-submit" style="margin-top:0;">GUARDAR</button>
         </div>
     `;
 }
 
-function renderSalvamentoAvisos() {
-    const container = document.getElementById('salvamento-avisos-content');
-    if (!container) return;
+function renderHistoryView(): string {
+    const searchTerm = state.historyFilterText.toLowerCase();
+    const filteredHistory = state.appData.history.filter(log => log.nrId.toLowerCase().includes(searchTerm) || log.user.toLowerCase().includes(searchTerm) || log.action.toLowerCase().includes(searchTerm) || log.details.toLowerCase().includes(searchTerm));
+    const sortedHistory = [...filteredHistory].sort((a, b) => {
+        const { key, direction } = state.historySortConfig;
+        const comparison = String(a[key]).localeCompare(String(b[key]), undefined, { numeric: true });
+        return direction === 'ascending' ? comparison : -comparison;
+    });
 
-    if (isLoadingSalvamento) {
-        const skeletonRow = `<tr>${Array(5).fill('<td><div class="skeleton skeleton-text"></div></td>').join('')}</tr>`;
-        container.innerHTML = `
-            <table class="reference-table">
-                <thead><tr><th>Número</th><th>Asunto</th><th>Zona</th><th>Tipo</th><th>Emisión</th></tr></thead>
-                <tbody>${Array(10).fill(skeletonRow).join('')}</tbody>
-            </table>`;
-        return;
-    }
+    if (sortedHistory.length === 0) return `<div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history"></div><p class="drill-placeholder">No hay operaciones en el historial.</p>`;
+    
+    const renderHeader = (key: keyof HistoryLog, label: string) => `<th class="${state.historySortConfig.key === key ? `sort-${state.historySortConfig.direction}` : ''}" data-sort-key="${key}" data-table="history">${label}</th>`;
 
-    if (salvamentoAvisos.length === 0) {
-        container.innerHTML = `<p class="drill-placeholder">No se pudieron cargar los avisos de Salvamento Marítimo o no hay ninguno activo.</p>`;
-        return;
-    }
-
-    container.innerHTML = `
-        <table class="reference-table">
-            <thead>
-                <tr>
-                    <th>Número</th>
-                    <th>Asunto</th>
-                    <th>Zona</th>
-                    <th>Tipo</th>
-                    <th>Emisión</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${salvamentoAvisos.map(aviso => `
-                    <tr>
-                        <td>${aviso.num}</td>
-                        <td>${aviso.asunto}</td>
-                        <td>${aviso.zona}</td>
-                        <td>${aviso.tipo}</td>
-                        <td>${aviso.emision}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
+    return `
+        <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history"></div>
+        <div class="table-wrapper">
+             <table class="reference-table data-table">
+                <thead><tr>${renderHeader('nrId', 'NR')}${renderHeader('timestamp', 'F/H Acción')}${renderHeader('user', 'Usuario')}${renderHeader('action', 'Acción')}${renderHeader('details', 'Detalles')}</tr></thead>
+                <tbody>${sortedHistory.map(log => `<tr><td>${log.nrId}</td><td>${getFormattedDateTime(log.timestamp)}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('')}</tbody>
+            </table>
+        </div>`;
 }
 
-function renderNRModal(nr: Partial<NR> | null = null) {
-    const modalId = 'nr-modal';
+function renderEditNrModal(nr: NR) {
+    const modalId = `edit-nr-modal-${nr.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
     if (document.getElementById(modalId)) return;
-
-    const isEditing = nr !== null;
-    const now = new Date();
-    const defaultExpiryDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const modalTitle = isEditing ? `Editar Radioaviso ${nr!.id}` : 'Añadir Nuevo Radioaviso';
-    const baseIdParts = isEditing ? nr!.baseId!.split('/') : [`${(appData.nrs.length + 1).toString().padStart(4, '0')}`, `${now.getFullYear()}`];
 
     const modalOverlay = document.createElement('div');
     modalOverlay.className = 'modal-overlay';
     modalOverlay.id = modalId;
+
     modalOverlay.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <h2 class="modal-title">${modalTitle}</h2>
-            <form id="nr-form">
-                <div class="form-group-row">
+        <div class="modal-content" style="max-width: 800px; text-align: left;">
+            <h2 class="modal-title">Editar NR: ${nr.id}</h2>
+            <form id="edit-nr-form-${nr.id.replace(/[^a-zA-Z0-9]/g, '-')}">
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="nr-num">Número</label>
-                        <input type="text" id="nr-num" value="${baseIdParts[0]}" required class="simulator-input">
+                        <label>Fecha Caducidad (UTC)</label>
+                        <div style="display:flex; gap: 1rem;">
+                            <input type="date" id="modal-edit-expiry-date" class="simulator-input" value="${nr.expiryDate || ''}" />
+                            <input type="time" id="modal-edit-expiry-time" class="simulator-input" value="${(nr.expiryTime || '').trim()}" />
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="nr-year">Año</label>
-                        <input type="text" id="nr-year" value="${baseIdParts[1]}" required class="simulator-input">
+                     <div class="form-group">
+                         <label style="margin-top: 1.5rem;"><input type="checkbox" id="modal-edit-is-ampliado" ${nr.isAmpliado ? 'checked' : ''} /> NR Ampliado</label>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Estaciones</label>
-                    <div id="nr-stations-selector" class="station-selector">
-                        <button type="button" class="station-quick-select" data-stations="${ALL_STATIONS.join(',')}">Todas</button>
-                        <button type="button" class="station-quick-select" data-stations="">Ninguna</button>
-                        ${ALL_STATIONS.map(s => `
-                            <label class="station-checkbox">
-                                <input type="checkbox" name="station" value="${s}" ${isEditing && nr!.stations!.includes(s) ? 'checked' : ''}>
-                                <span>${s}</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                </div>
-                <div class="form-group-row">
-                    <div class="form-group">
-                        <label for="nr-expiry-date">Fecha Caducidad (UTC)</label>
-                        <input type="date" id="nr-expiry-date" value="${isEditing ? nr!.expiryDate : defaultExpiryDate.toISOString().split('T')[0]}" required class="simulator-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="nr-expiry-time">Hora Caducidad (UTC)</label>
-                        <input type="time" id="nr-expiry-time" value="${isEditing ? nr!.expiryTime : '12:00'}" required class="simulator-input">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="station-checkbox">
-                        <input type="checkbox" id="nr-is-ampliado" ${isEditing && nr!.isAmpliado ? 'checked' : ''}>
-                        <span>Ampliación (se emite en OM)</span>
-                    </label>
-                </div>
-                <div class="button-container">
-                    <button type="button" class="secondary-btn" id="nr-modal-cancel">Cancelar</button>
-                    <button type="submit" class="primary-btn">${isEditing ? 'Guardar Cambios' : 'Añadir Radioaviso'}</button>
+                <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Marque las EECC:</h3>
+                <div class="checkbox-group" id="modal-edit-stations-group">
+                    ${ALL_STATIONS.map(station => `
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="modal-edit-${station.replace(/\s/g, '-')}" value="${station}" ${nr.stations.includes(station) ? 'checked' : ''}>
+                            <label for="modal-edit-${station.replace(/\s/g, '-')}">${station}</label>
+                        </div>
+                    `).join('')}
                 </div>
             </form>
+            <div class="button-container" style="justify-content: flex-end; border-top:none; padding-top: 1rem;">
+                <button class="secondary-btn modal-cancel-btn">Cancelar</button>
+                <button class="primary-btn modal-save-btn" style="margin-top: 0; width: auto;">Guardar Cambios</button>
+            </div>
         </div>
     `;
     document.body.appendChild(modalOverlay);
 
-    // Add event listeners
-    modalOverlay.querySelector('#nr-modal-cancel')?.addEventListener('click', () => modalOverlay.remove());
-    modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) modalOverlay.remove(); });
-    modalOverlay.querySelector('#nr-form')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        handleNRSave(isEditing ? nr!.id! : null);
-        modalOverlay.remove();
-    });
-    modalOverlay.querySelectorAll('.station-quick-select').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const stations = (e.currentTarget as HTMLButtonElement).dataset.stations?.split(',') || [];
-            modalOverlay.querySelectorAll<HTMLInputElement>('input[name="station"]').forEach(chk => {
-                chk.checked = stations.includes(chk.value);
-            });
-        });
-    });
-}
-
-function handleNRSave(editingId: string | null) {
-    const num = (document.getElementById('nr-num') as HTMLInputElement).value.trim();
-    const year = (document.getElementById('nr-year') as HTMLInputElement).value.trim();
-    const baseId = `${num}/${year}`;
-
-    const selectedStations: string[] = [];
-    document.querySelectorAll<HTMLInputElement>('input[name="station"]:checked').forEach(chk => {
-        selectedStations.push(chk.value);
-    });
-
-    const expiryDate = (document.getElementById('nr-expiry-date') as HTMLInputElement).value;
-    const expiryTime = (document.getElementById('nr-expiry-time') as HTMLInputElement).value;
-    const isAmpliado = (document.getElementById('nr-is-ampliado') as HTMLInputElement).checked;
-
-    if (!num || !year || selectedStations.length === 0 || !expiryDate || !expiryTime) {
-        showToast('Todos los campos son obligatorios.', 'error');
-        return;
-    }
-
-    if (editingId) {
-        const index = appData.nrs.findIndex(nr => nr.id === editingId);
-        if (index > -1) {
-            const oldNr = { ...appData.nrs[index] };
-            const newNr = { ...oldNr, stations: selectedStations, expiryDate, expiryTime, isAmpliado };
-            appData.nrs[index] = newNr;
-            addHistoryLog('EDITADO', newNr, `Estaciones/caducidad actualizada.`);
-        }
-    } else {
-        const existingVersions = appData.nrs.filter(nr => nr.baseId === baseId);
-        const newVersion = existingVersions.length + 1;
-        const newId = newVersion > 1 ? `NR-${baseId}-${newVersion}` : `NR-${baseId}`;
-
-        const newNr: NR = {
-            id: newId, baseId, version: newVersion,
-            stations: selectedStations, expiryDate, expiryTime,
-            isAmpliado, isCaducado: false
-        };
-        appData.nrs.push(newNr);
-        addHistoryLog('AÑADIDO', newNr, `Nuevo radioaviso creado.`);
-    }
-
-    saveData();
-    renderAll();
-}
-
-// --- MAIN RENDER & INITIALIZATION ---
-export function renderRadioavisos(container: HTMLElement) {
-    container.innerHTML = `
-        <div class="content-card">
-            <h2 class="content-card-title">Gestión y Consulta de Radioavisos</h2>
-            <div class="info-nav-tabs">
-                <button class="info-nav-btn active" data-target="tab-nr-management">Gestión NRs</button>
-                <button class="info-nav-btn" data-target="tab-nr-history">Historial</button>
-                <button class="info-nav-btn" data-target="tab-salvamento-avisos">Avisos SASEMAR</button>
-            </div>
-            <main class="info-content">
-                <div id="tab-nr-management" class="sub-tab-panel active">
-                    <div class="nr-management-header">
-                        <h3>Gestión de Radioavisos (NR)</h3>
-                        <button id="add-nr-btn" class="primary-btn">Añadir Nuevo NR</button>
-                    </div>
-                    <div id="nr-management-content"></div>
-                </div>
-                <div id="tab-nr-history" class="sub-tab-panel">
-                    <h3>Historial de Cambios</h3>
-                    <div id="nr-history-content"></div>
-                </div>
-                <div id="tab-salvamento-avisos" class="sub-tab-panel">
-                    <h3>Radioavisos de Salvamento Marítimo (Web)</h3>
-                    <div id="salvamento-avisos-content"></div>
-                </div>
-            </main>
-        </div>
-    `;
-    initializeRadioavisos(container);
-}
-
-function initializeRadioavisos(container: HTMLElement) {
-    container.querySelector('#add-nr-btn')?.addEventListener('click', () => renderNRModal());
+    const closeModal = () => modalOverlay.remove();
     
-    container.addEventListener('click', e => {
+    modalOverlay.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
-        const btn = target.closest<HTMLButtonElement>('.info-nav-btn');
-        if (btn) {
-            const targetId = btn.dataset.target;
-            if (!targetId) return;
-            container.querySelectorAll('.info-nav-btn').forEach(b => b.classList.remove('active'));
-            container.querySelectorAll('.sub-tab-panel').forEach(p => p.classList.remove('active'));
-            btn.classList.add('active');
-            container.querySelector(`#${targetId}`)?.classList.add('active');
-        }
-
-        const actionBtn = target.closest<HTMLButtonElement>('.nr-entry-actions button');
-        if (actionBtn) {
-            const entryDiv = actionBtn.closest<HTMLDivElement>('.nr-entry');
-            const nrId = entryDiv?.dataset.nrId;
-            if (!nrId) return;
-
-            const nr = appData.nrs.find(n => n.id === nrId);
-            if (!nr) return;
-
-            const action = actionBtn.dataset.action;
-            if (action === 'edit') {
-                renderNRModal(nr);
-            } else if (action === 'cancel') {
-                if (confirm(`¿Seguro que quieres CANCELAR el radioaviso ${nr.baseId}? Esta acción no se puede deshacer.`)) {
-                    nr.isCaducado = true;
-                    addHistoryLog('CANCELADO', nr, 'Radioaviso cancelado manualmente.');
-                    saveData();
-                    renderAll();
-                }
-            } else if (action === 'delete') {
-                 if (confirm(`¿Seguro que quieres BORRAR el radioaviso ${nr.id}? Esta acción no se puede deshacer.`)) {
-                    appData.nrs = appData.nrs.filter(n => n.id !== nrId);
-                    addHistoryLog('BORRADO', nr, `Radioaviso ${nr.id} borrado del sistema.`);
-                    saveData();
-                    renderAll();
-                }
+        if (target === modalOverlay || target.closest('.modal-cancel-btn')) {
+            closeModal();
+        } else if (target.closest('.modal-save-btn')) {
+            const form = modalOverlay.querySelector('form');
+            if(form) {
+                handleEditSubmit(form, nr.id).then(() => {
+                    closeModal();
+                });
             }
         }
     });
-
-    fetchData();
 }
