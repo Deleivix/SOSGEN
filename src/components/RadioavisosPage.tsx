@@ -32,7 +32,7 @@ type HistoryLog = {
     nrId: string; details: string;
 };
 type AppData = { nrs: NR[]; history: HistoryLog[]; };
-type View = 'RADIOAVISOS' | 'AÑADIR' | 'EDITAR' | 'HISTORIAL';
+type View = 'RADIOAVISOS' | 'AÑADIR' | 'HISTORIAL';
 type SortDirection = 'ascending' | 'descending';
 type SortConfig<T> = { key: keyof T; direction: SortDirection };
 
@@ -124,14 +124,14 @@ function parseExpiry(caducidad: string): { expiryDate: string, expiryTime: strin
     };
 }
 
-const getMedioTags = (zona: string): string => {
+const getMedioTags = (zona: string): string[] => {
     const upperZona = zona.toUpperCase();
     const zonasArray = upperZona.split(',').map(z => z.trim()).filter(Boolean);
     const hasCoruna = zonasArray.includes('CORUÑA');
     const hasOtherZones = zonasArray.some(z => z !== 'CORUÑA');
-    let tags = '';
-    if (hasCoruna) tags += `<span class="category-badge navtex" style="margin-right: 4px;">NAVTEX</span>`;
-    if (hasOtherZones || !hasCoruna) tags += `<span class="category-badge fonia">FONÍA</span>`;
+    const tags: string[] = [];
+    if (hasCoruna) tags.push('NAVTEX');
+    if (hasOtherZones || !hasCoruna) tags.push('FONÍA');
     return tags;
 };
 
@@ -202,7 +202,6 @@ async function syncWithSalvamento() {
         const activeLocalVersion = nrsActualizados.find(nr => nr.baseId === avisoBaseId && !nr.isCaducado);
 
         if (activeLocalVersion) {
-            // An active version exists. Just check if we need to add Navtex.
             const alreadyHasNavtex = activeLocalVersion.stations.includes('Navtex');
             if (isNavtexAviso && !alreadyHasNavtex) {
                 hayCambios = true;
@@ -213,14 +212,12 @@ async function syncWithSalvamento() {
                 }
             }
         } else {
-            // No active version found. It's either a brand new NR, or a "revival" of a caducado one.
             const allLocalVersions = nrsActualizados.filter(nr => nr.baseId === avisoBaseId);
             const latestCaducadoVersion = allLocalVersions
                 .filter(nr => nr.isCaducado)
-                .sort((a, b) => b.version - a.version)[0]; // get the latest one
+                .sort((a, b) => b.version - a.version)[0]; 
 
             if (latestCaducadoVersion) {
-                // "Revival" case: Update the latest caducado version to be active again.
                 hayCambios = true;
                 const index = nrsActualizados.findIndex(nr => nr.id === latestCaducadoVersion.id);
                 if (index > -1) {
@@ -236,7 +233,6 @@ async function syncWithSalvamento() {
                     nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: `Reactivado automáticamente (versión ${latestCaducadoVersion.version}) desde SASEMAR.` });
                 }
             } else {
-                // Truly new NR case: No local versions exist at all for this baseId.
                 hayCambios = true;
                 const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
                 const newNR: NR = {
@@ -347,17 +343,6 @@ function renderLocalManagerHTML(): string {
 
     return `
         <div class="content-card" style="max-width: none; width: 100%;">
-             <div class="form-divider" style="width: 100%; margin: -0.5rem auto 1.5rem auto;">
-                <span>Gestor de Radioavisos</span>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-                <h2 class="content-card-title" style="margin: 0; padding: 0; border: none;">SOSGEN</h2>
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <button class="secondary-btn" data-action="import">Importar</button>
-                    <input type="file" accept=".json" class="file-input-hidden" style="display: none;" />
-                    <button class="secondary-btn" data-action="export">Exportar</button>
-                </div>
-            </div>
             <div class="info-nav-tabs">
                 ${views.map(v => `<button class="info-nav-btn ${state.currentView === v.id ? 'active' : ''}" data-view="${v.id}" data-action="switch-view">${v.name}</button>`).join('')}
             </div>
@@ -387,32 +372,36 @@ async function handleSwitchView(element: HTMLElement) {
 async function handleGoToEdit(fullId: string) {
     if (!fullId) return;
     const baseId = getBaseId(fullId);
-    state.currentView = 'EDITAR'; 
+    state.currentView = 'RADIOAVISOS'; 
     await reRender(); 
+    const editForm = state.componentContainer?.querySelector('#edit-form-container') as HTMLElement | null;
     const searchInput = state.componentContainer?.querySelector('#edit-search-id') as HTMLInputElement | null;
-    const searchButton = state.componentContainer?.querySelector('button[data-action="edit-search"]') as HTMLButtonElement | null;
-    if (searchInput && searchButton) {
-        searchInput.value = baseId;
-        searchButton.click(); 
-    }
-}
+    if (searchInput) searchInput.value = baseId;
 
-async function handleCompleteNr(element: HTMLElement) {
-    const fullId = element.dataset.nrId;
-    if (fullId) await handleGoToEdit(fullId);
+    const nrToEdit = state.appData.nrs.filter(nr => nr.baseId === baseId && !nr.isCaducado).sort((a, b) => b.version - a.version)[0];
+    if (nrToEdit && editForm && state.componentContainer) {
+        editForm.dataset.fullId = nrToEdit.id;
+        (state.componentContainer.querySelector('#edit-expiry-date') as HTMLInputElement).value = nrToEdit.expiryDate;
+        (state.componentContainer.querySelector('#edit-expiry-time') as HTMLInputElement).value = nrToEdit.expiryTime;
+        (state.componentContainer.querySelector('#edit-is-ampliado') as HTMLInputElement).checked = nrToEdit.isAmpliado;
+        state.componentContainer.querySelectorAll<HTMLInputElement>('#edit-stations-group input').forEach(cb => cb.checked = nrToEdit.stations.includes(cb.value));
+        editForm.style.display = 'block';
+    } else if (editForm) {
+        editForm.style.display = 'none';
+    }
 }
 
 async function handleCancelNR(baseId: string) {
     const user = getCurrentUser();
     if (!user) return showToast("Error de sesión.", "error");
     try {
-        if (!state.appData.nrs.some(nr => getBaseId(nr.id) === baseId && !nr.isCaducado)) {
+        if (!state.appData.nrs.some(nr => nr.baseId === baseId && !nr.isCaducado)) {
             return showToast(`El NR ${baseId} no existe o ya está cancelado.`, "error");
         }
         if (!window.confirm(`¿Está seguro de que desea CANCELAR todas las versiones vigentes del NR ${baseId}?`)) return;
         
         const finalData: AppData = {
-            nrs: state.appData.nrs.map(nr => (getBaseId(nr.id) === baseId ? {...nr, isCaducado: true} : nr)),
+            nrs: state.appData.nrs.map(nr => (nr.baseId === baseId ? {...nr, isCaducado: true} : nr)),
             history: [{id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: baseId, details: `Marcadas todas las versiones como caducadas.`}, ...state.appData.history]
         };
         await api.saveData(finalData);
@@ -448,15 +437,10 @@ function attachEventListeners(container: HTMLElement) {
             switch(action) {
                 case 'refresh-salvamento': await handleRefreshSalvamento(); break;
                 case 'switch-view': await handleSwitchView(actionElement); break;
-                case 'import': state.componentContainer?.querySelector<HTMLInputElement>('.file-input-hidden')?.click(); break;
-                case 'export': handleExport(); break;
                 case 'add-submit': await handleAddSubmit(); break;
-                case 'add-clear': state.currentView = 'AÑADIR'; await reRender(); break;
-                case 'edit-search': await handleEditSearch(); break;
                 case 'edit-save': await handleEditSave(); break;
                 case 'go-to-edit': await handleGoToEdit(actionElement.dataset.nrId!); break;
                 case 'cancel-nr': await handleCancelNR(actionElement.dataset.nrId!); break;
-                case 'complete-nr': await handleCompleteNr(actionElement); break;
             }
         } else if (target.closest('th[data-sort-key]')) {
             await handleSort(target.closest('th[data-sort-key]')!);
@@ -480,7 +464,6 @@ function attachEventListeners(container: HTMLElement) {
         const target = e.target as HTMLInputElement;
         if (target.id === 'add-is-versionado') (document.getElementById('add-versioned-id-container') as HTMLElement).style.display = target.checked ? 'block' : 'none';
         else if (target.id === 'add-has-expiry') (document.getElementById('add-expiry-inputs') as HTMLElement).style.display = target.checked ? 'flex' : 'none';
-        else if (target.classList.contains('file-input-hidden')) handleFileChange(e);
     });
 }
 
@@ -497,17 +480,17 @@ async function handleAddSubmit() {
         if (stations.length === 0) return showToast("Debe seleccionar al menos una estación.", "error");
         const versionadoCheckbox = container.querySelector('#add-is-versionado') as HTMLInputElement;
         const versionedFrom = versionadoCheckbox.checked ? (container.querySelector('#add-versioned-id') as HTMLInputElement).value.trim() : undefined;
-        if (state.appData.nrs.some(nr => getBaseId(nr.id) === baseId && !nr.isCaducado && !versionedFrom)) return showToast(`Error: El NR ${baseId} ya existe y está vigente.`, "error");
+        if (state.appData.nrs.some(nr => nr.baseId === baseId && !nr.isCaducado && !versionedFrom)) return showToast(`Error: El NR ${baseId} ya existe y está vigente.`, "error");
         
         let version = 1;
         let nrsToUpdate = [...state.appData.nrs];
         let historyToUpdate = [...state.appData.history];
         if (versionedFrom) {
-            const versionedFromBaseId = getBaseId(versionedFrom.startsWith('NR-') ? versionedFrom : `NR-${versionedFrom}`);
-            const previousVersions = nrsToUpdate.filter(nr => getBaseId(nr.id) === versionedFromBaseId);
+            const versionedFromBaseId = getBaseId(`NR-${versionedFrom}`);
+            const previousVersions = nrsToUpdate.filter(nr => nr.baseId === versionedFromBaseId);
             if (previousVersions.length > 0) {
                 version = Math.max(...previousVersions.map(nr => nr.version)) + 1;
-                nrsToUpdate = nrsToUpdate.map(nr => getBaseId(nr.id) === versionedFromBaseId ? { ...nr, isCaducado: true } : nr);
+                nrsToUpdate = nrsToUpdate.map(nr => nr.baseId === versionedFromBaseId ? { ...nr, isCaducado: true } : nr);
                 historyToUpdate.unshift({id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'CANCELADO', nrId: versionedFromBaseId, details: `Versionado a ${baseId}`});
             }
         }
@@ -554,82 +537,107 @@ async function handleEditSave() {
     } catch (error) { showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error"); }
 }
 
-async function handleEditSearch() {
-    if (!state.componentContainer) return;
-    const container = state.componentContainer;
-    const searchInput = container.querySelector('#edit-search-id') as HTMLInputElement;
-    const formContainer = container.querySelector('#edit-form-container') as HTMLElement;
-    const searchId = searchInput.value.trim();
-    try {
-        const foundNRs = state.appData.nrs.filter(nr => getBaseId(nr.id) === searchId && !nr.isCaducado);
-        if (foundNRs.length > 0) {
-            const latestVersion = foundNRs.sort((a, b) => b.version - a.version)[0];
-            formContainer.dataset.fullId = latestVersion.id;
-            (container.querySelector('#edit-expiry-date') as HTMLInputElement).value = latestVersion.expiryDate;
-            (container.querySelector('#edit-expiry-time') as HTMLInputElement).value = latestVersion.expiryTime;
-            (container.querySelector('#edit-is-ampliado') as HTMLInputElement).checked = latestVersion.isAmpliado;
-            container.querySelectorAll<HTMLInputElement>('#edit-stations-group input').forEach(cb => cb.checked = latestVersion.stations.includes(cb.value));
-            formContainer.style.display = 'block';
-        } else {
-            showToast(`NR ${searchId} no encontrado o está cancelado.`, 'info');
-            formContainer.style.display = 'none';
-        }
-    } catch (error) { showToast("Error al buscar: " + (error instanceof Error ? error.message : "Error"), "error"); }
-}
-
-function handleExport() {
-    const dataStr = JSON.stringify(state.appData, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.download = `radioavisos_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    link.href = url;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
-
-function handleFileChange(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    if (!window.confirm("¡ADVERTENCIA! Importar reemplazará TODOS los datos actuales. ¿Continuar?")) {
-        if (input) input.value = ""; return;
-    }
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            const parsedData = JSON.parse(e.target?.result as string) as AppData;
-            if (!Array.isArray(parsedData.nrs) || !Array.isArray(parsedData.history)) throw new Error("Formato incorrecto.");
-            await api.saveData(parsedData);
-            state.appData = parsedData;
-            showToast("Datos importados.", 'success');
-            await reRender();
-        } catch (error) {
-            showToast(`Error al importar: ${(error as Error).message}`, 'error');
-        } finally {
-            if (input) input.value = "";
-        }
-    };
-    reader.readAsText(file);
-}
-
 // =================================================================================
 // --- HTML TEMPLATES FOR VIEWS ---
 // =================================================================================
 
 function renderCurrentViewContent(): string {
     switch (state.currentView) {
-        case 'RADIOAVISOS': return renderUnifiedRadioavisosView();
+        case 'RADIOAVISOS':
+            return `
+                ${renderStationStatusTableHTML()}
+                <div class="form-divider" style="width: 100%; margin: 2.5rem auto 2rem auto;">
+                    <span>Listado Detallado y Acciones</span>
+                </div>
+                ${renderMasterNrTableHTML()}
+            `;
         case 'AÑADIR': return renderAddView();
-        case 'EDITAR': return renderEditView();
         case 'HISTORIAL': return renderHistoryView();
         default: return `<p>Vista no encontrada</p>`;
     }
 }
 
-function renderUnifiedRadioavisosView(): string {
+function renderStationStatusTableHTML(): string {
+    const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado);
+
+    const stationsByType = {
+        vhf: STATIONS_VHF.map(s => s.replace(' VHF', '')),
+        mf: STATIONS_MF.map(s => s.replace(' MF', '')),
+        navtex: ['Navtex']
+    };
+
+    const nrsByStation: { [key: string]: NR[] } = {};
+    ALL_STATIONS.forEach(station => {
+        nrsByStation[station.replace(/ (VHF|MF)$/, '')] = activeNRs
+            .filter(nr => nr.stations.includes(station))
+            .sort((a, b) => a.id.localeCompare(b.id));
+    });
+
+    const maxRows = Math.max(0, ...Object.values(nrsByStation).map(nrs => nrs.length));
+
+    let tableBodyHtml = '';
+    if (maxRows === 0) {
+        tableBodyHtml = `<tr><td colspan="${ALL_STATIONS.length}" class="drill-placeholder">No hay NRs vigentes asignados a estaciones.</td></tr>`;
+    } else {
+        for (let i = 0; i < maxRows; i++) {
+            tableBodyHtml += '<tr>';
+            [...stationsByType.vhf, ...stationsByType.mf, ...stationsByType.navtex].forEach(stationName => {
+                const nr = nrsByStation[stationName]?.[i];
+                const displayText = nr ? `NR-${nr.baseId}` : ''; 
+                tableBodyHtml += `<td>${displayText}</td>`;
+            });
+            tableBodyHtml += '</tr>';
+        }
+    }
+
+    const lastAdded = state.appData.history.find(h => h.action === 'AÑADIDO');
+    const lastEdited = state.appData.history.find(h => h.action === 'EDITADO');
+    const lastDeleted = state.appData.history.find(h => h.action === 'BORRADO' || h.action === 'CANCELADO');
+
+    return `
+        <div class="station-table-container">
+            <h3 style="text-align:center; padding: 0.75rem; margin:0;">Radioavisos Vigentes por Estación</h3>
+            <div class="table-wrapper">
+                <table class="station-table horizontal-table">
+                    <thead>
+                        <tr>
+                            ${stationsByType.vhf.map(s => `<th class="header-vhf">${s}</th>`).join('')}
+                            ${stationsByType.mf.map(s => `<th class="header-mf">${s} MF</th>`).join('')}
+                            ${stationsByType.navtex.map(s => `<th class="header-navtex">${s}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableBodyHtml}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Total NRs vigentes:</div>
+                <div class="value green">${activeNRs.length}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Último NR añadido:</div>
+                <div class="value">${lastAdded ? lastAdded.nrId : '-'}</div>
+                <div class="label">Por: ${lastAdded ? lastAdded.user : '-'}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Último NR editado:</div>
+                <div class="value">${lastEdited ? lastEdited.nrId : '-'}</div>
+                 <div class="label">Por: ${lastEdited ? lastEdited.user : '-'}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Último NR borrado:</div>
+                <div class="value red">${lastDeleted ? lastDeleted.nrId : '-'}</div>
+                 <div class="label">Por: ${lastDeleted ? lastDeleted.user : '-'}</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderMasterNrTableHTML(): string {
     const spinnerIcon = `<svg class="spinner" style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
     const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
     const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>`;
@@ -639,7 +647,7 @@ function renderUnifiedRadioavisosView(): string {
     const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado);
     
     const filteredNrs = activeNRs.filter(nr => {
-        const officialAviso = state.salvamentoAvisos.find(aviso => getBaseId(aviso.num) === getBaseId(nr.id));
+        const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num.includes(nr.baseId));
         return nr.id.toLowerCase().includes(searchTerm) ||
                (officialAviso?.asunto.toLowerCase().includes(searchTerm)) ||
                (officialAviso?.zona.toLowerCase().includes(searchTerm)) ||
@@ -648,7 +656,9 @@ function renderUnifiedRadioavisosView(): string {
 
     const sortedNrs = [...filteredNrs].sort((a, b) => {
         const { key, direction } = state.sortConfig;
-        const comparison = String(a[key]).localeCompare(String(b[key]), undefined, { numeric: true });
+        const valueA = a[key];
+        const valueB = b[key];
+        const comparison = String(valueA).localeCompare(String(valueB), undefined, { numeric: true });
         return direction === 'ascending' ? comparison : -comparison;
     });
 
@@ -679,7 +689,8 @@ function renderUnifiedRadioavisosView(): string {
                 </thead>
                 <tbody>
                 ${sortedNrs.map(nr => {
-                    const officialAviso = state.salvamentoAvisos.find(aviso => getBaseId(aviso.num) === getBaseId(nr.id));
+                    const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num.includes(nr.baseId));
+                    const medios = officialAviso ? getMedioTags(officialAviso.zona) : [];
                     return `
                         <tr>
                             <td style="text-align: center;"><span class="status-dot ${getExpiryStatus(nr)}"></span></td>
@@ -691,13 +702,13 @@ function renderUnifiedRadioavisosView(): string {
                                 ${officialAviso ? `<span class="category-badge ${officialAviso.prioridad.toLowerCase()}">${officialAviso.prioridad}</span>` : ''}
                             </td>
                             <td>
-                                ${officialAviso ? getMedioTags(officialAviso.zona) : ''}
+                                ${medios.map(m => `<span class="category-badge ${m.toLowerCase()}" style="margin-right: 4px;">${m}</span>`).join('')}
                             </td>
                             <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
                             <td>
                                 <div style="display: flex; gap: 0.5rem; justify-content: center;">
                                     <button class="secondary-btn" data-action="go-to-edit" data-nr-id="${nr.id}">Editar</button>
-                                    <button class="tertiary-btn" data-action="cancel-nr" data-nr-id="${getBaseId(nr.id)}">Cancelar</button>
+                                    <button class="tertiary-btn" data-action="cancel-nr" data-nr-id="${nr.baseId}">Cancelar</button>
                                 </div>
                             </td>
                         </tr>
@@ -720,7 +731,7 @@ function renderUnifiedRadioavisosView(): string {
             </div>
             <div class="salvamento-panel-controls">
                 ${state.lastSalvamentoUpdate ? `<span class="last-update-text">${getFormattedDateTime(state.lastSalvamentoUpdate.toISOString())}</span>` : ''}
-                <button class="secondary-btn" data-action="refresh-salvamento" ${state.isSalvamentoLoading ? 'disabled' : ''}>
+                <button class="secondary-btn update-btn" data-action="refresh-salvamento" ${state.isSalvamentoLoading ? 'disabled' : ''}>
                     ${state.isSalvamentoLoading ? spinnerIcon : refreshIcon}
                     <span>${state.isSalvamentoLoading ? 'Actualizando...' : 'Actualizar'}</span>
                 </button>
@@ -755,31 +766,6 @@ function renderAddView(): string {
         </div>
         <div class="button-container">
             <button class="primary-btn" data-action="add-submit" style="margin-top:0;">GUARDAR</button>
-            <button class="secondary-btn" data-action="add-clear">LIMPIAR</button>
-        </div>
-    `;
-}
-
-function renderEditView(): string {
-     return `
-        <div class="form-group" style="display: flex; align-items: flex-end; gap: 1rem;">
-            <div style="flex-grow: 1;"><label for="edit-search-id">Buscar NR por ID (ej: 2237/2025)</label><input type="text" id="edit-search-id" placeholder="ID del NR, sin prefijo NR-" class="simulator-input"/></div>
-            <button class="primary-btn" data-action="edit-search" style="margin-top:0;">BUSCAR</button>
-        </div>
-        <div id="edit-form-container" style="display:none;">
-            <div class="form-divider" style="width: 100%; margin: 2rem auto;"></div>
-            <div class="form-grid">
-                <div class="form-group"><label for="edit-expiry-date">Fecha Caducidad (UTC)</label><input type="date" id="edit-expiry-date" class="simulator-input" /></div>
-                <div class="form-group"><label for="edit-expiry-time">Hora Caducidad (UTC)</label><input type="time" id="edit-expiry-time" class="simulator-input" /></div>
-                <div class="form-group" style="justify-content: center;"><label><input type="checkbox" id="edit-is-ampliado" /> NR Ampliado</label></div>
-            </div>
-            <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Marque las EECC:</h3>
-            <div class="checkbox-group" id="edit-stations-group">
-                ${ALL_STATIONS.map(s => `<div class="checkbox-item"><input type="checkbox" id="edit-${s}" value="${s}"><label for="edit-${s}">${s}</label></div>`).join('')}
-            </div>
-            <div class="button-container">
-                <button class="primary-btn" data-action="edit-save" style="margin-top:0;">GUARDAR CAMBIOS</button>
-            </div>
         </div>
     `;
 }
@@ -793,7 +779,7 @@ function renderHistoryView(): string {
         return direction === 'ascending' ? comparison : -comparison;
     });
 
-    if (sortedHistory.length === 0) return `<div class="filterable-table-header">...</div><p>No hay operaciones.</p>`;
+    if (sortedHistory.length === 0) return `<div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history"></div><p class="drill-placeholder">No hay operaciones en el historial.</p>`;
     
     const renderHeader = (key: keyof HistoryLog, label: string) => `<th class="${state.historySortConfig.key === key ? `sort-${state.historySortConfig.direction}` : ''}" data-sort-key="${key}" data-table="history">${label}</th>`;
 
