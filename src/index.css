@@ -15,6 +15,8 @@
   --attention-color-bg: #FFF3E0;
   --attention-color-dark-bg: #4d2d00;
   --attention-color-dark: #FFCC80;
+  --importante-color: #9C27B0; /* Purple for 'Importante' */
+  --importante-color-dark: #CE93D8; /* Lighter Purple for dark theme */
 
 
   /* Light Theme */
@@ -1443,10 +1445,10 @@ body.dark-theme .attention-panel {
   white-space: nowrap;
 }
 .category-badge.importante {
-  background-color: var(--danger-color);
+  background-color: var(--importante-color);
 }
 body.dark-theme .category-badge.importante {
-  background-color: var(--danger-color-dark);
+  background-color: var(--importante-color-dark);
   color: var(--bg-main-dark);
 }
 .category-badge.rutinaria {
@@ -1488,8 +1490,8 @@ body.dark-theme .station-table th.header-navtex { background-color: var(--bg-car
 .status-green { background-color: var(--accent-color); }
 .status-yellow { background-color: var(--warning-color); }
 body.dark-theme .status-yellow { background-color: var(--warning-color-dark); }
-.status-orange { background-color: var(--attention-color); }
-body.dark-theme .status-orange { background-color: var(--attention-color-dark); }
+.status-orange { background-color: var(--danger-color); }
+body.dark-theme .status-orange { background-color: var(--danger-color-dark); }
 .status-legend {
     display: flex;
     gap: 1.5rem;

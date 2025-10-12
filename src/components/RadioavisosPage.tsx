@@ -1,4 +1,5 @@
 
+
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
@@ -685,6 +686,7 @@ function renderMasterNrTableHTML(): string {
                         <th>Prioridad</th>
                         <th>Medio</th>
                         ${renderHeader('expiryDate', 'Caducidad')}
+                        <th title="Indica si las estaciones han sido asignadas manualmente">Revisado</th>
                         <th style="text-align: center;">Acciones</th>
                     </tr>
                 </thead>
@@ -692,6 +694,20 @@ function renderMasterNrTableHTML(): string {
                 ${sortedNrs.map(nr => {
                     const officialAviso = state.salvamentoAvisos.find(aviso => aviso.num.includes(nr.baseId));
                     const medios = officialAviso ? getMedioTags(officialAviso.zona) : [];
+                    
+                    let isReviewed = false;
+                    if (officialAviso) {
+                        const zonasArray = officialAviso.zona.toUpperCase().split(',').map(z => z.trim()).filter(Boolean);
+                        const requiresOnlyNavtex = zonasArray.every(z => z === 'CORUÑA') && zonasArray.length > 0;
+                        const hasFoniaStation = nr.stations.some(s => s !== 'Navtex');
+                        const hasNavtexStation = nr.stations.includes('Navtex');
+                        isReviewed = (requiresOnlyNavtex && hasNavtexStation) || hasFoniaStation;
+                    } else {
+                        isReviewed = nr.stations.length > 0;
+                    }
+
+                    const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="var(--accent-color-dark)" viewBox="0 0 16 16" aria-hidden="true"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg>`;
+                    const crossIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="var(--danger-color)" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>`;
                     return `
                         <tr>
                             <td style="text-align: center;"><span class="status-dot ${getExpiryStatus(nr)}"></span></td>
@@ -710,6 +726,9 @@ function renderMasterNrTableHTML(): string {
                                 ${medios.map(m => `<span class="category-badge ${m.toLowerCase()}" style="margin-right: 4px;">${m}</span>`).join('')}
                             </td>
                             <td>${nr.expiryDate || 'N/A'} ${nr.expiryTime || ''}</td>
+                            <td style="text-align: center;" title="${isReviewed ? 'Estaciones asignadas' : 'Asignación de estaciones pendiente'}">
+                                ${isReviewed ? checkIcon : crossIcon}
+                            </td>
                             <td>
                                 <div style="display: flex; gap: 0.5rem; justify-content: center;">
                                     <button class="secondary-btn" data-action="go-to-edit" data-nr-id="${nr.id}">Editar</button>
