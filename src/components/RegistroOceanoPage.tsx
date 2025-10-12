@@ -28,20 +28,20 @@ export function renderRegistroOceano(container: HTMLElement) {
                                             </div>
                                             <div class="template-card-body">
                                                 <p id="reorg-final-text" style="margin-bottom: 1.5rem; min-height: 4.8em;"></p>
-                                                <div class="reorg-controls">
-                                                    <div>
-                                                        <h4 class="reorg-control-title">CCR que asume</h4>
-                                                        <div class="buoy-selector-group" id="reorg-ccr-selector">
-                                                            <button class="buoy-selector-btn" data-value="CCR VALENCIA">CCR VALENCIA</button>
-                                                            <button class="buoy-selector-btn" data-value="CCR LAS PALMAS">CCR LAS PALMAS</button>
-                                                        </div>
-                                                    </div>
+                                                <div class="reorg-controls" style="flex-direction: row; justify-content: flex-start; align-items: flex-end; gap: 2rem; flex-wrap: wrap;">
                                                     <div>
                                                         <h4 class="reorg-control-title">Turno</h4>
                                                         <div class="buoy-selector-group" id="reorg-turno-selector">
                                                             <button class="buoy-selector-btn" data-value="MAÑANA">MAÑANA</button>
                                                             <button class="buoy-selector-btn" data-value="TARDE">TARDE</button>
                                                             <button class="buoy-selector-btn" data-value="NOCHE">NOCHE</button>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h4 class="reorg-control-title">CCR que asume</h4>
+                                                        <div class="buoy-selector-group" id="reorg-ccr-selector">
+                                                            <button class="buoy-selector-btn" data-value="CCR VALENCIA">CCR VALENCIA</button>
+                                                            <button class="buoy-selector-btn" data-value="CCR LAS PALMAS">CCR LAS PALMAS</button>
                                                         </div>
                                                     </div>
                                                 </div>
