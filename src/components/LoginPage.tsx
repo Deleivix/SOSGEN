@@ -92,10 +92,6 @@ async function handleAuthSubmit(e: Event, onLogin: (user: User) => void) {
             errorEl.textContent = 'Usuario, Email y Contraseña son obligatorios.';
             return;
         }
-        if (!payload.email.toLowerCase().includes('@cellnex')) {
-            errorEl.textContent = 'Debe proporcionar un email de Cellnex válido.';
-            return;
-        }
     } else if (action === 'login') {
         const identifierInput = form.querySelector('#auth-identifier-input') as HTMLInputElement;
         const passwordInput = form.querySelector('#auth-password-input') as HTMLInputElement;
@@ -127,7 +123,7 @@ async function handleAuthSubmit(e: Event, onLogin: (user: User) => void) {
         }
 
         if (action === 'register') {
-            showToast('Usuario registrado con éxito. Por favor, inicie sesión.', 'success');
+            showToast(data.message, 'info', 5000);
             isRegisterView = false; // Switch back to login view
             const formContainer = form.parentElement as HTMLElement;
             renderAuthForm(formContainer, onLogin);

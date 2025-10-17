@@ -55,10 +55,11 @@ const expireNRs = async () => {
 
             // Perform the update
             const idsToExpire = nrsToExpire.map(nr => nr.id);
+            // FIX: Cast array to 'any' to satisfy @vercel/postgres template literal types for ANY operator.
             await client.sql`
                 UPDATE nrs
                 SET is_caducado = TRUE
-                WHERE id = ANY(${idsToExpire}::text[]);
+                WHERE id = ANY(${idsToExpire as any}::text[]);
             `;
         }
 
@@ -176,5 +177,4 @@ export default async function handler(request: VercelRequest, response: VercelRe
         const errorMessage = error instanceof Error ? error.message : 'An internal server error occurred.';
         return response.status(500).json({ error: 'Database operation failed', details: errorMessage });
     }
-    
 }

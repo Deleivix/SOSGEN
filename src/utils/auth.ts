@@ -6,6 +6,7 @@
 export type User = {
     id: number;
     username: string;
+    isAdmin: boolean;
 };
 
 let currentUser: User | null = null;
