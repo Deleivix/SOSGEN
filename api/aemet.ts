@@ -28,12 +28,14 @@ function parseWarningFromXml(xmlText: string): string | null {
 }
 
 // --- Helper Functions for forecast ---
+const CORUNA_AVG_ZONE = 'ZONA_CORUNA_PROMEDIA';
+
 const STATION_ZONE_MAPPING: { [key: string]: string } = {
     'La Guardia': 'AGUAS COSTERAS DE PONTEVEDRA',
     'Vigo': 'AGUAS COSTERAS DE PONTEVEDRA',
-    'Finisterre': 'SUR DE FISTERRA', 
-    'A Coruña': 'NORTE DE FISTERRA', 
-    'Ortegal': 'NORTE DE FISTERRA', 
+    'Finisterre': CORUNA_AVG_ZONE,
+    'A Coruña': CORUNA_AVG_ZONE,
+    'Ortegal': CORUNA_AVG_ZONE,
     'Navia': 'AGUAS COSTERAS DE ASTURIAS',
     'Cabo Peñas': 'AGUAS COSTERAS DE ASTURIAS',
     'Santander': 'AGUAS COSTERAS DE CANTABRIA',
@@ -200,36 +202,14 @@ async function getForecast() {
             const zoneName = zoneMatch[1].trim().toUpperCase();
             const zoneContent = zoneMatch[2];
             
-            // --- SPECIAL HANDLING FOR A CORUÑA (Improved Logic) ---
+            // --- SPECIAL HANDLING FOR A CORUÑA (Unified Forecast) ---
             if (zoneName === 'AGUAS COSTERAS DE A CORUÑA') {
                 const fullTextMatch = zoneContent.match(textoRegex);
                 if (fullTextMatch && fullTextMatch[1]) {
-                    const fullText = fullTextMatch[1].toUpperCase().replace(/\s+/g, ' ').trim();
-                    const southMarker = 'AL SUR DE FISTERRA';
-                    const commonMarker = 'AMBAS ZONAS';
-                    const southIndex = fullText.indexOf(southMarker);
-                    
-                    if (southIndex !== -1) {
-                        const commonIndex = fullText.indexOf(commonMarker);
-                        let northPart = fullText.substring(0, southIndex);
-                        let southPart = fullText.substring(southIndex);
-                        let commonPart = '';
-
-                        if (commonIndex !== -1) {
-                            if (commonIndex > southIndex) {
-                                southPart = fullText.substring(southIndex, commonIndex);
-                            }
-                            commonPart = fullText.substring(commonIndex);
-                        }
-
-                        const northTextToParse = `${northPart} ${commonPart}`.trim();
-                        const southTextToParse = `${southPart} ${commonPart}`.trim();
-
-                        zoneForecasts.set('NORTE DE FISTERRA', parseForecastFromText(northTextToParse));
-                        zoneForecasts.set('SUR DE FISTERRA', parseForecastFromText(southTextToParse));
-                        
-                        continue; // Skip generic processing for this zone
-                    }
+                    const fullText = fullTextMatch[1];
+                    // Parse the entire text for a single, representative (worst-case) forecast
+                    zoneForecasts.set(CORUNA_AVG_ZONE, parseForecastFromText(fullText));
+                    continue; // Skip generic processing for this zone
                 }
             }
             // --- END: SPECIAL HANDLING ---
@@ -259,8 +239,13 @@ async function getForecast() {
 
     const forecastData = [];
     for (const [stationName, zoneNameToFind] of Object.entries(STATION_ZONE_MAPPING)) {
-        const matchingKey = [...zoneForecasts.keys()].find(key => key.includes(zoneNameToFind));
-        const zoneForecast = matchingKey ? zoneForecasts.get(matchingKey) : undefined;
+        let zoneForecast;
+        if (zoneNameToFind === CORUNA_AVG_ZONE) {
+            zoneForecast = zoneForecasts.get(CORUNA_AVG_ZONE);
+        } else {
+            const matchingKey = [...zoneForecasts.keys()].find(key => key.includes(zoneNameToFind));
+            zoneForecast = matchingKey ? zoneForecasts.get(matchingKey) : undefined;
+        }
 
         if (zoneForecast) {
             forecastData.push({ locationName: stationName, ...zoneForecast });
