@@ -243,10 +243,8 @@ nav {
   border-top: 2px solid var(--accent-color);
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 2rem;
   height: 64px;
-  gap: 2rem;
 }
 .nav-brand {
   display: flex;
@@ -256,6 +254,7 @@ nav {
   font-weight: 700;
   color: var(--text-inverted);
   flex-shrink: 0;
+  margin-right: 2rem;
 }
 .nav-logo { width: 32px; height: 32px; }
 .nav-links-container {
@@ -264,6 +263,7 @@ nav {
   gap: 1.25rem;
   flex-shrink: 1;
   min-width: 0;
+  overflow: hidden;
 }
 .nav-icon {
     width: 20px;
@@ -296,6 +296,8 @@ nav {
     align-items: center;
     gap: 1.5rem;
     flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 2rem;
 }
 .user-session-controls {
     display: flex;
