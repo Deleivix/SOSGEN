@@ -409,6 +409,51 @@ async function handleCancelNR(baseId: string) {
     }
 }
 
+async function handleDeleteNR(fullId: string): Promise<boolean> {
+    const user = getCurrentUser();
+    if (!user) {
+        showToast("Error de sesión.", "error");
+        return false;
+    }
+
+    const nrToDelete = state.appData.nrs.find(nr => nr.id === fullId);
+    if (!nrToDelete) {
+        showToast("El NR a borrar ya no existe.", "error");
+        await loadInitialData(false);
+        return true;
+    }
+
+    if (!window.confirm(`¿Está seguro de que desea BORRAR PERMANENTEMENTE el NR ${fullId}? Esta acción no se puede deshacer.`)) {
+        return false;
+    }
+
+    try {
+        const finalData: AppData = {
+            nrs: state.appData.nrs.filter(nr => nr.id !== fullId),
+            history: [
+                {
+                    id: `log-${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    user: user.username,
+                    action: 'BORRADO',
+                    nrId: nrToDelete.baseId,
+                    details: `Borrada la versión ${nrToDelete.version} (${fullId}).`
+                },
+                ...state.appData.history
+            ]
+        };
+
+        await api.saveData(finalData);
+        showToast(`${fullId} ha sido borrado.`, 'info');
+        await loadInitialData(false);
+        return true;
+    } catch (error) {
+        showToast("Error al borrar: " + (error instanceof Error ? error.message : "Error desconocido"), "error");
+        return false;
+    }
+}
+
+
 async function handleSort(element: HTMLElement) {
     const key = element.dataset.sortKey;
     const targetTable = element.dataset.table;
@@ -502,19 +547,20 @@ async function handleAddSubmit() {
     } catch (error) { showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error"); }
 }
 
-async function handleEditSubmit(formContainer: HTMLElement, fullId: string) {
+async function handleEditSubmit(formContainer: HTMLElement, fullId: string): Promise<boolean> {
     const user = getCurrentUser();
-    if (!user) return;
+    if (!user) return false;
     try {
         const nrToUpdate = state.appData.nrs.find(nr => nr.id === fullId);
         if (!nrToUpdate) {
             showToast("El NR a editar ya no existe.", "error");
-            return loadInitialData();
+            await loadInitialData(false);
+            return true;
         }
         const updatedStations = Array.from(formContainer.querySelectorAll<HTMLInputElement>('#modal-edit-stations-group input:checked')).map(cb => cb.value);
         if (updatedStations.length === 0) {
             showToast("Debe seleccionar al menos una estación.", "error");
-            return;
+            return false;
         }
         const finalData: AppData = {
             nrs: state.appData.nrs.map(nr =>
@@ -532,8 +578,10 @@ async function handleEditSubmit(formContainer: HTMLElement, fullId: string) {
         await api.saveData(finalData);
         showToast(`${fullId} actualizado.`, 'success');
         await loadInitialData(false);
+        return true;
     } catch (error) {
         showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error");
+        return false;
     }
 }
 
@@ -856,9 +904,12 @@ function renderEditNrModal(nr: NR) {
                     `).join('')}
                 </div>
             </form>
-            <div class="button-container" style="justify-content: flex-end; border-top:none; padding-top: 1rem;">
-                <button class="secondary-btn modal-cancel-btn">Cancelar</button>
-                <button class="primary-btn modal-save-btn" style="margin-top: 0; width: auto;">Guardar Cambios</button>
+            <div class="button-container" style="justify-content: space-between; align-items: center; border-top:none; padding-top: 1.5rem;">
+                <button class="tertiary-btn modal-delete-btn">Borrar NR</button>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="secondary-btn modal-cancel-btn">Cancelar</button>
+                    <button class="primary-btn modal-save-btn" style="margin-top: 0; width: auto;">Guardar Cambios</button>
+                </div>
             </div>
         </div>
     `;
@@ -866,17 +917,19 @@ function renderEditNrModal(nr: NR) {
 
     const closeModal = () => modalOverlay.remove();
     
-    modalOverlay.addEventListener('click', (e) => {
+    modalOverlay.addEventListener('click', async (e) => {
         const target = e.target as HTMLElement;
         if (target === modalOverlay || target.closest('.modal-cancel-btn')) {
             closeModal();
         } else if (target.closest('.modal-save-btn')) {
             const form = modalOverlay.querySelector('form');
             if(form) {
-                handleEditSubmit(form, nr.id).then(() => {
-                    closeModal();
-                });
+                const success = await handleEditSubmit(form, nr.id);
+                if (success) closeModal();
             }
+        } else if (target.closest('.modal-delete-btn')) {
+            const success = await handleDeleteNR(nr.id);
+            if (success) closeModal();
         }
     });
 }

@@ -21,14 +21,54 @@ type AppData = { nrs: NR[]; history: HistoryLog[]; };
 
 // --- AUTOMATIC EXPIRATION LOGIC (GLOBAL) ---
 const expireNRs = async () => {
-    await sql`
-        UPDATE nrs
-        SET is_caducado = TRUE
-        WHERE is_caducado = FALSE
-        AND expiry_date IS NOT NULL AND expiry_date != ''
-        AND expiry_time IS NOT NULL AND expiry_time != ''
-        AND TO_TIMESTAMP(expiry_date || ' ' || expiry_time, 'YYYY-MM-DD HH24:MI') < NOW() AT TIME ZONE 'UTC';
-    `;
+    const client = await db.connect();
+    try {
+        await client.sql`BEGIN`;
+
+        // Find NRs that are about to expire
+        const nrsToExpireResult = await client.sql`
+            SELECT id, base_id, version
+            FROM nrs
+            WHERE is_caducado = FALSE
+            AND expiry_date IS NOT NULL AND expiry_date != ''
+            AND expiry_time IS NOT NULL AND expiry_time != ''
+            AND TO_TIMESTAMP(expiry_date || ' ' || expiry_time, 'YYYY-MM-DD HH24:MI') < NOW() AT TIME ZONE 'UTC';
+        `;
+        
+        const nrsToExpire = nrsToExpireResult.rows;
+
+        if (nrsToExpire.length > 0) {
+            // Log each expiration
+            for (const nr of nrsToExpire) {
+                const logId = `log-autoexpire-${nr.id}-${Date.now()}`;
+                const timestamp = new Date().toISOString();
+                const user = 'SISTEMA';
+                const action = 'CANCELADO';
+                const nrId = nr.base_id;
+                const details = `La versión ${nr.version} ha caducado automáticamente.`;
+                
+                await client.sql`
+                    INSERT INTO history (id, timestamp, "user", action, nr_id, details)
+                    VALUES (${logId}, ${timestamp}, ${user}, ${action}, ${nrId}, ${details});
+                `;
+            }
+
+            // Perform the update
+            const idsToExpire = nrsToExpire.map(nr => nr.id);
+            await client.sql`
+                UPDATE nrs
+                SET is_caducado = TRUE
+                WHERE id = ANY(${idsToExpire}::text[]);
+            `;
+        }
+
+        await client.sql`COMMIT`;
+    } catch (e) {
+        await client.sql`ROLLBACK`;
+        console.error("Error during automatic NR expiration:", e);
+    } finally {
+        client.release();
+    }
 };
 
 // --- MAIN HANDLER ---
