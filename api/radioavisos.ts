@@ -176,4 +176,5 @@ export default async function handler(request: VercelRequest, response: VercelRe
         const errorMessage = error instanceof Error ? error.message : 'An internal server error occurred.';
         return response.status(500).json({ error: 'Database operation failed', details: errorMessage });
     }
+    
 }
