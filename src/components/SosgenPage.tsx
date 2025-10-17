@@ -1,8 +1,6 @@
 import { getCurrentUser } from "../utils/auth";
 import { handleCopy, showToast } from "../utils/helpers";
 
-const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
-
 type SosgenHistoryEntry = {
     id: string;
     timestamp: string;
@@ -102,12 +100,15 @@ async function deleteHistoryEntry(id: string) {
 
 export function renderSosgen(container: HTMLElement) {
     container.innerHTML = `
-        <div class="page-banner">
-            <h1 class="banner-title">
-                ${NEW_LOGO_SVG.replace('nav-logo', 'banner-logo')}
-                <span>SOSGEN</span>
-            </h1>
-            <p class="banner-subtitle">Convierte descripciones de emergencias marítimas en mensajes MAYDAY RELAY estandarizados para comunicaciones radio costeras oficiales.</p>
+        <div class="procedure-box" style="margin-top: 0; margin-bottom: 2rem; border-left-width: 4px;">
+            <h2 class="content-card-title" style="margin-bottom: 1rem; border-bottom: none; padding-bottom: 0;">Instrucciones de Funcionamiento</h2>
+            <ol style="padding-left: 20px; font-size: 0.95rem; line-height: 1.7; color: var(--text-secondary);">
+                <li>Introduzca la descripción del suceso en lenguaje natural en el campo <strong>"Información de Socorro"</strong>.</li>
+                <li>Incluya todos los datos clave disponibles: buque, MMSI, POB, posición, naturaleza del peligro, estación que informa, etc.</li>
+                <li>Haga clic en <strong>"Generar Mensaje"</strong>. La IA creará el formato MAYDAY RELAY oficial en español e inglés.</li>
+                <li>Edite directamente los campos resaltados <span class="placeholder-input" contenteditable="false" style="cursor: default;">________</span> en los mensajes generados para añadir la hora o cualquier otro dato.</li>
+                <li>Utilice los botones "Copiar" para usar los mensajes. El historial se guarda automáticamente.</li>
+            </ol>
         </div>
         <div class="content-card">
             <h2 class="content-card-title">Información de Socorro</h2>
