@@ -27,7 +27,7 @@ type HistoryLog = {
     nrId: string; details: string;
 };
 type AppData = { nrs: NR[]; history: HistoryLog[]; };
-type View = 'RADIOAVISOS' | 'AÑADIR' | 'HISTORIAL';
+type View = 'NX' | 'AÑADIR' | 'HISTORIAL';
 type SortDirection = 'ascending' | 'descending';
 type SortConfig<T> = { key: keyof T; direction: SortDirection };
 
@@ -36,7 +36,7 @@ let state = {
     appData: { nrs: [] as NR[], history: [] as HistoryLog[] },
     isAppDataLoading: true,
     appDataError: null as string | null,
-    currentView: 'RADIOAVISOS' as View,
+    currentView: 'NX' as View,
     componentContainer: null as HTMLElement | null,
     // Salvamento Data
     salvamentoAvisos: [] as SalvamentoAviso[],
@@ -346,7 +346,7 @@ function renderLocalManagerHTML(): string {
     }
 
     const views: { id: View, name: string }[] = [
-        { id: 'RADIOAVISOS', name: 'Radioavisos' }, { id: 'AÑADIR', name: 'Añadir Manual' },
+        { id: 'NX', name: 'NX' }, { id: 'AÑADIR', name: 'Añadir Manual' },
         { id: 'HISTORIAL', name: 'Historial' }
     ];
 
@@ -542,7 +542,7 @@ async function handleAddSubmit() {
         const finalData: AppData = { nrs: [...nrsToUpdate, newNR], history: historyToUpdate };
         await api.saveData(finalData);
         showToast(`${newId} añadido.`, 'success');
-        state.currentView = 'RADIOAVISOS';
+        state.currentView = 'NX';
         await loadInitialData(false);
     } catch (error) { showToast("Error al guardar: " + (error instanceof Error ? error.message : "Error"), "error"); }
 }
@@ -591,7 +591,7 @@ async function handleEditSubmit(formContainer: HTMLElement, fullId: string): Pro
 
 function renderCurrentViewContent(): string {
     switch (state.currentView) {
-        case 'RADIOAVISOS':
+        case 'NX':
             return `
                 ${renderStationStatusTableHTML()}
                 <div class="form-divider" style="width: 100%; margin: 2.5rem auto 2rem auto;">
@@ -657,7 +657,7 @@ function renderStationStatusTableHTML(): string {
 
     return `
         <div class="station-table-container">
-            <h3 style="text-align:center; padding: 0.75rem; margin:0;">Radioavisos Vigentes por Estación</h3>
+            <h3 style="text-align:center; padding: 0.75rem; margin:0;">NX Vigentes por Estación</h3>
             <div class="table-wrapper">
                 <table class="station-table horizontal-table">
                     ${headersHtml}
@@ -696,6 +696,7 @@ function renderMasterNrTableHTML(): string {
     const spinnerIcon = `<svg class="spinner" style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
     const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
     const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>`;
+    const externalLinkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-left: 4px;"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>`;
     
     let content = '';
     const searchTerm = state.filterText.toLowerCase();
@@ -807,6 +808,9 @@ function renderMasterNrTableHTML(): string {
                 <input type="search" class="filter-input" placeholder="Filtrar radioavisos vigentes..." value="${state.filterText}" data-action="filter" data-filter-target="nrs">
             </div>
             <div class="salvamento-panel-controls">
+                <a href="https://radioavisos.salvamentomaritimo.es/" target="_blank" rel="noopener noreferrer" title="Ir a la fuente de datos oficial">
+                    Fuente: Salvamento Marítimo ${externalLinkIcon}
+                </a>
                 ${state.lastSalvamentoUpdate ? `<span class="last-update-text">${getFormattedDateTime(state.lastSalvamentoUpdate.toISOString())}</span>` : ''}
                 <button class="secondary-btn update-btn" data-action="refresh-salvamento" ${state.isSalvamentoLoading ? 'disabled' : ''}>
                     ${state.isSalvamentoLoading ? spinnerIcon : refreshIcon}

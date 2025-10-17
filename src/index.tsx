@@ -90,6 +90,9 @@ function renderMainApp(user: User) {
                 </div>
                 <div class="nav-links-container">
                     ${APP_PAGES.map((page, index) => {
+                        if (page.name === 'HOME') {
+                            return ''; // Do not render HOME tab
+                        }
                         if (page.name === 'ADMIN' && !user.isAdmin) {
                             return ''; // Don't render admin tab for non-admins
                         }
