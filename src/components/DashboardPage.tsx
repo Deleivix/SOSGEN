@@ -1,3 +1,4 @@
+
 /**
  * Renders a specific weather icon as an SVG string.
  * @param iconName - The name of the icon to render.
@@ -25,25 +26,54 @@ const DASHBOARD_CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Renders the warnings content into the card.
- * @param data - The data object containing the warnings summary.
+ * @param data - The data object containing the parsed warnings list.
  */
-function renderWarningsContent(data: any) {
+function renderWarningsContent(data: { warnings: { severity: string, text: string }[] }) {
     const warningsCard = document.getElementById('dashboard-warnings-card');
     if (!warningsCard) return;
     const warningsContent = warningsCard.querySelector('.dashboard-card-content');
     if (!warningsContent) return;
 
-    if (data && data.summary && data.summary.trim() !== '') {
-        warningsContent.innerHTML = `<pre class="warnings-card-content">${data.summary}</pre>`;
+    if (data.warnings && data.warnings.length > 0) {
+        const listHtml = data.warnings.slice(0, 4).map(w => { // Show top 4
+            const isRed = w.severity === 'Extreme';
+            const badgeClass = isRed ? 'alert-badge red' : 'alert-badge orange';
+            const badgeText = isRed ? 'ROJO' : 'NARANJA';
+            return `
+                <div style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                    <span class="${badgeClass}" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">${badgeText}</span>
+                    <span style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.4;">${w.text}</span>
+                </div>
+            `;
+        }).join('');
+
+        const remaining = data.warnings.length - 4;
+        const moreHtml = remaining > 0 ? `<div style="text-align: center; padding: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">... y ${remaining} más</div>` : '';
+
+        warningsContent.innerHTML = `
+            <div style="margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--bg-main);">
+                ${listHtml}
+                ${moreHtml}
+            </div>
+            <button class="secondary-btn" style="width: 100%; justify-content: center;" onclick="window.switchToPage(6)">
+                Ver Todos en FFAA
+            </button>
+        `;
         warningsCard.classList.add('has-warnings');
     } else {
-        warningsContent.innerHTML = '<p class="drill-placeholder" style="padding: 1rem 0;">No hay avisos costeros en vigor.</p>';
+        warningsContent.innerHTML = `
+            <div style="text-align: center; padding: 1.5rem 0;">
+                <p class="drill-placeholder" style="margin-bottom: 1rem;">No hay avisos costeros de nivel Naranja o Rojo en vigor.</p>
+                <button class="secondary-btn" onclick="window.switchToPage(6)">Ir a Pestaña FFAA</button>
+            </div>
+        `;
         warningsCard.classList.remove('has-warnings');
     }
 }
 
 /**
  * Fetches and renders the coastal weather warnings, using a client-side cache.
+ * Now fetches from MeteoAlarm (consistent with FFAA page).
  */
 async function initializeWarnings() {
     const warningsCard = document.getElementById('dashboard-warnings-card');
@@ -65,15 +95,58 @@ async function initializeWarnings() {
     warningsContent.innerHTML = skeletonHtml;
 
     try {
-        const response = await fetch('/api/aemet?type=warnings');
+        const response = await fetch('/api/meteoalarm');
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.details || 'No se pudieron cargar los avisos.');
         }
 
         const data = await response.json();
-        warningsCache = { data, timestamp: now }; // Update cache
-        renderWarningsContent(data);
+        
+        const activeWarnings: { severity: string, text: string, start: string }[] = [];
+        const currentDate = new Date();
+
+        if (data && Array.isArray(data.warnings)) {
+            data.warnings.forEach((entry: any) => {
+                // Find Spanish info block
+                const info = entry.alert.info.find((i: any) => i.language === 'es-ES') || entry.alert.info[0];
+                if (!info) return;
+
+                // Check Expiration
+                const expiresDate = new Date(info.expires);
+                if (expiresDate <= currentDate) return;
+
+                // Check Event Type (Coastal)
+                const awarenessTypeParam = info.parameter?.find((p: any) => p.valueName === 'awareness_type');
+                const isCoastal = (awarenessTypeParam && (awarenessTypeParam.value.includes('coastalevent') || awarenessTypeParam.value.startsWith('7;'))) 
+                                  || (info.event.toLowerCase().includes('costero') || info.event.toLowerCase().includes('coastal'));
+
+                // Check Severity (Orange/Red)
+                const severity = info.severity;
+                const isHighSeverity = severity === 'Severe' || severity === 'Extreme';
+
+                if (isCoastal && isHighSeverity) {
+                    info.area.forEach((area: any) => {
+                        activeWarnings.push({
+                            severity: severity,
+                            text: `${area.areaDesc}: ${info.event}`,
+                            start: info.onset || info.effective
+                        });
+                    });
+                }
+            });
+        }
+        
+        // Sort: Red first, then by start date
+        activeWarnings.sort((a, b) => {
+            if (a.severity === 'Extreme' && b.severity !== 'Extreme') return -1;
+            if (b.severity === 'Extreme' && a.severity !== 'Extreme') return 1;
+            return new Date(a.start).getTime() - new Date(b.start).getTime();
+        });
+
+        const warningData = { warnings: activeWarnings };
+        warningsCache = { data: warningData, timestamp: now };
+        renderWarningsContent(warningData);
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Error al cargar avisos.";
