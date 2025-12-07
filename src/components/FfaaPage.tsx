@@ -1,5 +1,5 @@
 
-import { showToast } from "../utils/helpers";
+import { handleCopy, showToast } from "../utils/helpers";
 
 type Warning = {
     id: string;
@@ -8,7 +8,9 @@ type Warning = {
     severity: 'Severe' | 'Extreme'; // Orange | Red
     start: string;
     expires: string;
+    issued: string; // Added for the bulletin (Effective date)
     description: string;
+    certainty: string; // Added for probability
 };
 
 // Types based on the provided JSON structure
@@ -26,6 +28,7 @@ type MeteoInfo = {
     effective: string;
     onset?: string;
     expires: string;
+    certainty: string;
     parameter: MeteoParameter[];
 };
 
@@ -40,6 +43,126 @@ type MeteoAlert = {
 type MeteoResponse = {
     warnings: MeteoAlert[];
 };
+
+let currentWarnings: Warning[] = []; // Store warnings globally for the generator
+
+// --- HELPER: MAP AREA TO COMMUNITY ---
+function getCommunity(areaName: string): string {
+    const a = areaName.toLowerCase();
+    if (a.includes('asturia') || a.includes('asturiano')) return 'del Principado de Asturias';
+    if (a.includes('cántabro') || a.includes('cantabria')) return 'de Cantabria';
+    if (a.includes('vasco') || a.includes('bizkaia') || a.includes('gipuzkoa') || a.includes('vizcaya') || a.includes('guipúzcoa')) return 'del País Vasco';
+    if (a.includes('coruña') || a.includes('lugo') || a.includes('pontevedra') || a.includes('mariña') || a.includes('rias baixas') || a.includes('fisterra')) return 'de Galicia';
+    if (a.includes('barcelona') || a.includes('girona') || a.includes('tarragona') || a.includes('ampurdán') || a.includes('empordà')) return 'de Cataluña';
+    if (a.includes('valencia') || a.includes('alicante') || a.includes('castellón')) return 'de la Comunidad Valenciana';
+    if (a.includes('murcia') || a.includes('cartagena')) return 'de la Región de Murcia';
+    if (a.includes('almería') || a.includes('granada') || a.includes('málaga') || a.includes('cádiz') || a.includes('huelva') || a.includes('estrecho') || a.includes('alborán')) return 'de Andalucía';
+    if (a.includes('mallorca') || a.includes('menorca') || a.includes('ibiza') || a.includes('formentera') || a.includes('baleares') || a.includes('tramontana')) return 'de las Islas Baleares';
+    if (a.includes('canaria') || a.includes('tenerife') || a.includes('palma') || a.includes('gomera') || a.includes('hierro') || a.includes('lanzarote') || a.includes('fuerteventura')) return 'de Canarias';
+    if (a.includes('ceuta')) return 'de Ceuta';
+    if (a.includes('melilla')) return 'de Melilla';
+    return ''; // Generic fallback
+}
+
+// --- GENERATE BULLETIN TEXT ---
+function generateBulletinText(warnings: Warning[]): string {
+    if (warnings.length === 0) return "No hay avisos costeros vigentes para generar un boletín.";
+
+    // Sort by severity then ID to group similar ones somewhat logicallly
+    const sorted = [...warnings].sort((a, b) => {
+        if (a.severity === 'Extreme' && b.severity !== 'Extreme') return -1;
+        if (b.severity === 'Extreme' && a.severity !== 'Extreme') return 1;
+        return a.area.localeCompare(b.area);
+    });
+
+    const regions = new Set(sorted.map(w => {
+        const comm = getCommunity(w.area);
+        return comm ? comm.replace('de ', '').replace('del ', '').replace('la ', '').replace('las ', '') : null;
+    }).filter(Boolean));
+    
+    const regionList = Array.from(regions).join(', ');
+
+    // HEADER
+    let text = `Comenzamos con la emisión del boletín de fenómenos adversos para ${regionList || 'las zonas costeras afectadas'}.\n\n`;
+    text += "Agencia estatal de Meteorología.\n\n";
+
+    // BODY
+    sorted.forEach((w, index) => {
+        const community = getCommunity(w.area);
+        const severitySpanish = w.severity === 'Extreme' ? 'rojo' : 'naranja';
+        
+        // Date formatting helpers
+        const formatTime = (iso: string) => {
+            const d = new Date(iso);
+            const hours = d.getHours().toString().padStart(2, '0'); // Local time
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            return `${hours}, ${minutes}`;
+        };
+        
+        const formatDate = (iso: string) => {
+            const d = new Date(iso);
+            const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+            return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+        };
+
+        const probabilityText = w.certainty === 'Likely' ? "entre el 40 y el 70 por ciento" : 
+                               w.certainty === 'Observed' ? "del 100 por ciento (observado)" : 
+                               "superior al 70 por ciento";
+
+        text += `Información sobre fenómenos adversos de nivel ${severitySpanish} para la comunidad autónoma ${community || w.area}.\n\n`;
+        text += `Emitido a las ${formatTime(w.issued)} hora oficial del día ${formatDate(w.issued)}.\n\n`;
+        text += `Válido hasta las ${formatTime(w.expires)} hora oficial del día ${formatDate(w.expires)}.\n\n`;
+        text += `Fenómeno costero número ${index + 1}.\n\n`;
+        text += `Nivel, ${severitySpanish}.\n\n`;
+        text += `Ámbito geográfico, ${w.area}.\n\n`;
+        text += `Hora de comienzo, a las ${formatTime(w.start)} hora oficial del día ${formatDate(w.start)}.\n\n`;
+        text += `Hora de finalización, a las ${formatTime(w.expires)} hora oficial del día ${formatDate(w.expires)}.\n\n`;
+        text += `Probabilidad, ${probabilityText}.\n\n`;
+        text += `Comentario. ${w.description}\n\n`;
+        text += " \n"; // Separator
+    });
+
+    // FOOTER
+    text += `Fin de los boletines de fenómenos adversos para ${regionList || 'las zonas afectadas'}.`;
+
+    return text;
+}
+
+function renderBulletinModal(bulletinText: string) {
+    const modalId = 'ffaa-bulletin-modal';
+    // Remove existing if any
+    const existing = document.getElementById(modalId);
+    if (existing) existing.remove();
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.id = modalId;
+
+    modalOverlay.innerHTML = `
+        <div class="modal-content" style="max-width: 800px; text-align: left;">
+            <h2 class="modal-title">Boletín FFAA Generado</h2>
+            <p class="modal-text" style="margin-bottom: 1rem;">Formato listo para lectura en fonía (hora oficial local).</p>
+            <textarea class="styled-textarea" style="height: 400px; font-family: var(--font-mono); line-height: 1.6;" readonly>${bulletinText}</textarea>
+            <div class="button-container" style="justify-content: flex-end; margin-top: 1.5rem; border-top: none; padding-top: 0;">
+                <button class="secondary-btn modal-close-btn">Cerrar</button>
+                <button class="primary-btn modal-copy-btn" style="margin-top: 0; width: auto;">Copiar Texto</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalOverlay);
+
+    modalOverlay.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target === modalOverlay || target.closest('.modal-close-btn')) {
+            modalOverlay.remove();
+        }
+        if (target.closest('.modal-copy-btn')) {
+            handleCopy(bulletinText);
+            // Optional: Close after copy? modalOverlay.remove(); 
+        }
+    });
+}
 
 // --- RENDER LOGIC ---
 
@@ -68,7 +191,6 @@ function renderFfaaContent(warnings: Warning[]) {
         const severityClass = w.severity === 'Extreme' ? 'alert-badge red' : 'alert-badge orange';
         const severityLabel = w.severity === 'Extreme' ? 'ROJO' : 'NARANJA';
         
-        // Clean up area description if needed (sometimes they have prefixes)
         const areaLabel = w.area;
 
         const formatTime = (iso: string) => {
@@ -180,13 +302,16 @@ async function fetchFfaaData() {
                             severity: severity as 'Severe' | 'Extreme',
                             start: info.onset || info.effective, // Prefer onset (start of event) over effective (publication time)
                             expires: info.expires,
-                            description: info.description
+                            issued: info.effective, // Capture issued time
+                            description: info.description,
+                            certainty: info.certainty
                         });
                     });
                 }
             });
         }
-
+        
+        currentWarnings = parsedWarnings; // Store for bulletin generation
         renderFfaaContent(parsedWarnings);
 
     } catch (error) {
@@ -207,10 +332,16 @@ export function renderFfaaPage(container: HTMLElement) {
                     <h2 class="content-card-title" style="margin-bottom: 0.5rem; border: none; padding: 0;">Fenómenos Adversos Costeros (FFAA)</h2>
                     <p class="translator-desc" style="margin-bottom: 0;">Avisos vigentes (no caducados) de nivel Naranja y Rojo.</p>
                 </div>
-                <button id="ffaa-refresh-btn" class="secondary-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>
-                    <span>Actualizar</span>
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="ffaa-bulletin-btn" class="primary-btn-small">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/><path d="M4.5 10a.5.5 0 0 1 .5-.5h6.5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h6.5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5"/></svg>
+                        <span>Generar Boletín</span>
+                    </button>
+                    <button id="ffaa-refresh-btn" class="secondary-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>
+                        <span>Actualizar</span>
+                    </button>
+                </div>
             </div>
             <div id="ffaa-content"></div>
         </div>
@@ -222,6 +353,10 @@ export function renderFfaaPage(container: HTMLElement) {
         const target = e.target as HTMLElement;
         if (target.closest('#ffaa-refresh-btn')) {
             fetchFfaaData();
+        }
+        if (target.closest('#ffaa-bulletin-btn')) {
+            const text = generateBulletinText(currentWarnings);
+            renderBulletinModal(text);
         }
     });
 }
