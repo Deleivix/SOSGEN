@@ -141,20 +141,11 @@ function generateBulletinText(warnings: Warning[]): string {
         commWarnings.forEach((w, index) => {
             const severitySpanish = w.severity === 'Extreme' ? 'rojo' : 'naranja';
             
-            // Probability Mapping
-            let probabilityText = "superior al 70 por ciento";
-            const c = (w.certainty || '').toLowerCase();
-            if (c.includes('observed')) probabilityText = "del 100 por ciento (observado)";
-            else if (c.includes('likely')) probabilityText = "entre el 40 y el 70 por ciento";
-            else if (c.includes('possible')) probabilityText = "entre el 10 y el 40 por ciento";
-            else if (c.includes('unlikely')) probabilityText = "menor del 10 por ciento";
-
             text += `Fenómeno costero número ${index + 1}.\n\n`;
             text += `Nivel, ${severitySpanish}.\n\n`;
             text += `Ámbito geográfico, ${w.area}.\n\n`;
             text += `Hora de comienzo, a las ${formatTime(w.start)} hora oficial del día ${formatDate(w.start)}.\n\n`;
             text += `Hora de finalización, a las ${formatTime(w.expires)} hora oficial del día ${formatDate(w.expires)}.\n\n`;
-            text += `Probabilidad, ${probabilityText}.\n\n`;
             text += `Comentario. ${w.description}\n\n`;
             
             // Add spacing between warnings but not after the last one of the block
