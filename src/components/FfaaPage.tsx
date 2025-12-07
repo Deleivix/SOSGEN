@@ -95,8 +95,15 @@ function generateBulletinText(warnings: Warning[]): string {
 
     const regionListClean = sortedCommunities.map(c => c.replace('de ', '').replace('del ', '').replace('la ', '').replace('las ', '')).join(', ');
 
+    // Determine Global Level for Header
+    const hasRedGlobal = warnings.some(w => w.severity === 'Extreme');
+    const hasOrangeGlobal = warnings.some(w => w.severity === 'Severe');
+    let globalLevel = "naranja";
+    if (hasRedGlobal && hasOrangeGlobal) globalLevel = "rojo y naranja";
+    else if (hasRedGlobal) globalLevel = "rojo";
+
     // HEADER
-    let text = `Comenzamos con la emisión del boletín de fenómenos adversos para ${regionListClean}.\n\n`;
+    let text = `Boletín de fenómenos adversos nivel ${globalLevel} para ${regionListClean}.\n\n`;
     text += "Agencia estatal de Meteorología.\n\n";
 
     // Date formatting helpers
@@ -120,7 +127,7 @@ function generateBulletinText(warnings: Warning[]): string {
         // Sort warnings by start time
         commWarnings.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
-        // Determine Highest Level for Header
+        // Determine Highest Level for Community Header
         const hasRed = commWarnings.some(w => w.severity === 'Extreme');
         const hasOrange = commWarnings.some(w => w.severity === 'Severe');
         
@@ -128,14 +135,8 @@ function generateBulletinText(warnings: Warning[]): string {
         if (hasRed && hasOrange) levelHeader = "rojo y naranja";
         else if (hasRed) levelHeader = "rojo";
 
-        // Determine range of validity for the header (latest Issue, latest Expiry)
-        const latestIssue = commWarnings.reduce((max, w) => new Date(w.issued) > new Date(max) ? w.issued : max, commWarnings[0].issued);
-        const latestExpiry = commWarnings.reduce((max, w) => new Date(w.expires) > new Date(max) ? w.expires : max, commWarnings[0].expires);
-
         text += `Información sobre fenómenos adversos de nivel ${levelHeader} para la comunidad autónoma ${comm}.\n\n`;
-        text += `Emitido a las ${formatTime(latestIssue)} hora oficial del día ${formatDate(latestIssue)}.\n\n`;
-        text += `Válido hasta las ${formatTime(latestExpiry)} hora oficial del día ${formatDate(latestExpiry)}.\n\n`;
-
+        
         // List Warnings
         commWarnings.forEach((w, index) => {
             const severitySpanish = w.severity === 'Extreme' ? 'rojo' : 'naranja';
@@ -221,65 +222,104 @@ function renderFfaaContent(warnings: Warning[]) {
         return;
     }
 
-    // Sort by severity (Red first) then by start time
-    const sortedWarnings = warnings.sort((a, b) => {
-        if (a.severity === 'Extreme' && b.severity !== 'Extreme') return -1;
-        if (b.severity === 'Extreme' && a.severity !== 'Extreme') return 1;
-        return new Date(a.start).getTime() - new Date(b.start).getTime();
+    // Group by Community
+    const grouped: { [key: string]: Warning[] } = {};
+    warnings.forEach(w => {
+        const comm = getCommunity(w.area);
+        // Map generic "de la zona afectada" or empty to a misc key
+        const key = (comm && comm !== 'de la zona afectada') ? comm : 'Otras Zonas';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(w);
     });
 
-    const rowsHtml = sortedWarnings.map(w => {
-        const severityClass = w.severity === 'Extreme' ? 'alert-badge red' : 'alert-badge orange';
-        const severityLabel = w.severity === 'Extreme' ? 'ROJO' : 'NARANJA';
+    // Sort communities (same preference order as bulletin)
+    const orderPreference = [
+        'de Galicia', 'del Principado de Asturias', 'de Cantabria', 'del País Vasco',
+        'de Cataluña', 'de la Comunidad Valenciana', 'de la Región de Murcia', 'de Andalucía',
+        'de las Islas Baleares', 'de Ceuta', 'de Melilla', 'de Canarias', 'Otras Zonas'
+    ];
+    
+    const sortedKeys = Object.keys(grouped).sort((a, b) => {
+        const idxA = orderPreference.indexOf(a);
+        const idxB = orderPreference.indexOf(b);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
+    });
+
+    let htmlContent = `<div style="text-align: right; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-secondary);">Fuente: MeteoAlarm (AEMET)</div>`;
+
+    sortedKeys.forEach(key => {
+        const commWarnings = grouped[key];
         
-        const areaLabel = w.area;
+        // Sort warnings: Red first, then start time
+        commWarnings.sort((a, b) => {
+            if (a.severity === 'Extreme' && b.severity !== 'Extreme') return -1;
+            if (b.severity === 'Extreme' && a.severity !== 'Extreme') return 1;
+            return new Date(a.start).getTime() - new Date(b.start).getTime();
+        });
 
-        const formatTime = (iso: string) => {
-            if (!iso) return '-';
-            try {
-                return new Date(iso).toLocaleString('es-ES', { 
-                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
-                });
-            } catch { return iso; }
-        };
+        const rowsHtml = commWarnings.map(w => {
+            const severityClass = w.severity === 'Extreme' ? 'alert-badge red' : 'alert-badge orange';
+            const severityLabel = w.severity === 'Extreme' ? 'ROJO' : 'NARANJA';
+            
+            const formatTime = (iso: string) => {
+                if (!iso) return '-';
+                try {
+                    return new Date(iso).toLocaleString('es-ES', { 
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+                    });
+                } catch { return iso; }
+            };
 
-        return `
-            <tr>
-                <td style="text-align: center; vertical-align: top;"><span class="${severityClass}">${severityLabel}</span></td>
-                <td style="vertical-align: top;"><strong>${areaLabel}</strong></td>
-                <td style="vertical-align: top;">${w.event}</td>
-                <td style="vertical-align: top; font-size: 0.9em; line-height: 1.5;">${w.description}</td>
-                <td style="vertical-align: top; white-space: nowrap;">${formatTime(w.start)}</td>
-                <td style="vertical-align: top; white-space: nowrap;">${formatTime(w.expires)}</td>
-            </tr>
+            return `
+                <tr>
+                    <td style="text-align: center; vertical-align: top;"><span class="${severityClass}">${severityLabel}</span></td>
+                    <td style="vertical-align: top;"><strong>${w.area}</strong></td>
+                    <td style="vertical-align: top;">${w.event}</td>
+                    <td style="vertical-align: top; font-size: 0.9em; line-height: 1.5;">${w.description}</td>
+                    <td style="vertical-align: top; white-space: nowrap;">${formatTime(w.start)}</td>
+                    <td style="vertical-align: top; white-space: nowrap;">${formatTime(w.expires)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Clean name for display (e.g. "de Galicia" -> "Galicia")
+        let displayName = key;
+        if (key !== 'Otras Zonas') {
+            displayName = key.replace(/^(de |del |la |las )/, '');
+            displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+        }
+
+        htmlContent += `
+            <div class="salvamento-panel" style="margin-bottom: 2rem;">
+                <div class="salvamento-panel-header" style="justify-content: flex-start; gap: 1rem;">
+                    <h3>${displayName}</h3>
+                    <span class="category-badge" style="background-color: var(--text-secondary); font-size: 0.75rem;">${commWarnings.length} Avisos</span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="reference-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">Nivel</th>
+                                <th>Zona</th>
+                                <th>Fenómeno</th>
+                                <th style="min-width: 250px;">Descripción</th>
+                                <th>Inicio</th>
+                                <th>Fin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         `;
-    }).join('');
+    });
 
-    container.innerHTML = `
-        <div class="salvamento-panel">
-            <div class="salvamento-panel-header">
-                <h3>Avisos Costeros Activos (Naranja/Rojo)</h3>
-                <span class="last-update-text">Fuente: MeteoAlarm (AEMET)</span>
-            </div>
-            <div class="table-wrapper">
-                <table class="reference-table">
-                    <thead>
-                        <tr>
-                            <th style="text-align: center;">Nivel</th>
-                            <th>Zona</th>
-                            <th>Fenómeno</th>
-                            <th style="min-width: 250px;">Descripción</th>
-                            <th>Inicio</th>
-                            <th>Fin</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
+    container.innerHTML = htmlContent;
 }
 
 // --- DATA FETCHING & PARSING ---
