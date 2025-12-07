@@ -51,7 +51,7 @@ function renderFfaaContent(warnings: Warning[]) {
         container.innerHTML = `
             <div class="attention-panel" style="background-color: #E8F5E9; border-color: #2E7D32; color: #1B5E20; text-align: center;">
                 <h4 style="justify-content: center;">Sin Avisos Costeros Activos</h4>
-                <p style="margin-bottom: 0;">No se han detectado avisos costeros de nivel Naranja o Rojo en el feed de MeteoAlarm.</p>
+                <p style="margin-bottom: 0;">No se han detectado avisos costeros vigentes de nivel Naranja o Rojo en el feed de MeteoAlarm.</p>
             </div>
         `;
         return;
@@ -82,11 +82,12 @@ function renderFfaaContent(warnings: Warning[]) {
 
         return `
             <tr>
-                <td style="text-align: center;"><span class="${severityClass}">${severityLabel}</span></td>
-                <td><strong>${areaLabel}</strong></td>
-                <td>${w.event}</td>
-                <td>${formatTime(w.start)}</td>
-                <td>${formatTime(w.expires)}</td>
+                <td style="text-align: center; vertical-align: top;"><span class="${severityClass}">${severityLabel}</span></td>
+                <td style="vertical-align: top;"><strong>${areaLabel}</strong></td>
+                <td style="vertical-align: top;">${w.event}</td>
+                <td style="vertical-align: top; font-size: 0.9em; line-height: 1.5;">${w.description}</td>
+                <td style="vertical-align: top; white-space: nowrap;">${formatTime(w.start)}</td>
+                <td style="vertical-align: top; white-space: nowrap;">${formatTime(w.expires)}</td>
             </tr>
         `;
     }).join('');
@@ -104,6 +105,7 @@ function renderFfaaContent(warnings: Warning[]) {
                             <th style="text-align: center;">Nivel</th>
                             <th>Zona</th>
                             <th>Fenómeno</th>
+                            <th style="min-width: 250px;">Descripción</th>
                             <th>Inicio</th>
                             <th>Fin</th>
                         </tr>
@@ -135,6 +137,7 @@ async function fetchFfaaData() {
         const data: MeteoResponse = await response.json();
         
         const parsedWarnings: Warning[] = [];
+        const now = new Date();
 
         if (data && Array.isArray(data.warnings)) {
             data.warnings.forEach(entry => {
@@ -142,6 +145,12 @@ async function fetchFfaaData() {
                 const info = entry.alert.info.find(i => i.language === 'es-ES') || entry.alert.info[0];
                 
                 if (!info) return;
+
+                // 0. Check Expiration
+                const expiresDate = new Date(info.expires);
+                if (expiresDate <= now) {
+                    return; // Skip expired warnings
+                }
 
                 // 1. Check Event Type
                 // We check the parameters for 'awareness_type'. Coastal Event is usually type 7 or contains 'coastal'.
@@ -196,7 +205,7 @@ export function renderFfaaPage(container: HTMLElement) {
             <div class="meteos-header">
                 <div class="meteos-header-text">
                     <h2 class="content-card-title" style="margin-bottom: 0.5rem; border: none; padding: 0;">Fenómenos Adversos Costeros (FFAA)</h2>
-                    <p class="translator-desc" style="margin-bottom: 0;">Avisos vigentes de nivel Naranja y Rojo.</p>
+                    <p class="translator-desc" style="margin-bottom: 0;">Avisos vigentes (no caducados) de nivel Naranja y Rojo.</p>
                 </div>
                 <button id="ffaa-refresh-btn" class="secondary-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>
