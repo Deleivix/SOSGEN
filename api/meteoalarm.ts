@@ -18,8 +18,8 @@ export default async function handler(
     }
     const text = await res.text();
     
-    // Set appropriate headers for XML content
-    response.setHeader('Content-Type', 'application/xml');
+    // Set appropriate headers for JSON content
+    response.setHeader('Content-Type', 'application/json');
     return response.status(200).send(text);
 
   } catch (error) {

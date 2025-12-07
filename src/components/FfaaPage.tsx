@@ -6,9 +6,39 @@ type Warning = {
     area: string;
     event: string;
     severity: 'Severe' | 'Extreme'; // Orange | Red
-    effective: string;
+    start: string;
     expires: string;
     description: string;
+};
+
+// Types based on the provided JSON structure
+type MeteoParameter = {
+    valueName: string;
+    value: string;
+};
+
+type MeteoInfo = {
+    language: string;
+    area: { areaDesc: string; geocode: any[] }[];
+    event: string;
+    severity: string;
+    description: string;
+    effective: string;
+    onset?: string;
+    expires: string;
+    parameter: MeteoParameter[];
+};
+
+type MeteoAlert = {
+    alert: {
+        identifier: string;
+        info: MeteoInfo[];
+    };
+    uuid: string;
+};
+
+type MeteoResponse = {
+    warnings: MeteoAlert[];
 };
 
 // --- RENDER LOGIC ---
@@ -27,14 +57,22 @@ function renderFfaaContent(warnings: Warning[]) {
         return;
     }
 
-    const rowsHtml = warnings.map(w => {
+    // Sort by severity (Red first) then by start time
+    const sortedWarnings = warnings.sort((a, b) => {
+        if (a.severity === 'Extreme' && b.severity !== 'Extreme') return -1;
+        if (b.severity === 'Extreme' && a.severity !== 'Extreme') return 1;
+        return new Date(a.start).getTime() - new Date(b.start).getTime();
+    });
+
+    const rowsHtml = sortedWarnings.map(w => {
         const severityClass = w.severity === 'Extreme' ? 'alert-badge red' : 'alert-badge orange';
         const severityLabel = w.severity === 'Extreme' ? 'ROJO' : 'NARANJA';
         
-        // Basic translation/formatting for event types if needed, though usually mapped by logic
-        const eventLabel = w.event === 'Coastal Event' ? 'COSTEROS' : w.event.toUpperCase();
+        // Clean up area description if needed (sometimes they have prefixes)
+        const areaLabel = w.area;
 
         const formatTime = (iso: string) => {
+            if (!iso) return '-';
             try {
                 return new Date(iso).toLocaleString('es-ES', { 
                     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
@@ -45,9 +83,9 @@ function renderFfaaContent(warnings: Warning[]) {
         return `
             <tr>
                 <td style="text-align: center;"><span class="${severityClass}">${severityLabel}</span></td>
-                <td><strong>${w.area}</strong></td>
-                <td>${eventLabel}</td>
-                <td>${formatTime(w.effective)}</td>
+                <td><strong>${areaLabel}</strong></td>
+                <td>${w.event}</td>
+                <td>${formatTime(w.start)}</td>
                 <td>${formatTime(w.expires)}</td>
             </tr>
         `;
@@ -94,51 +132,56 @@ async function fetchFfaaData() {
         const response = await fetch('/api/meteoalarm');
         if (!response.ok) throw new Error('Error al conectar con MeteoAlarm');
         
-        const xmlText = await response.text();
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+        const data: MeteoResponse = await response.json();
         
-        const entries = Array.from(xmlDoc.querySelectorAll("entry"));
         const parsedWarnings: Warning[] = [];
 
-        entries.forEach(entry => {
-            // Namespace handling in DOMParser can be tricky depending on browser implementation of querySelector.
-            // Using getElementsByTagName is safer for namespaced XML without explicit resolver.
-            const getTagVal = (tagName: string) => {
-                const els = entry.getElementsByTagName(tagName);
-                // Try namespaced version if standard fails or vice versa logic handled by browser
-                if (els.length > 0) return els[0].textContent || '';
-                // Fallback for namespaced tags like cap:event
-                const capEls = entry.getElementsByTagName("cap:" + tagName);
-                if (capEls.length > 0) return capEls[0].textContent || '';
-                return '';
-            };
+        if (data && Array.isArray(data.warnings)) {
+            data.warnings.forEach(entry => {
+                // Find Spanish info block, fallback to first available
+                const info = entry.alert.info.find(i => i.language === 'es-ES') || entry.alert.info[0];
+                
+                if (!info) return;
 
-            const event = getTagVal('event');
-            const severity = getTagVal('severity');
-            
-            // Filter Logic:
-            // 1. Event must be related to coast. "Coastal Event" is the standard CAP category for MeteoAlarm.
-            // 2. Severity must be 'Severe' (Orange) or 'Extreme' (Red).
-            const isCoastal = event === 'Coastal Event' || event.toLowerCase().includes('coastal');
-            const isHighSeverity = severity === 'Severe' || severity === 'Extreme';
+                // 1. Check Event Type
+                // We check the parameters for 'awareness_type'. Coastal Event is usually type 7 or contains 'coastal'.
+                const awarenessTypeParam = info.parameter?.find(p => p.valueName === 'awareness_type');
+                const isCoastalParam = awarenessTypeParam && (
+                    awarenessTypeParam.value.includes('coastalevent') || 
+                    awarenessTypeParam.value.startsWith('7;')
+                );
+                
+                // Fallback check on event string if parameter is missing (less reliable but safe)
+                const isCoastalString = info.event.toLowerCase().includes('costero') || info.event.toLowerCase().includes('coastal');
 
-            if (isCoastal && isHighSeverity) {
-                parsedWarnings.push({
-                    id: getTagVal('id'),
-                    area: getTagVal('areaDesc'),
-                    event: event,
-                    severity: severity as 'Severe' | 'Extreme',
-                    effective: getTagVal('effective'),
-                    expires: getTagVal('expires'),
-                    description: getTagVal('description') // Often empty in feed, implies detail link
-                });
-            }
-        });
+                const isCoastal = isCoastalParam || isCoastalString;
+
+                // 2. Check Severity
+                // We only want Orange (Severe) or Red (Extreme)
+                const severity = info.severity; // "Severe", "Extreme", "Moderate", "Minor"
+                const isHighSeverity = severity === 'Severe' || severity === 'Extreme';
+
+                if (isCoastal && isHighSeverity) {
+                    // There can be multiple areas in one alert
+                    info.area.forEach(area => {
+                        parsedWarnings.push({
+                            id: entry.uuid,
+                            area: area.areaDesc,
+                            event: info.event,
+                            severity: severity as 'Severe' | 'Extreme',
+                            start: info.onset || info.effective, // Prefer onset (start of event) over effective (publication time)
+                            expires: info.expires,
+                            description: info.description
+                        });
+                    });
+                }
+            });
+        }
 
         renderFfaaContent(parsedWarnings);
 
     } catch (error) {
+        console.error("FFAA Parsing Error:", error);
         const msg = error instanceof Error ? error.message : "Error desconocido";
         if (container) {
             container.innerHTML = `<p class="error">Error al cargar datos FFAA: ${msg}</p>`;
