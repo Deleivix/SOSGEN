@@ -255,6 +255,14 @@ function renderFfaaContent(warnings: Warning[]) {
             const severityClass = w.severity === 'Extreme' ? 'alert-badge red' : 'alert-badge orange';
             const severityLabel = w.severity === 'Extreme' ? 'ROJO' : 'NARANJA';
             
+            const now = new Date();
+            const startDate = new Date(w.start);
+            const isFuture = startDate > now;
+            const statusLabel = isFuture ? 'FUTURO' : 'EN VIGOR';
+            const statusStyle = isFuture 
+                ? 'color: var(--info-color); border: 1px solid var(--info-color);' 
+                : 'color: var(--accent-color-dark); border: 1px solid var(--accent-color-dark);';
+
             const formatTime = (iso: string) => {
                 if (!iso) return '-';
                 try {
@@ -267,6 +275,9 @@ function renderFfaaContent(warnings: Warning[]) {
             return `
                 <tr>
                     <td style="text-align: center; vertical-align: top;"><span class="${severityClass}">${severityLabel}</span></td>
+                    <td style="text-align: center; vertical-align: top;">
+                        <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; ${statusStyle}">${statusLabel}</span>
+                    </td>
                     <td style="vertical-align: top;"><strong>${w.area}</strong></td>
                     <td style="vertical-align: top;">${w.event}</td>
                     <td style="vertical-align: top; font-size: 0.9em; line-height: 1.5;">${w.description}</td>
@@ -294,6 +305,7 @@ function renderFfaaContent(warnings: Warning[]) {
                         <thead>
                             <tr>
                                 <th style="text-align: center;">Nivel</th>
+                                <th style="text-align: center;">Estado</th>
                                 <th>Zona</th>
                                 <th>Fenómeno</th>
                                 <th style="min-width: 250px;">Descripción</th>
