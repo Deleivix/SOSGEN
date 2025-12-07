@@ -1,3 +1,4 @@
+
 :root {
   --accent-color: #8BC34A;
   --accent-color-dark: #7aa841;
@@ -1589,6 +1590,32 @@ body.dark-theme .status-orange { background-color: var(--danger-color-dark); }
 .toast.success { background-color: var(--accent-color); color: white; }
 .toast.error { background-color: var(--danger-color); color: white; }
 .toast.info { background-color: var(--info-color); color: white; }
+
+/* --- FFAA Specifics --- */
+.alert-badge {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+.alert-badge.orange {
+    background-color: var(--attention-color);
+}
+body.dark-theme .alert-badge.orange {
+    background-color: var(--attention-color-dark);
+    color: var(--bg-main-dark);
+}
+.alert-badge.red {
+    background-color: var(--danger-color);
+}
+body.dark-theme .alert-badge.red {
+    background-color: var(--danger-color-dark);
+    color: var(--bg-main-dark);
+}
 
 /* --- General Utilities --- */
 .loader-container { display: flex; justify-content: center; align-items: center; padding: 3rem; min-height: 200px; }

@@ -1,3 +1,4 @@
+
 // --- DATA STRUCTURES ---
 export interface Template { title: string; template: string; }
 export interface Category { category: string; items: Template[]; }
@@ -24,6 +25,8 @@ export const APP_PAGE_ICONS = [
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M19.1 1.9a10 10 0 0 1 0 14.1"/><path d="M7.8 13.2a6 6 0 0 1 8.4 0"/><path d="M10.6 10.4a2 2 0 0 1 2.8 0"/><path d="M12 18v4"/><path d="m9 18 3 4 3-4"/></svg>`,
     // METEOS: Cloud
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>`,
+    // FFAA: Alert Triangle
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
     // SEÑALES: Lighthouse Icon
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L6 8v12h12V8L12 2z"/><path d="M6 14h12"/><path d="M10 18h4v-4h-4v4z"/><path d="M2 5l4 3"/><path d="M22 5l-4 3"/></svg>`,
     // SIMULACRO: Target
@@ -41,6 +44,7 @@ export const APP_PAGES: Page[] = [
     { name: 'PROTOCOLO' },
     { name: 'NX' },
     { name: 'WX' },
+    { name: 'FFAA' },
     { name: 'SEÑALES' },
     { name: 'SIMULACRO' },
     { name: 'INFO' },
