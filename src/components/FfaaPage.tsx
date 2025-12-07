@@ -52,85 +52,127 @@ function getCommunity(areaName: string): string {
     if (a.includes('asturia') || a.includes('asturiano')) return 'del Principado de Asturias';
     if (a.includes('cántabro') || a.includes('cantabria')) return 'de Cantabria';
     if (a.includes('vasco') || a.includes('bizkaia') || a.includes('gipuzkoa') || a.includes('vizcaya') || a.includes('guipúzcoa')) return 'del País Vasco';
-    if (a.includes('coruña') || a.includes('lugo') || a.includes('pontevedra') || a.includes('mariña') || a.includes('rias baixas') || a.includes('fisterra')) return 'de Galicia';
+    if (a.includes('coruña') || a.includes('lugo') || a.includes('pontevedra') || a.includes('mariña') || a.includes('rias baixas') || a.includes('fisterra') || a.includes('miño') || a.includes('costa da morte') || a.includes('ártabro')) return 'de Galicia';
     if (a.includes('barcelona') || a.includes('girona') || a.includes('tarragona') || a.includes('ampurdán') || a.includes('empordà')) return 'de Cataluña';
     if (a.includes('valencia') || a.includes('alicante') || a.includes('castellón')) return 'de la Comunidad Valenciana';
-    if (a.includes('murcia') || a.includes('cartagena')) return 'de la Región de Murcia';
-    if (a.includes('almería') || a.includes('granada') || a.includes('málaga') || a.includes('cádiz') || a.includes('huelva') || a.includes('estrecho') || a.includes('alborán')) return 'de Andalucía';
-    if (a.includes('mallorca') || a.includes('menorca') || a.includes('ibiza') || a.includes('formentera') || a.includes('baleares') || a.includes('tramontana')) return 'de las Islas Baleares';
+    if (a.includes('murcia') || a.includes('cartagena') || a.includes('mazarrón')) return 'de la Región de Murcia';
+    if (a.includes('almería') || a.includes('granada') || a.includes('málaga') || a.includes('cádiz') || a.includes('huelva') || a.includes('estrecho') || a.includes('alborán') || a.includes('axarquía') || a.includes('sol') || a.includes('guadalhorce')) return 'de Andalucía';
+    if (a.includes('mallorca') || a.includes('menorca') || a.includes('ibiza') || a.includes('formentera') || a.includes('baleares') || a.includes('tramontana') || a.includes('cabrera')) return 'de las Islas Baleares';
     if (a.includes('canaria') || a.includes('tenerife') || a.includes('palma') || a.includes('gomera') || a.includes('hierro') || a.includes('lanzarote') || a.includes('fuerteventura')) return 'de Canarias';
     if (a.includes('ceuta')) return 'de Ceuta';
     if (a.includes('melilla')) return 'de Melilla';
-    return ''; // Generic fallback
+    return 'de la zona afectada'; // Generic fallback
 }
 
 // --- GENERATE BULLETIN TEXT ---
 function generateBulletinText(warnings: Warning[]): string {
     if (warnings.length === 0) return "No hay avisos costeros vigentes para generar un boletín.";
 
-    // Sort by severity then ID to group similar ones somewhat logicallly
-    const sorted = [...warnings].sort((a, b) => {
-        if (a.severity === 'Extreme' && b.severity !== 'Extreme') return -1;
-        if (b.severity === 'Extreme' && a.severity !== 'Extreme') return 1;
-        return a.area.localeCompare(b.area);
+    // Group by Community
+    const grouped: { [key: string]: Warning[] } = {};
+    
+    warnings.forEach(w => {
+        const comm = getCommunity(w.area);
+        if (!grouped[comm]) grouped[comm] = [];
+        grouped[comm].push(w);
     });
 
-    const regions = new Set(sorted.map(w => {
-        const comm = getCommunity(w.area);
-        return comm ? comm.replace('de ', '').replace('del ', '').replace('la ', '').replace('las ', '') : null;
-    }).filter(Boolean));
+    // Sort communities (Cantabrico -> Mediterraneo -> Sur -> Islas)
+    const orderPreference = [
+        'de Galicia', 'del Principado de Asturias', 'de Cantabria', 'del País Vasco',
+        'de Cataluña', 'de la Comunidad Valenciana', 'de la Región de Murcia', 'de Andalucía',
+        'de las Islas Baleares', 'de Ceuta', 'de Melilla', 'de Canarias'
+    ];
     
-    const regionList = Array.from(regions).join(', ');
+    const sortedCommunities = Object.keys(grouped).sort((a, b) => {
+        const idxA = orderPreference.indexOf(a);
+        const idxB = orderPreference.indexOf(b);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
+    });
+
+    const regionListClean = sortedCommunities.map(c => c.replace('de ', '').replace('del ', '').replace('la ', '').replace('las ', '')).join(', ');
 
     // HEADER
-    let text = `Comenzamos con la emisión del boletín de fenómenos adversos para ${regionList || 'las zonas costeras afectadas'}.\n\n`;
+    let text = `Comenzamos con la emisión del boletín de fenómenos adversos para ${regionListClean}.\n\n`;
     text += "Agencia estatal de Meteorología.\n\n";
 
-    // BODY
-    sorted.forEach((w, index) => {
-        const community = getCommunity(w.area);
-        const severitySpanish = w.severity === 'Extreme' ? 'rojo' : 'naranja';
-        
-        // Date formatting helpers
-        const formatTime = (iso: string) => {
-            const d = new Date(iso);
-            const hours = d.getHours().toString().padStart(2, '0'); // Local time
-            const minutes = d.getMinutes().toString().padStart(2, '0');
-            return `${hours}, ${minutes}`;
-        };
-        
-        const formatDate = (iso: string) => {
-            const d = new Date(iso);
-            const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-            return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
-        };
+    // Date formatting helpers
+    const formatTime = (iso: string) => {
+        const d = new Date(iso);
+        const hours = d.getHours().toString().padStart(2, '0'); // Local time
+        const minutes = d.getMinutes().toString().padStart(2, '0');
+        return `${hours}, ${minutes}`;
+    };
+    
+    const formatDate = (iso: string) => {
+        const d = new Date(iso);
+        const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+        return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+    };
 
-        const probabilityText = w.certainty === 'Likely' ? "entre el 40 y el 70 por ciento" : 
-                               w.certainty === 'Observed' ? "del 100 por ciento (observado)" : 
-                               "superior al 70 por ciento";
+    // BODY - Iterate Communities
+    sortedCommunities.forEach((comm) => {
+        const commWarnings = grouped[comm];
+        
+        // Sort warnings by start time
+        commWarnings.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
-        text += `Información sobre fenómenos adversos de nivel ${severitySpanish} para la comunidad autónoma ${community || w.area}.\n\n`;
-        text += `Emitido a las ${formatTime(w.issued)} hora oficial del día ${formatDate(w.issued)}.\n\n`;
-        text += `Válido hasta las ${formatTime(w.expires)} hora oficial del día ${formatDate(w.expires)}.\n\n`;
-        text += `Fenómeno costero número ${index + 1}.\n\n`;
-        text += `Nivel, ${severitySpanish}.\n\n`;
-        text += `Ámbito geográfico, ${w.area}.\n\n`;
-        text += `Hora de comienzo, a las ${formatTime(w.start)} hora oficial del día ${formatDate(w.start)}.\n\n`;
-        text += `Hora de finalización, a las ${formatTime(w.expires)} hora oficial del día ${formatDate(w.expires)}.\n\n`;
-        text += `Probabilidad, ${probabilityText}.\n\n`;
-        text += `Comentario. ${w.description}\n\n`;
-        text += " \n"; // Separator
+        // Determine Highest Level for Header
+        const hasRed = commWarnings.some(w => w.severity === 'Extreme');
+        const hasOrange = commWarnings.some(w => w.severity === 'Severe');
+        
+        let levelHeader = "naranja";
+        if (hasRed && hasOrange) levelHeader = "rojo y naranja";
+        else if (hasRed) levelHeader = "rojo";
+
+        // Determine range of validity for the header (latest Issue, latest Expiry)
+        const latestIssue = commWarnings.reduce((max, w) => new Date(w.issued) > new Date(max) ? w.issued : max, commWarnings[0].issued);
+        const latestExpiry = commWarnings.reduce((max, w) => new Date(w.expires) > new Date(max) ? w.expires : max, commWarnings[0].expires);
+
+        text += `Información sobre fenómenos adversos de nivel ${levelHeader} para la comunidad autónoma ${comm}.\n\n`;
+        text += `Emitido a las ${formatTime(latestIssue)} hora oficial del día ${formatDate(latestIssue)}.\n\n`;
+        text += `Válido hasta las ${formatTime(latestExpiry)} hora oficial del día ${formatDate(latestExpiry)}.\n\n`;
+
+        // List Warnings
+        commWarnings.forEach((w, index) => {
+            const severitySpanish = w.severity === 'Extreme' ? 'rojo' : 'naranja';
+            
+            // Probability Mapping
+            let probabilityText = "superior al 70 por ciento";
+            const c = (w.certainty || '').toLowerCase();
+            if (c.includes('observed')) probabilityText = "del 100 por ciento (observado)";
+            else if (c.includes('likely')) probabilityText = "entre el 40 y el 70 por ciento";
+            else if (c.includes('possible')) probabilityText = "entre el 10 y el 40 por ciento";
+            else if (c.includes('unlikely')) probabilityText = "menor del 10 por ciento";
+
+            text += `Fenómeno costero número ${index + 1}.\n\n`;
+            text += `Nivel, ${severitySpanish}.\n\n`;
+            text += `Ámbito geográfico, ${w.area}.\n\n`;
+            text += `Hora de comienzo, a las ${formatTime(w.start)} hora oficial del día ${formatDate(w.start)}.\n\n`;
+            text += `Hora de finalización, a las ${formatTime(w.expires)} hora oficial del día ${formatDate(w.expires)}.\n\n`;
+            text += `Probabilidad, ${probabilityText}.\n\n`;
+            text += `Comentario. ${w.description}\n\n`;
+            
+            // Add spacing between warnings but not after the last one of the block
+            if (index < commWarnings.length - 1) {
+                 text += " \n"; 
+            }
+        });
+        
+        text += " \n"; // Separator between communities
     });
 
     // FOOTER
-    text += `Fin de los boletines de fenómenos adversos para ${regionList || 'las zonas afectadas'}.`;
+    text += `Fin de los boletines de fenómenos adversos para ${regionListClean}.`;
 
     return text;
 }
 
 function renderBulletinModal(bulletinText: string) {
     const modalId = 'ffaa-bulletin-modal';
-    // Remove existing if any
     const existing = document.getElementById(modalId);
     if (existing) existing.remove();
 
@@ -159,7 +201,6 @@ function renderBulletinModal(bulletinText: string) {
         }
         if (target.closest('.modal-copy-btn')) {
             handleCopy(bulletinText);
-            // Optional: Close after copy? modalOverlay.remove(); 
         }
     });
 }
@@ -275,34 +316,29 @@ async function fetchFfaaData() {
                 }
 
                 // 1. Check Event Type
-                // We check the parameters for 'awareness_type'. Coastal Event is usually type 7 or contains 'coastal'.
                 const awarenessTypeParam = info.parameter?.find(p => p.valueName === 'awareness_type');
                 const isCoastalParam = awarenessTypeParam && (
                     awarenessTypeParam.value.includes('coastalevent') || 
                     awarenessTypeParam.value.startsWith('7;')
                 );
                 
-                // Fallback check on event string if parameter is missing (less reliable but safe)
                 const isCoastalString = info.event.toLowerCase().includes('costero') || info.event.toLowerCase().includes('coastal');
-
                 const isCoastal = isCoastalParam || isCoastalString;
 
-                // 2. Check Severity
-                // We only want Orange (Severe) or Red (Extreme)
-                const severity = info.severity; // "Severe", "Extreme", "Moderate", "Minor"
+                // 2. Check Severity (Orange/Red)
+                const severity = info.severity; 
                 const isHighSeverity = severity === 'Severe' || severity === 'Extreme';
 
                 if (isCoastal && isHighSeverity) {
-                    // There can be multiple areas in one alert
                     info.area.forEach(area => {
                         parsedWarnings.push({
                             id: entry.uuid,
                             area: area.areaDesc,
                             event: info.event,
                             severity: severity as 'Severe' | 'Extreme',
-                            start: info.onset || info.effective, // Prefer onset (start of event) over effective (publication time)
+                            start: info.onset || info.effective, 
                             expires: info.expires,
-                            issued: info.effective, // Capture issued time
+                            issued: info.effective,
                             description: info.description,
                             certainty: info.certainty
                         });
@@ -311,7 +347,7 @@ async function fetchFfaaData() {
             });
         }
         
-        currentWarnings = parsedWarnings; // Store for bulletin generation
+        currentWarnings = parsedWarnings; 
         renderFfaaContent(parsedWarnings);
 
     } catch (error) {
