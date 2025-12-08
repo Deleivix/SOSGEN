@@ -185,6 +185,10 @@ async function processPdfResponse(response: Response, res: VercelResponse) {
         const data = await pdf(buffer);
         let text = data.text;
 
+        // --- 0. CLEANUP ARTIFACTS ---
+        // Remove "Código" which appears as a header artifact in some PDFs
+        text = text.replace(/^\s*Código\s*/i, '');
+
         // --- 1. REMOVE FOOTER (LEGAL DISCLAIMER) ---
         // We find the start of the disclaimer and cut everything after it.
         const footerMarker = "Aviso: La información contenida en este sitio web es solo para fines informativos";
