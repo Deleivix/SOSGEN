@@ -240,7 +240,7 @@ function initializeRegistroOceano(container: HTMLElement) {
                 const op = card.querySelector('#entrada-op-selector .active')?.getAttribute('data-value') || 'OWP-01';
                 const ccr = card.querySelector('#entrada-ccr-selector .active')?.getAttribute('data-value') || 'CCR CORUÑA';
                 const turno = card.querySelector('#entrada-turno-selector .active')?.getAttribute('data-value') || 'turno de MAÑANA';
-                newText = `Entrada de guardia, como Back Office Technician, gestionando "${op}" en el "${ccr}", "${turno}".`;
+                newText = `Entrada de guardia, como Back Office Technician, gestionando ${op} en el ${ccr}, ${turno}.`;
                 break;
             }
             case 'comprobacion-equipos': {
@@ -251,7 +251,7 @@ function initializeRegistroOceano(container: HTMLElement) {
             }
             case 'documentacion': {
                 const turno = card.querySelector('#documentacion-turno-selector .active')?.getAttribute('data-value') || 'MAÑANA';
-                newText = `Documentación turno de "${turno}".`;
+                newText = `Documentación turno de ${turno}.`;
                 break;
             }
             case 'radiocheck': {
@@ -263,7 +263,7 @@ function initializeRegistroOceano(container: HTMLElement) {
                 if (pos === 'Otro') pos = '______';
                 if (via === 'OTRO') via = '______';
 
-                newText = `Embarcación: “Nombre/Callsign”\nPosición: “${pos}”\nVía de contacto: “${via}”\nResultado TX: “${tx}”\nResultado RX: “${rx}”`;
+                newText = `Embarcación: Nombre/Callsign\nPosición: ${pos}\nVía de contacto: ${via}\nResultado TX: ${tx}\nResultado RX: ${rx}`;
                 break;
             }
              case 'transmision-generator': {
@@ -287,7 +287,7 @@ function initializeRegistroOceano(container: HTMLElement) {
                         const via = zona === 'Costera' ? 'canales de trabajo' : 'frecuencias de trabajo';
                         const dsc = zona === 'Costera' ? 'canal 70' : '2.187,5kHz';
                         const anuncio = zona === 'Costera' ? 'canal 16' : '2.182kHz';
-                        newText = `Realizada transmisión eventual del Radiaviso “XXXX/XXXX”, vía ${via} de las Estaciones Costeras correspondientes, previa llamada selectiva digital (${dsc}), y anuncio en (${anuncio}).`;
+                        newText = `Realizada transmisión eventual del Radiaviso XXXX/XXXX, vía ${via} de las Estaciones Costeras correspondientes, previa llamada selectiva digital (${dsc}), y anuncio en (${anuncio}).`;
                     }
                 } else if (producto === 'WX') {
                     if (categoria === 'Programado') {
@@ -297,11 +297,11 @@ function initializeRegistroOceano(container: HTMLElement) {
                         newText = `Realizada transmisión programada de Información Meteorológica y Marina ${para}, vía ${via} de las Estaciones Costeras correspondientes, previo aviso en ${anuncio}.`;
                     } else { // Eventual
                         const via = zona === 'Costera' ? 'canales' : 'frecuencias';
-                        newText = `Realizada transmisión eventual de Información Meteorológica y Marina, solicitada por el buque/embarcación “Nombre/CallSign”, vía ${via} de trabajo de la/s Estación/es Costera/s de “Añadir EECC”.`;
+                        newText = `Realizada transmisión eventual de Información Meteorológica y Marina, solicitada por el buque/embarcación Nombre/CallSign, vía ${via} de trabajo de la/s Estación/es Costera/s de Añadir EECC.`;
                     }
                 } else if (producto === 'AT') {
                     if (zona === 'Costera') {
-                        newText = `Realizada transmisión de Boletín de Fenómenos Adversos de Nivel “ROJO/NARANJA”, en vigor, vía canales de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (canal 70), y anuncio en canal 16.`;
+                        newText = `Realizada transmisión de Boletín de Fenómenos Adversos de Nivel ROJO/NARANJA, en vigor, vía canales de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (canal 70), y anuncio en canal 16.`;
                     } else { // Alta Mar
                         newText = `Realizada transmisión de Aviso de Temporal, vía frecuencias de trabajo de las Estaciones Costeras correspondientes, previa llamada selectiva digital (2.187,5kHz), y anuncio en 2.182kHz.`;
                     }
