@@ -268,28 +268,18 @@ async function syncWithSalvamento() {
 
     for (const localNr of activeNavtexNrs) {
         if (!officialBaseIds.has(localNr.baseId)) {
-            // Verificar si el NR fue añadido manualmente por un usuario.
-            // Si existe un registro de 'AÑADIDO' por un usuario que NO sea 'SISTEMA', lo protegemos.
-            const wasAddedManually = state.appData.history.some(h => 
-                h.nrId === localNr.baseId && 
-                h.action === 'AÑADIDO' && 
-                h.user !== 'SISTEMA'
-            );
-
-            if (!wasAddedManually) {
-                hayCambios = true;
-                const index = nrsActualizados.findIndex(nr => nr.id === localNr.id);
-                if (index > -1) {
-                    nrsActualizados[index].isCaducado = true;
-                    nuevosLogs.push({
-                        id: `log-${Date.now()}-${localNr.baseId}-missing`,
-                        timestamp: new Date().toISOString(),
-                        user: 'SISTEMA',
-                        action: 'CANCELADO',
-                        nrId: localNr.baseId,
-                        details: 'No aparece en fuente oficial (Sincronización).'
-                    });
-                }
+            hayCambios = true;
+            const index = nrsActualizados.findIndex(nr => nr.id === localNr.id);
+            if (index > -1) {
+                nrsActualizados[index].isCaducado = true;
+                nuevosLogs.push({
+                    id: `log-${Date.now()}-${localNr.baseId}-missing`,
+                    timestamp: new Date().toISOString(),
+                    user: 'SISTEMA',
+                    action: 'CANCELADO',
+                    nrId: localNr.baseId,
+                    details: 'No aparece en fuente oficial (Sincronización).'
+                });
             }
         }
     }
