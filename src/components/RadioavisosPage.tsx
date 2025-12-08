@@ -1,3 +1,4 @@
+
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
@@ -202,6 +203,7 @@ async function syncWithSalvamento() {
         aviso.tipo.toUpperCase() === 'NAVTEX'
     );
 
+    // 1. Añadir nuevos o reactivar caducados desde fuente oficial
     for (const aviso of avisosRelevantes) {
         const avisoBaseId = getBaseId(aviso.num);
         const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
@@ -255,6 +257,39 @@ async function syncWithSalvamento() {
                 if (isNavtexAviso) newNR.stations.push('Navtex');
                 nrsActualizados.push(newNR);
                 nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'AÑADIDO', nrId: avisoBaseId, details: `Añadido automáticamente (versión 1) desde SASEMAR. ${isNavtexAviso ? 'Asignado a Navtex.' : ''}` });
+            }
+        }
+    }
+
+    // 2. Eliminar (caducar) NRs locales que han desaparecido de la fuente oficial
+    // Solo se aplica a NRs que están gestionados por Navtex, para evitar borrar avisos manuales de otras zonas.
+    const officialBaseIds = new Set(avisosRelevantes.map(a => getBaseId(a.num)));
+    const activeNavtexNrs = nrsActualizados.filter(nr => !nr.isCaducado && nr.stations.includes('Navtex'));
+
+    for (const localNr of activeNavtexNrs) {
+        if (!officialBaseIds.has(localNr.baseId)) {
+            // Verificar si el NR fue añadido manualmente por un usuario.
+            // Si existe un registro de 'AÑADIDO' por un usuario que NO sea 'SISTEMA', lo protegemos.
+            const wasAddedManually = state.appData.history.some(h => 
+                h.nrId === localNr.baseId && 
+                h.action === 'AÑADIDO' && 
+                h.user !== 'SISTEMA'
+            );
+
+            if (!wasAddedManually) {
+                hayCambios = true;
+                const index = nrsActualizados.findIndex(nr => nr.id === localNr.id);
+                if (index > -1) {
+                    nrsActualizados[index].isCaducado = true;
+                    nuevosLogs.push({
+                        id: `log-${Date.now()}-${localNr.baseId}-missing`,
+                        timestamp: new Date().toISOString(),
+                        user: 'SISTEMA',
+                        action: 'CANCELADO',
+                        nrId: localNr.baseId,
+                        details: 'No aparece en fuente oficial (Sincronización).'
+                    });
+                }
             }
         }
     }
@@ -613,7 +648,8 @@ function renderStationStatusTableHTML(): string {
     ALL_STATIONS.forEach(stationFullName => {
         nrsByStation[stationFullName] = activeNRs
             .filter(nr => nr.stations.includes(stationFullName))
-            .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+            // Sort by ID DESCENDING so newest (higher number) appear at the top
+            .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
     });
 
     const maxRows = Math.max(0, ...Object.values(nrsByStation).map(nrs => nrs.length));

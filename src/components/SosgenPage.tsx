@@ -1,3 +1,4 @@
+
 import { getCurrentUser } from "../utils/auth";
 import { handleCopy, showToast } from "../utils/helpers";
 
@@ -101,7 +102,7 @@ async function deleteHistoryEntry(id: string) {
 export function renderSosgen(container: HTMLElement) {
     container.innerHTML = `
         <div class="procedure-box" style="margin-top: 0; margin-bottom: 2rem; border-left-width: 4px;">
-            <h2 class="content-card-title" style="margin-bottom: 1rem; border-bottom: none; padding-bottom: 0;">Instrucciones de Funcionamiento</h2>
+            <h2 class="content-card-title" style="margin-bottom: 1rem; border-bottom: none; padding: 0;">Instrucciones de Funcionamiento</h2>
             <ol style="padding-left: 20px; font-size: 0.95rem; line-height: 1.7; color: var(--text-secondary);">
                 <li>Introduzca la descripción del suceso en lenguaje natural en el campo <strong>"Información de Socorro"</strong>.</li>
                 <li>Incluya todos los datos clave disponibles: buque, MMSI, POB, posición, naturaleza del peligro, estación que informa, etc.</li>
@@ -303,7 +304,7 @@ function renderSilenceFiniModal(entry: SosgenHistoryEntry) {
     modalOverlay.className = 'modal-overlay';
     modalOverlay.id = modalId;
 
-    const reasons = ["FALSA ALERTA", "PERSONAS ENCONTRADAS", "FIN DE LA ALERTA"];
+    const reasons = ["FIN DE LA ALERTA", "FALSA ALERTA", "PERSONAS ENCONTRADAS"];
     const englishReasons: { [key: string]: string } = {
         "FALSA ALERTA": "FALSE ALERT",
         "PERSONAS ENCONTRADAS": "PERSONS FOUND",
@@ -323,7 +324,7 @@ function renderSilenceFiniModal(entry: SosgenHistoryEntry) {
                     <div id="silence-es" contenteditable="true" class="editable-message" style="min-height: 200px;"></div>
                 </div>
                 <div>
-                    <div class="history-entry-lang-header"><h4>Inglés</h4><button class="copy-btn" data-target="silence-en"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg><span>Copiar</span></button></div>
+                    <div class="history-entry-lang-header"><h4>Inglés</h4><button class="copy-btn" data-target="silence-en"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg><span>Copiar</span></button></div>
                     <div id="silence-en" contenteditable="true" class="editable-message" style="min-height: 200px;"></div>
                 </div>
             </div>
