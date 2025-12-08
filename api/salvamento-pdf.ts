@@ -183,11 +183,57 @@ async function processPdfResponse(response: Response, res: VercelResponse) {
 
     try {
         const data = await pdf(buffer);
-        // Normalize text
-        const cleanText = data.text
-            .replace(/\r\n/g, '\n')
-            .replace(/\n\s*\n/g, '\n')
-            .trim();
+        let text = data.text;
+
+        // --- 1. REMOVE FOOTER (LEGAL DISCLAIMER) ---
+        // We find the start of the disclaimer and cut everything after it.
+        const footerMarker = "Aviso: La información contenida en este sitio web es solo para fines informativos";
+        const footerIndex = text.indexOf(footerMarker);
+        if (footerIndex !== -1) {
+            text = text.substring(0, footerIndex);
+        }
+
+        // --- 2. NORMALIZE WHITESPACE ---
+        text = text.replace(/\r\n/g, '\n');
+
+        // --- 3. FIX BROKEN HEADERS ---
+        // PDF parsing often splits "Fecha Emisión" into "Fecha \n Emisión"
+        text = text.replace(/Fecha\s*\n\s*Emisi[óo]n:/gi, 'Fecha Emisión:');
+        text = text.replace(/Fecha\s*\n\s*Caducidad:/gi, 'Fecha Caducidad:');
+
+        // --- 4. JOIN VALUES TO HEADERS ---
+        // If the value is on the next line (e.g., "Radioaviso:\nNR-XXX"), bring it up.
+        // Applied to short metadata fields.
+        const metaHeaders = ['Radioaviso:', 'Fecha Emisión:', 'Fecha Caducidad:'];
+        metaHeaders.forEach(h => {
+             // Regex: Header followed by newline and potential whitespace
+             const regex = new RegExp(`(${h})\\s*\\n\\s*`, 'gi');
+             text = text.replace(regex, '$1 ');
+        });
+
+        // --- 5. SECTION SPACING & FORMATTING ---
+        
+        // Ensure Metadata headers start on a new line if they aren't already
+        metaHeaders.forEach(h => {
+             const regex = new RegExp(`(?<!^)\\s*(${h})`, 'gi');
+             text = text.replace(regex, '\n$1');
+        });
+
+        // Ensure "Texto Español" and "English Text" have double newlines above them for clarity
+        // and a single newline below to start the body text.
+        const sectionHeaders = ['Texto Español:', 'English Text:'];
+        sectionHeaders.forEach(h => {
+            const regex = new RegExp(`\\s*(${h})`, 'gi');
+            text = text.replace(regex, '\n\n$1\n');
+        });
+
+        // --- 6. FINAL CLEANUP ---
+        // Collapse multiple spaces into one
+        text = text.replace(/[ \t]+/g, ' '); 
+        // Collapse excessive newlines (more than 2) into 2
+        text = text.replace(/\n\s*\n\s*\n/g, '\n\n'); 
+        
+        const cleanText = text.trim();
             
         return res.status(200).json({ text: cleanText });
     } catch (parseError) {
