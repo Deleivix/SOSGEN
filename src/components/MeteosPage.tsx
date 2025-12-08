@@ -86,6 +86,12 @@ function normalizeMarine(text: string): string {
     t = expandMar(t);
     t = beaufortPalabras(t);
     t = presionesMilibares(t);
+    
+    // Formatear grupos fecha-hora DDHHMM UTC -> D D H H M M U T C (espacio entre cada caracter)
+    t = t.replace(/\b(\d{6})\s*UTC\b/gi, (match, digits) => {
+        return digits.split('').join(' ') + ' U T C';
+    });
+
     t = tidy(t);
     if (!/[.!?]$/.test(t)) t += ".";
     return t.charAt(0).toUpperCase() + t.slice(1);
@@ -353,7 +359,7 @@ function renderFinalLayout(data: { [key: string]: { spanish: string, error?: str
 
     const copyButtonHTML = (cardId: string, lang: 'es' | 'en') => `
         <button class="copy-btn bulletin-copy-btn" data-card-id="${cardId}" data-lang="${lang}" aria-label="Copiar boletín">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg>
             <span>Copiar</span>
         </button>`;
 
