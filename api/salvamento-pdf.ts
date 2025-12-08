@@ -31,30 +31,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const html = await initialResponse.text();
     
-    // Robust Helper to extract value from ASP.NET hidden inputs
-    // 1. Matches the specific <input> tag containing the id or name
-    // 2. Extracts the value attribute from that specific tag string
+    // Robust Manual Parser for ASP.NET Hidden Fields
+    // Avoids regex complexities by finding indices directly.
     const getHiddenValue = (htmlContent: string, fieldName: string): string | undefined => {
-        // Regex explanation:
-        // <input       Match start of input tag
-        // [^>]*        Match any chars (attributes) before the target attribute
-        // (?:id|name)  Match either id or name attribute
-        // =            Match equals
-        // ["']         Match opening quote (single or double)
-        // FIELD_NAME   Match the specific field name
-        // ["']         Match closing quote
-        // [^>]*        Match any remaining chars in tag
-        // >            Match end of tag
-        const tagRegex = new RegExp(`<input[^>]+(?:id|name)=["']${fieldName}["'][^>]*>`, 'i');
-        const tagMatch = htmlContent.match(tagRegex);
+        // 1. Find the position of the field name (id="FIELD" or name="FIELD")
+        let keyIndex = htmlContent.indexOf(`id="${fieldName}"`);
+        if (keyIndex === -1) keyIndex = htmlContent.indexOf(`name="${fieldName}"`);
         
-        if (tagMatch) {
-            const tagString = tagMatch[0];
-            // Extract value="..." or value='...'
-            const valueMatch = tagString.match(/value=["']([^"']*)["']/i);
-            if (valueMatch) return valueMatch[1];
-        }
-        return undefined;
+        if (keyIndex === -1) return undefined;
+
+        // 2. Find the start of the tag (<input) by looking backwards from the key
+        const tagStartIndex = htmlContent.lastIndexOf('<input', keyIndex);
+        if (tagStartIndex === -1) return undefined;
+
+        // 3. Find the end of the tag (>) by looking forwards from the key
+        // Note: ViewState/EventValidation base64 values do not contain '>', so this is safe.
+        const tagEndIndex = htmlContent.indexOf('>', keyIndex);
+        if (tagEndIndex === -1) return undefined;
+
+        // 4. Extract the specific tag string
+        const tag = htmlContent.substring(tagStartIndex, tagEndIndex + 1);
+
+        // 5. Extract value attribute from this isolated tag
+        // Handles value="..." or value='...'
+        const valueMatch = tag.match(/value=["']([^"']*)["']/i);
+        return valueMatch ? valueMatch[1] : undefined;
     };
 
     // Extract ASP.NET Hidden Fields
@@ -63,13 +64,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const eventValidation = getHiddenValue(html, '__EVENTVALIDATION');
 
     if (!viewState || !eventValidation) {
-        // Debugging Aid: Find where the field is to see why regex failed
+        // Debugging Aid
+        console.error(`ViewState Parse Failed. HTML Length: ${html.length}`);
         const debugIndex = html.indexOf('__VIEWSTATE');
-        let context = "Not found";
         if (debugIndex !== -1) {
-            context = html.substring(Math.max(0, debugIndex - 50), Math.min(html.length, debugIndex + 150));
+             console.error(`Context: ${html.substring(debugIndex - 50, debugIndex + 100)}`);
         }
-        console.error(`ViewState Parse Failed. Context around __VIEWSTATE: ${context}`);
         throw new Error('Could not parse ASP.NET ViewStates. Page structure mismatch.');
     }
 
