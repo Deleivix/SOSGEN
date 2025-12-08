@@ -1,3 +1,4 @@
+
 import { showToast } from "../utils/helpers";
 
 // ============================================================================
@@ -116,7 +117,13 @@ function formatAltaMar(xmlDoc: XMLDocument): string {
 function formatAviso(xmlDoc: XMLDocument): string {
     const elaborado = isoToFechaEnPalabras(xmlDoc.querySelector("origen > elaborado")?.textContent || "");
     const fin = isoToFechaEnPalabras(xmlDoc.querySelector("origen > fin")?.textContent || "");
-    const avisoNodes = xmlDoc.querySelectorAll("aviso > zona");
+    
+    // Intenta buscar zonas (usando selector descendiente para mayor robustez)
+    const avisoNodes = xmlDoc.querySelectorAll("aviso zona");
+    
+    // Intenta buscar texto general dentro de aviso
+    const generalTextNode = xmlDoc.querySelector("aviso > texto");
+    const generalText = generalTextNode ? normalizeMarine(generalTextNode.textContent || "") : "";
 
     const lines = [];
     lines.push("AGENCIA ESTATAL DE METEOROLOGIA DE ESPAÑA", "");
@@ -124,18 +131,37 @@ function formatAviso(xmlDoc: XMLDocument): string {
     lines.push(`EMITIDO EL ${elaborado.fecha.toUpperCase()} A LAS ${hhmmToWords(elaborado.hhmm).toUpperCase()} UTC`, "");
     lines.push(`ALCANZA HASTA EL ${fin.fecha.toUpperCase()} A LAS ${hhmmToWords(fin.hhmm).toUpperCase()} UTC`, "");
 
+    let contentFound = false;
+
+    // 1. Zonas específicas
     if (avisoNodes.length > 0) {
         lines.push("AVISOS:");
         avisoNodes.forEach(aviso => {
             const zonaNombre = aviso.getAttribute("nombre")?.toUpperCase();
-            const texto = aviso.querySelector("texto")?.textContent?.trim().toUpperCase();
+            const texto = aviso.querySelector("texto")?.textContent || "";
             if (zonaNombre && texto) {
-                lines.push(`${zonaNombre}: ${texto}.`);
+                const cleanText = normalizeMarine(texto).toUpperCase();
+                lines.push(`${zonaNombre}: ${cleanText}`);
+                contentFound = true;
             }
         });
-    } else {
+    }
+
+    // 2. Texto general (si no se encontraron zonas o como complemento si existe)
+    // AEMET a veces pone avisos generales sin zonas específicas en WONT40MM
+    if (!contentFound && generalText) {
+        // Ignoramos si el texto es explícitamente "NO HAY AVISOS" para usar el formato estándar abajo
+        if (!generalText.toUpperCase().includes("NO HAY AVISO") && !generalText.toUpperCase().includes("NINGUNO")) {
+             lines.push("AVISOS:");
+             lines.push(generalText.toUpperCase());
+             contentFound = true;
+        }
+    }
+
+    if (!contentFound) {
         lines.push("AVISOS: NINGUNO", "", "NO HAY AVISOS.");
     }
+
     return lines.join("\n");
 }
 
@@ -323,7 +349,7 @@ function renderFinalLayout(data: { [key: string]: { spanish: string, error?: str
 
     const copyButtonHTML = (cardId: string, lang: 'es' | 'en') => `
         <button class="copy-btn bulletin-copy-btn" data-card-id="${cardId}" data-lang="${lang}" aria-label="Copiar boletín">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg>
             <span>Copiar</span>
         </button>`;
 
