@@ -5,16 +5,18 @@ export interface Category { category: string; items: Template[]; }
 export interface QuickRef { category: string; content: string; }
 export interface PhoneEntry { name: string; phones: string[]; fax?: string; email?: string; keywords: string[]; }
 export interface Page { name: string; }
-export type ReferenceTableData = {
-    caption: string;
-    captionClass: string;
+
+export interface ReferenceTableEntry {
+    caption?: string;
+    captionClass?: string;
     headers: string[];
     rows: string[][];
     mfSection?: {
         headers: string[];
         rows: string[][];
     };
-}[];
+}
+export type ReferenceTableData = ReferenceTableEntry[];
 
 export const APP_PAGE_ICONS = [
     // Dashboard: Home
@@ -182,7 +184,7 @@ export const VHF_FREQUENCIES_DATA: ReferenceTableData = [
     }
 ];
 
-export const PHONETIC_ALPHABET_DATA = {
+export const PHONETIC_ALPHABET_DATA: ReferenceTableEntry = {
     headers: ['Letra', 'Código', 'Letra', 'Código'],
     rows: [
         ['A', 'Alfa', 'N', 'November'], ['B', 'Bravo', 'O', 'Oscar'], ['C', 'Charlie', 'P', 'Papa'],
@@ -193,7 +195,7 @@ export const PHONETIC_ALPHABET_DATA = {
     ]
 };
 
-export const Q_CODES_DATA = {
+export const Q_CODES_DATA: ReferenceTableEntry = {
     headers: ['Código', 'Significado'],
     rows: [
         ['QTH', '¿Cuál es su posición? / Mi posición es...'],
@@ -206,7 +208,7 @@ export const Q_CODES_DATA = {
     ]
 };
 
-export const BEAUFORT_SCALE_DATA = {
+export const BEAUFORT_SCALE_DATA: ReferenceTableEntry = {
     headers: ['Fuerza', 'Denominación / Designation', 'Nudos', 'Estado del Mar / Sea State'],
     rows: [
         ['0', 'Calma / Calm', '< 1', 'Espejo / Like a mirror'],
@@ -225,7 +227,7 @@ export const BEAUFORT_SCALE_DATA = {
     ]
 };
 
-export const DOUGLAS_SCALE_DATA = {
+export const DOUGLAS_SCALE_DATA: ReferenceTableEntry = {
     headers: ['Grado', 'Descripción / Description', 'Altura de Olas (m) / Wave Height (m)'],
     rows: [
         ['0', 'Calma / Calm', '0'],

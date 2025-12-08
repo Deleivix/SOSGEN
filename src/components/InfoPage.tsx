@@ -7,7 +7,7 @@ import {
     Q_CODES_DATA,
     BEAUFORT_SCALE_DATA,
     DOUGLAS_SCALE_DATA,
-    ReferenceTableData
+    ReferenceTableEntry
 } from "../data";
 import { debounce, initializeInfoTabs, showToast } from "../utils/helpers";
 
@@ -16,16 +16,7 @@ import { debounce, initializeInfoTabs, showToast } from "../utils/helpers";
  * @param config - The table configuration.
  * @returns An HTML string representing the table.
  */
-function renderReferenceTable(config: {
-    caption?: string;
-    captionClass?: string;
-    headers: string[];
-    rows: string[][];
-    mfSection?: {
-        headers: string[];
-        rows: string[][];
-    }
-}): string {
+function renderReferenceTable(config: ReferenceTableEntry): string {
     let html = '';
     
     // VHF Table
