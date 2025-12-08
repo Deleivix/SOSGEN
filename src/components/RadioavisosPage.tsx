@@ -1,3 +1,4 @@
+
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
@@ -20,6 +21,7 @@ type NR = {
     expiryTime: string;
     isAmpliado: boolean;
     isCaducado: boolean;
+    isManual: boolean;
 };
 type HistoryLog = {
     id: string; timestamp: string; user: string;
@@ -45,7 +47,7 @@ let state = {
     lastSalvamentoUpdate: null as Date | null,
     // Unified Table State
     filterText: '',
-    sortConfig: { key: 'id' as keyof NR, direction: 'ascending' as SortDirection },
+    sortConfig: { key: 'id' as keyof NR, direction: 'descending' as SortDirection }, // Changed default to descending
     // History Table State
     historyFilterText: '',
     historySortConfig: { key: 'timestamp' as keyof HistoryLog, direction: 'descending' as SortDirection },
@@ -202,6 +204,9 @@ async function syncWithSalvamento() {
         aviso.tipo.toUpperCase() === 'NAVTEX'
     );
 
+    const officialBaseIds = avisosRelevantes.map(a => getBaseId(a.num));
+
+    // 1. Process active official notices
     for (const aviso of avisosRelevantes) {
         const avisoBaseId = getBaseId(aviso.num);
         const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
@@ -251,12 +256,39 @@ async function syncWithSalvamento() {
                     expiryTime,
                     isAmpliado: false,
                     isCaducado: false,
+                    isManual: false
                 };
                 if (isNavtexAviso) newNR.stations.push('Navtex');
                 nrsActualizados.push(newNR);
                 nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'AÑADIDO', nrId: avisoBaseId, details: `Añadido automáticamente (versión 1) desde SASEMAR. ${isNavtexAviso ? 'Asignado a Navtex.' : ''}` });
             }
         }
+    }
+
+    // 2. Process cancellations (NRs active locally but gone from official feed)
+    // Only target non-manual NRs
+    const nrsToCancel = nrsActualizados.filter(nr => 
+        !nr.isCaducado && 
+        !nr.isManual && 
+        !officialBaseIds.includes(nr.baseId)
+    );
+
+    if (nrsToCancel.length > 0) {
+        hayCambios = true;
+        nrsToCancel.forEach(nr => {
+            const index = nrsActualizados.findIndex(n => n.id === nr.id);
+            if (index > -1) {
+                nrsActualizados[index].isCaducado = true;
+                nuevosLogs.push({ 
+                    id: `log-${Date.now()}-${nr.baseId}-cancel`, 
+                    timestamp: new Date().toISOString(), 
+                    user: 'SISTEMA', 
+                    action: 'CANCELADO', 
+                    nrId: nr.baseId, 
+                    details: `Cancelado automáticamente por no figurar en la fuente oficial.` 
+                });
+            }
+        });
     }
 
     if (hayCambios) {
@@ -536,8 +568,8 @@ async function handleAddSubmit() {
         }
         const newId = version === 1 ? `NR-${baseId}` : `NR-${baseId}-${version}`;
         const expiryCheckbox = container.querySelector('#add-has-expiry') as HTMLInputElement;
-        const newNR: NR = { id: newId, baseId: baseId, version, stations, expiryDate: expiryCheckbox.checked ? (container.querySelector('#add-expiry-date') as HTMLInputElement).value : '', expiryTime: expiryCheckbox.checked ? (container.querySelector('#add-expiry-time') as HTMLInputElement).value : '', isAmpliado: (container.querySelector('#add-is-ampliado') as HTMLInputElement).checked, isCaducado: false };
-        historyToUpdate.unshift({ id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'AÑADIDO', nrId: baseId, details: `Añadida versión ${version}.` });
+        const newNR: NR = { id: newId, baseId: baseId, version, stations, expiryDate: expiryCheckbox.checked ? (container.querySelector('#add-expiry-date') as HTMLInputElement).value : '', expiryTime: expiryCheckbox.checked ? (container.querySelector('#add-expiry-time') as HTMLInputElement).value : '', isAmpliado: (container.querySelector('#add-is-ampliado') as HTMLInputElement).checked, isCaducado: false, isManual: true };
+        historyToUpdate.unshift({ id: Date.now().toString(), timestamp: new Date().toISOString(), user: user.username, action: 'AÑADIDO', nrId: baseId, details: `Añadida versión ${version} (Manual).` });
         
         const finalData: AppData = { nrs: [...nrsToUpdate, newNR], history: historyToUpdate };
         await api.saveData(finalData);
@@ -613,12 +645,15 @@ function renderStationStatusTableHTML(): string {
     ALL_STATIONS.forEach(stationFullName => {
         nrsByStation[stationFullName] = activeNRs
             .filter(nr => nr.stations.includes(stationFullName))
-            .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+            // Sort Descending by ID to show latest added first (higher number)
+            .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
     });
 
     const maxRows = Math.max(0, ...Object.values(nrsByStation).map(nrs => nrs.length));
 
     let tableBodyHtml = '';
+    const cellStyle = "border-right: 1px solid var(--border-color);";
+
     if (maxRows === 0) {
         tableBodyHtml = `<tr><td colspan="${ALL_STATIONS.length}" class="drill-placeholder">No hay NRs vigentes asignados a estaciones.</td></tr>`;
     } else {
@@ -628,14 +663,14 @@ function renderStationStatusTableHTML(): string {
             // Iterate through the stations in the correct display order
             STATIONS_VHF.forEach(stationFullName => {
                 const nr = nrsByStation[stationFullName]?.[i];
-                tableBodyHtml += `<td>${nr ? nr.baseId : ''}</td>`;
+                tableBodyHtml += `<td style="${cellStyle}">${nr ? nr.baseId : ''}</td>`;
             });
             STATIONS_MF.forEach(stationFullName => {
                 const nr = nrsByStation[stationFullName]?.[i];
-                tableBodyHtml += `<td>${nr ? nr.baseId : ''}</td>`;
+                tableBodyHtml += `<td style="${cellStyle}">${nr ? nr.baseId : ''}</td>`;
             });
             const navtexNr = nrsByStation['Navtex']?.[i];
-            tableBodyHtml += `<td>${navtexNr ? navtexNr.baseId : ''}</td>`;
+            tableBodyHtml += `<td style="${cellStyle}">${navtexNr ? navtexNr.baseId : ''}</td>`;
 
             tableBodyHtml += '</tr>';
         }
@@ -645,9 +680,9 @@ function renderStationStatusTableHTML(): string {
     const headersHtml = `
         <thead>
             <tr>
-                ${STATIONS_VHF.map(s => `<th class="header-vhf">${s.replace(' VHF', '')}</th>`).join('')}
-                ${STATIONS_MF.map(s => `<th class="header-mf">${s}</th>`).join('')}
-                <th class="header-navtex">Navtex</th>
+                ${STATIONS_VHF.map(s => `<th class="header-vhf" style="${cellStyle}">${s.replace(' VHF', '')}</th>`).join('')}
+                ${STATIONS_MF.map(s => `<th class="header-mf" style="${cellStyle}">${s}</th>`).join('')}
+                <th class="header-navtex" style="${cellStyle}">Navtex</th>
             </tr>
         </thead>`;
 
