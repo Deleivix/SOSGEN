@@ -31,31 +31,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const html = await initialResponse.text();
     
-    // Helper to extract value by ID, handling different attribute orders
-    const getHiddenValue = (html: string, id: string): string | undefined => {
-        // Look for id="ID" ... value="VAL"
-        let match = html.match(new RegExp(`id="${id}"[^>]*value="([^"]*)"`, 'i'));
-        if (match) return match[1];
+    // Robust Helper to extract value from ASP.NET hidden inputs
+    // 1. Matches the specific <input> tag containing the id or name
+    // 2. Extracts the value attribute from that specific tag string
+    const getHiddenValue = (htmlContent: string, fieldName: string): string | undefined => {
+        // Regex explanation:
+        // <input       Match start of input tag
+        // [^>]*        Match any chars (attributes) before the target attribute
+        // (?:id|name)  Match either id or name attribute
+        // =            Match equals
+        // ["']         Match opening quote (single or double)
+        // FIELD_NAME   Match the specific field name
+        // ["']         Match closing quote
+        // [^>]*        Match any remaining chars in tag
+        // >            Match end of tag
+        const tagRegex = new RegExp(`<input[^>]+(?:id|name)=["']${fieldName}["'][^>]*>`, 'i');
+        const tagMatch = htmlContent.match(tagRegex);
         
-        // Look for value="VAL" ... id="ID"
-        match = html.match(new RegExp(`value="([^"]*)"[^>]*id="${id}"`, 'i'));
-        if (match) return match[1];
-
-        // Fallback: Look for name="ID" if id not found (sometimes they match)
-        match = html.match(new RegExp(`name="${id}"[^>]*value="([^"]*)"`, 'i'));
-        if (match) return match[1];
-
+        if (tagMatch) {
+            const tagString = tagMatch[0];
+            // Extract value="..." or value='...'
+            const valueMatch = tagString.match(/value=["']([^"']*)["']/i);
+            if (valueMatch) return valueMatch[1];
+        }
         return undefined;
     };
 
-    // Extract ASP.NET Hidden Fields using robust regex
+    // Extract ASP.NET Hidden Fields
     const viewState = getHiddenValue(html, '__VIEWSTATE');
     const viewStateGenerator = getHiddenValue(html, '__VIEWSTATEGENERATOR');
     const eventValidation = getHiddenValue(html, '__EVENTVALIDATION');
 
     if (!viewState || !eventValidation) {
-        console.error('HTML content sample:', html.substring(0, 500));
-        throw new Error('Could not parse ASP.NET ViewStates. The page structure might have changed.');
+        // Debugging Aid: Find where the field is to see why regex failed
+        const debugIndex = html.indexOf('__VIEWSTATE');
+        let context = "Not found";
+        if (debugIndex !== -1) {
+            context = html.substring(Math.max(0, debugIndex - 50), Math.min(html.length, debugIndex + 150));
+        }
+        console.error(`ViewState Parse Failed. Context around __VIEWSTATE: ${context}`);
+        throw new Error('Could not parse ASP.NET ViewStates. Page structure mismatch.');
     }
 
     let finalEventTarget = eventTarget;
@@ -120,8 +135,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          // throw new Error('Server returned HTML instead of PDF. The target might be invalid.');
          // Try to parse error from HTML if possible or just generic error
          const errorHtml = await pdfResponse.text();
-         console.error('Non-PDF response sample:', errorHtml.substring(0, 300));
-         throw new Error('Server returned HTML instead of PDF. Session might have expired or target is invalid.');
+         // Check if it's a generic ASP.NET error page
+         const titleMatch = errorHtml.match(/<title>(.*?)<\/title>/i);
+         const title = titleMatch ? titleMatch[1] : 'Unknown Error Page';
+         console.error('Non-PDF response title:', title);
+         throw new Error(`Server returned HTML (${title}) instead of PDF. Session might have expired or target is invalid.`);
     }
 
     const arrayBuffer = await pdfResponse.arrayBuffer();
