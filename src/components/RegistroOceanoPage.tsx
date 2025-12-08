@@ -1,3 +1,4 @@
+
 import { REGISTRO_OCEANO_DATA } from "../data";
 import { handleCopy } from "../utils/helpers";
 
@@ -16,7 +17,7 @@ export function renderRegistroOceano(container: HTMLElement) {
                     ${REGISTRO_OCEANO_DATA.map((category, index) => `
                         <div class="sub-tab-panel ${index === 0 ? 'active' : ''}" id="sub-tab-${category.category.replace(/\s+/g, '-')}">
                             ${category.items.map(item => {
-                                const copyBtnHtml = `<button class="copy-btn" aria-label="Copiar ${item.title}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V6.5a.5.5 0 0 1 .5-.5H3v-1z"/></svg><span>Copiar</span></button>`;
+                                const copyBtnHtml = `<button class="copy-btn" aria-label="Copiar ${item.title}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg><span>Copiar</span></button>`;
 
                                 if (item.title === 'Entrada de guardia') {
                                     return `
@@ -83,6 +84,58 @@ export function renderRegistroOceano(container: HTMLElement) {
                                                 </div></div>
                                             </div>
                                             <div class="template-card-body" id="template-text-documentacion" style="border-top: 1px solid var(--border-color);"></div>
+                                        </div>
+                                    `;
+                                }
+                                if (item.title === 'Formato Radiocheck') {
+                                    return `
+                                        <div class="template-card" data-template-id="radiocheck">
+                                            <div class="template-card-header">
+                                                <h3 class="template-card-title">${item.title}</h3>
+                                                ${copyBtnHtml}
+                                            </div>
+                                            <div class="reorg-controls" style="padding: 1rem 1.5rem 1rem; border-top: 1px solid var(--border-color);">
+                                                <div style="margin-bottom: 1rem;">
+                                                    <h4>Posición</h4>
+                                                    <div class="buoy-selector-group" id="radiocheck-pos-selector">
+                                                        <button class="buoy-selector-btn active" data-value="Puerto de Vigo">Puerto de Vigo</button>
+                                                        <button class="buoy-selector-btn" data-value="Puerto de Bilbao">Puerto de Bilbao</button>
+                                                        <button class="buoy-selector-btn" data-value="Puerto de A Coruña">Puerto de A Coruña</button>
+                                                        <button class="buoy-selector-btn" data-value="Otro">Otro</button>
+                                                    </div>
+                                                </div>
+                                                <div style="margin-bottom: 1rem;">
+                                                    <h4>Vía de contacto</h4>
+                                                    <div class="buoy-selector-group" id="radiocheck-via-selector">
+                                                        <button class="buoy-selector-btn active" data-value="Vigo radio VHF canal 64">Vigo VHF 64</button>
+                                                        <button class="buoy-selector-btn" data-value="Finisterre radio MF canal 262">Finisterre MF 262</button>
+                                                        <button class="buoy-selector-btn" data-value="OTRO">OTRO</button>
+                                                    </div>
+                                                </div>
+                                                <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                                                    <div>
+                                                        <h4>Resultado TX</h4>
+                                                        <div class="buoy-selector-group" id="radiocheck-tx-selector">
+                                                            <button class="buoy-selector-btn" data-value="1/5">1/5</button>
+                                                            <button class="buoy-selector-btn" data-value="2/5">2/5</button>
+                                                            <button class="buoy-selector-btn" data-value="3/5">3/5</button>
+                                                            <button class="buoy-selector-btn" data-value="4/5">4/5</button>
+                                                            <button class="buoy-selector-btn active" data-value="5/5">5/5</button>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h4>Resultado RX</h4>
+                                                        <div class="buoy-selector-group" id="radiocheck-rx-selector">
+                                                            <button class="buoy-selector-btn" data-value="1/5">1/5</button>
+                                                            <button class="buoy-selector-btn" data-value="2/5">2/5</button>
+                                                            <button class="buoy-selector-btn" data-value="3/5">3/5</button>
+                                                            <button class="buoy-selector-btn" data-value="4/5">4/5</button>
+                                                            <button class="buoy-selector-btn active" data-value="5/5">5/5</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="template-card-body" id="template-text-radiocheck" style="border-top: 1px solid var(--border-color);"></div>
                                         </div>
                                     `;
                                 }
@@ -201,6 +254,18 @@ function initializeRegistroOceano(container: HTMLElement) {
                 newText = `Documentación turno de "${turno}".`;
                 break;
             }
+            case 'radiocheck': {
+                let pos = card.querySelector('#radiocheck-pos-selector .active')?.getAttribute('data-value') || 'Puerto de Vigo';
+                let via = card.querySelector('#radiocheck-via-selector .active')?.getAttribute('data-value') || 'Vigo radio VHF canal 64';
+                const tx = card.querySelector('#radiocheck-tx-selector .active')?.getAttribute('data-value') || '5/5';
+                const rx = card.querySelector('#radiocheck-rx-selector .active')?.getAttribute('data-value') || '5/5';
+                
+                if (pos === 'Otro') pos = '______';
+                if (via === 'OTRO') via = '______';
+
+                newText = `Embarcación: “Nombre/Callsign”\nPosición: “${pos}”\nVía de contacto: “${via}”\nResultado TX: “${tx}”\nResultado RX: “${rx}”`;
+                break;
+            }
              case 'transmision-generator': {
 // FIX: Cast querySelector result to HTMLElement to access dataset property
                 const producto = (card.querySelector('#transmision-producto-selector .active') as HTMLElement)?.dataset.value || 'NR';
@@ -297,6 +362,7 @@ function initializeRegistroOceano(container: HTMLElement) {
     updateTemplateText('entrada-guardia');
     updateTemplateText('comprobacion-equipos');
     updateTemplateText('documentacion');
+    updateTemplateText('radiocheck');
     updateTemplateText('transmision-generator');
     updateTemplateText('reorganizacion');
 }
