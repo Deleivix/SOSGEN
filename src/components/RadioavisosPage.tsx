@@ -1,4 +1,5 @@
 
+
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
@@ -420,6 +421,64 @@ async function handleGoToEdit(fullId: string) {
     }
 }
 
+async function handleViewPdf(eventTarget: string, title: string) {
+    if (!eventTarget) return showToast("No se puede obtener el PDF de este aviso.", "error");
+    
+    // Create and show modal with loading state
+    const modalId = `pdf-modal-${Date.now()}`;
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.id = modalId;
+    
+    modalOverlay.innerHTML = `
+        <div class="modal-content" style="max-width: 800px; text-align: left;">
+            <h2 class="modal-title">Texto del Radioaviso: ${title}</h2>
+            <div id="pdf-content-${modalId}" style="min-height: 200px;">
+                <div class="loader-container"><div class="loader"></div><p style="margin-top:1rem; color:var(--text-secondary);">Descargando y procesando PDF...</p></div>
+            </div>
+            <div class="button-container" style="justify-content: flex-end; margin-top: 1.5rem; border-top: none; padding-top: 0;">
+                <button class="primary-btn modal-close-btn" style="margin-top: 0; width: auto;">Cerrar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalOverlay);
+
+    const closeBtn = modalOverlay.querySelector('.modal-close-btn');
+    const closeModal = () => modalOverlay.remove();
+    closeBtn?.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+
+    // Fetch Content
+    try {
+        const response = await fetch('/api/salvamento-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventTarget })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Error en el servidor');
+        }
+
+        const data = await response.json();
+        const contentDiv = document.getElementById(`pdf-content-${modalId}`);
+        if (contentDiv) {
+            contentDiv.innerHTML = `
+                <div style="background: var(--bg-main); padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: var(--font-mono); white-space: pre-wrap; font-size: 0.9rem; max-height: 60vh; overflow-y: auto;">
+                    ${data.text}
+                </div>
+            `;
+        }
+
+    } catch (error) {
+        const contentDiv = document.getElementById(`pdf-content-${modalId}`);
+        if (contentDiv) {
+            contentDiv.innerHTML = `<p class="error">Error al obtener el texto del PDF: ${error instanceof Error ? error.message : "Desconocido"}</p>`;
+        }
+    }
+}
+
 async function handleCancelNR(baseId: string) {
     const user = getCurrentUser();
     if (!user) return showToast("Error de sesión.", "error");
@@ -513,6 +572,12 @@ function attachEventListeners(container: HTMLElement) {
                 case 'add-submit': await handleAddSubmit(); break;
                 case 'go-to-edit': await handleGoToEdit(actionElement.dataset.nrId!); break;
                 case 'cancel-nr': await handleCancelNR(actionElement.dataset.nrId!); break;
+                case 'view-pdf': {
+                    const eventTarget = actionElement.dataset.eventTarget;
+                    const title = actionElement.dataset.title;
+                    if(eventTarget && title) await handleViewPdf(eventTarget, title);
+                    break;
+                }
             }
         } else if (target.closest('th[data-sort-key]')) {
             await handleSort(target.closest('th[data-sort-key]')!);
@@ -732,7 +797,8 @@ function renderMasterNrTableHTML(): string {
     const refreshIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`;
     const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>`;
     const externalLinkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-left: 4px;"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>`;
-    
+    const pdfIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/><path d="M4.603 14.087a.8.8 0 0 1-.438-.42c-.195-.388-.13-.771.08-1.102.198-.311.59-.51 1.093-.633.482-.113 1.053-.175 1.63-.223 1.15-.096 2.372-.115 3.116-.083.566.024 1.095.1 1.516.208.402.104.697.265.845.47a.75.75 0 0 1 .09.528.66.66 0 0 1-.184.41c-.136.16-.328.267-.532.32-.44.113-1.064.14-1.77.123-1.122-.027-2.316-.13-3.23-.224-.962-.1-1.75-.156-2.206-.274"/></svg>`;
+
     let content = '';
     const searchTerm = state.filterText.toLowerCase();
     const activeNRs = state.appData.nrs.filter(nr => !nr.isCaducado);
@@ -820,6 +886,7 @@ function renderMasterNrTableHTML(): string {
                             </td>
                             <td>
                                 <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    ${officialAviso?.eventTarget ? `<button class="secondary-btn" data-action="view-pdf" data-event-target="${officialAviso.eventTarget}" data-title="${officialAviso.num}" title="Ver Texto PDF">${pdfIcon}</button>` : ''}
                                     <button class="secondary-btn" data-action="go-to-edit" data-nr-id="${nr.id}">Editar</button>
                                     <button class="tertiary-btn" data-action="cancel-nr" data-nr-id="${nr.baseId}">Cancelar</button>
                                 </div>
@@ -860,115 +927,197 @@ function renderMasterNrTableHTML(): string {
 
 function renderAddView(): string {
     const currentYear = new Date().getFullYear();
+    
     return `
-        <div class="form-grid">
-            <div class="form-group" style="flex-direction: row; gap: 1rem; align-items: flex-end;">
-                <div style="flex:1;"><label for="add-nr-num">NR (Número)</label><input type="text" id="add-nr-num" placeholder="2013" class="simulator-input" /></div>
-                <span style="font-size: 1.5rem;">/</span>
-                <div style="flex:1;"><label for="add-nr-year">Año</label><input type="text" id="add-nr-year" value="${currentYear}" class="simulator-input" /></div>
-            </div>
-            <div class="form-group">
-                <label><input type="checkbox" id="add-is-versionado" /> Versionado de un NR anterior</label>
-                <div id="add-versioned-id-container" style="display:none;">
-                    <input type="text" id="add-versioned-id" placeholder="ID anterior (ej: 1550/2024)" class="simulator-input"/>
+        <div class="add-nr-form-container">
+            <h3>Añadir Nuevo Radioaviso Manual</h3>
+            <div class="simulator-form" id="add-nr-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Número NR</label>
+                        <input type="number" id="add-nr-num" class="simulator-input" placeholder="Ej: 1234" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Año</label>
+                        <input type="number" id="add-nr-year" class="simulator-input" value="${currentYear}" required>
+                    </div>
                 </div>
+
+                <div class="form-group">
+                    <label>Estaciones Afectadas</label>
+                    <div class="checkbox-group" id="add-stations-group">
+                        ${ALL_STATIONS.map(s => `
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="${s}">
+                                ${s}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="add-is-versionado">
+                        <span>Es una nueva versión de un NR existente</span>
+                    </label>
+                    <div id="add-versioned-id-container" style="display:none; margin-top: 0.5rem;">
+                        <input type="text" id="add-versioned-id" class="simulator-input" placeholder="Ej: 1234/2024 (ID base)">
+                        <small>El NR anterior será cancelado automáticamente.</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="add-has-expiry">
+                        <span>Programar Caducidad Automática</span>
+                    </label>
+                    <div id="add-expiry-inputs" style="display:none; gap: 1rem; margin-top: 0.5rem;">
+                        <input type="date" id="add-expiry-date" class="simulator-input">
+                        <input type="time" id="add-expiry-time" class="simulator-input">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="add-is-ampliado">
+                        <span>Marcar como AMPLIADO (si se retransmite por Navtex)</span>
+                    </label>
+                </div>
+
+                <button class="primary-btn" data-action="add-submit" style="margin-top: 1rem;">Guardar NR</button>
             </div>
-            <div class="form-group"><label><input type="checkbox" id="add-has-expiry" checked /> Fecha Caducidad (UTC)</label><div id="add-expiry-inputs" style="display:flex; gap: 1rem;"><input type="date" id="add-expiry-date" class="simulator-input" /><input type="time" id="add-expiry-time" class="simulator-input" /></div></div>
-            <div class="form-group"><label><input type="checkbox" id="add-is-ampliado" /> NR Ampliado</label></div>
-        </div>
-        <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Marque las EECC:</h3>
-        <div class="checkbox-group" id="add-stations-group">
-            ${ALL_STATIONS.map(station => `<div class="checkbox-item"><input type="checkbox" id="add-${station}" value="${station}"><label for="add-${station}">${station}</label></div>`).join('')}
-        </div>
-        <div class="button-container">
-            <button class="primary-btn" data-action="add-submit" style="margin-top:0;">GUARDAR</button>
         </div>
     `;
 }
 
 function renderHistoryView(): string {
     const searchTerm = state.historyFilterText.toLowerCase();
-    const filteredHistory = state.appData.history.filter(log => log.nrId.toLowerCase().includes(searchTerm) || log.user.toLowerCase().includes(searchTerm) || log.action.toLowerCase().includes(searchTerm) || log.details.toLowerCase().includes(searchTerm));
+    
+    const filteredHistory = state.appData.history.filter(h => 
+        h.nrId.toLowerCase().includes(searchTerm) ||
+        h.user.toLowerCase().includes(searchTerm) ||
+        h.action.toLowerCase().includes(searchTerm) ||
+        h.details.toLowerCase().includes(searchTerm)
+    );
+
     const sortedHistory = [...filteredHistory].sort((a, b) => {
         const { key, direction } = state.historySortConfig;
-        const comparison = String(a[key]).localeCompare(String(b[key]), undefined, { numeric: true });
+        const valueA = a[key] || '';
+        const valueB = b[key] || '';
+        const comparison = String(valueA).localeCompare(String(valueB));
         return direction === 'ascending' ? comparison : -comparison;
     });
 
-    if (sortedHistory.length === 0) return `<div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history"></div><p class="drill-placeholder">No hay operaciones en el historial.</p>`;
-    
-    const renderHeader = (key: keyof HistoryLog, label: string) => `<th class="${state.historySortConfig.key === key ? `sort-${state.historySortConfig.direction}` : ''}" data-sort-key="${key}" data-table="history">${label}</th>`;
+    const renderHeader = (key: keyof HistoryLog, label: string) => {
+        const isSorted = state.historySortConfig.key === key;
+        const sortClass = isSorted ? `sort-${state.historySortConfig.direction}` : '';
+        return `<th class="${sortClass}" data-sort-key="${key}" data-table="history">${label}</th>`;
+    };
 
     return `
-        <div class="filterable-table-header"><input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history"></div>
+        <div class="filterable-table-header">
+            <input type="search" class="filter-input" placeholder="Filtrar historial..." value="${state.historyFilterText}" data-action="filter" data-filter-target="history">
+        </div>
         <div class="table-wrapper">
-             <table class="reference-table data-table">
-                <thead><tr>${renderHeader('nrId', 'NR')}${renderHeader('timestamp', 'F/H Acción')}${renderHeader('user', 'Usuario')}${renderHeader('action', 'Acción')}${renderHeader('details', 'Detalles')}</tr></thead>
-                <tbody>${sortedHistory.map(log => `<tr><td>${log.nrId}</td><td>${getFormattedDateTime(log.timestamp)}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('')}</tbody>
+            <table class="reference-table data-table">
+                <thead>
+                    <tr>
+                        ${renderHeader('timestamp', 'Fecha/Hora')}
+                        ${renderHeader('user', 'Usuario')}
+                        ${renderHeader('action', 'Acción')}
+                        ${renderHeader('nrId', 'NR Base')}
+                        <th style="width: 40%;">Detalles</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedHistory.map(h => `
+                        <tr>
+                            <td>${getFormattedDateTime(h.timestamp)}</td>
+                            <td>${h.user}</td>
+                            <td><span class="category-badge ${h.action === 'BORRADO' || h.action === 'CANCELADO' ? 'red' : (h.action === 'AÑADIDO' ? 'green' : 'orange')}">${h.action}</span></td>
+                            <td>${h.nrId}</td>
+                            <td class="details-cell" title="${h.details}">${h.details}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
             </table>
-        </div>`;
+        </div>
+    `;
 }
 
 function renderEditNrModal(nr: NR) {
-    const modalId = `edit-nr-modal-${nr.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    if (document.getElementById(modalId)) return;
-
+    const modalId = `edit-modal-${nr.id}`;
     const modalOverlay = document.createElement('div');
     modalOverlay.className = 'modal-overlay';
     modalOverlay.id = modalId;
 
     modalOverlay.innerHTML = `
-        <div class="modal-content" style="max-width: 800px; text-align: left;">
-            <h2 class="modal-title">Editar NR: ${nr.id}</h2>
-            <form id="edit-nr-form-${nr.id.replace(/[^a-zA-Z0-9]/g, '-')}">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Fecha Caducidad (UTC)</label>
-                        <div style="display:flex; gap: 1rem;">
-                            <input type="date" id="modal-edit-expiry-date" class="simulator-input" value="${nr.expiryDate || ''}" />
-                            <input type="time" id="modal-edit-expiry-time" class="simulator-input" value="${(nr.expiryTime || '').trim()}" />
-                        </div>
-                    </div>
-                     <div class="form-group">
-                         <label style="margin-top: 1.5rem;"><input type="checkbox" id="modal-edit-is-ampliado" ${nr.isAmpliado ? 'checked' : ''} /> NR Ampliado</label>
+        <div class="modal-content">
+            <h2 class="modal-title">Editar ${nr.id}</h2>
+            <div id="edit-form-${nr.id}">
+                <div class="form-group">
+                    <label>Caducidad Programada</label>
+                    <div style="display: flex; gap: 1rem;">
+                        <input type="date" id="modal-edit-expiry-date" class="simulator-input" value="${nr.expiryDate || ''}">
+                        <input type="time" id="modal-edit-expiry-time" class="simulator-input" value="${nr.expiryTime || ''}">
                     </div>
                 </div>
-                <h3 class="reference-table-subtitle" style="margin-top: 2rem;">Marque las EECC:</h3>
-                <div class="checkbox-group" id="modal-edit-stations-group">
-                    ${ALL_STATIONS.map(station => `
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="modal-edit-${station.replace(/\s/g, '-')}" value="${station}" ${nr.stations.includes(station) ? 'checked' : ''}>
-                            <label for="modal-edit-${station.replace(/\s/g, '-')}">${station}</label>
-                        </div>
-                    `).join('')}
+
+                <div class="form-group">
+                    <label>Estaciones Afectadas</label>
+                    <div class="checkbox-group" id="modal-edit-stations-group" style="max-height: 200px; overflow-y: auto;">
+                        ${ALL_STATIONS.map(s => `
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="${s}" ${nr.stations.includes(s) ? 'checked' : ''}>
+                                ${s}
+                            </label>
+                        `).join('')}
+                    </div>
                 </div>
-            </form>
-            <div class="button-container" style="justify-content: space-between; align-items: center; border-top:none; padding-top: 1.5rem;">
-                <button class="tertiary-btn modal-delete-btn">Borrar NR</button>
-                <div style="display: flex; gap: 1rem;">
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="modal-edit-is-ampliado" ${nr.isAmpliado ? 'checked' : ''}>
+                        <span>AMPLIADO (Retransmisión por Navtex)</span>
+                    </label>
+                </div>
+                
+                <div class="button-container">
                     <button class="secondary-btn modal-cancel-btn">Cancelar</button>
-                    <button class="primary-btn modal-save-btn" style="margin-top: 0; width: auto;">Guardar Cambios</button>
+                    <button class="primary-btn modal-save-btn">Guardar Cambios</button>
+                </div>
+                
+                <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                     <button class="tertiary-btn" id="modal-delete-btn" style="width: 100%; color: var(--danger-color); border-color: var(--danger-color);">Borrar NR Permanentemente</button>
                 </div>
             </div>
         </div>
     `;
+
     document.body.appendChild(modalOverlay);
 
     const closeModal = () => modalOverlay.remove();
-    
-    modalOverlay.addEventListener('click', async (e) => {
+
+    modalOverlay.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
         if (target === modalOverlay || target.closest('.modal-cancel-btn')) {
             closeModal();
-        } else if (target.closest('.modal-save-btn')) {
-            const form = modalOverlay.querySelector('form');
-            if(form) {
-                const success = await handleEditSubmit(form, nr.id);
-                if (success) closeModal();
-            }
-        } else if (target.closest('.modal-delete-btn')) {
-            const success = await handleDeleteNR(nr.id);
-            if (success) closeModal();
         }
     });
+
+    const saveBtn = modalOverlay.querySelector('.modal-save-btn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+            const success = await handleEditSubmit(modalOverlay, nr.id);
+            if (success) closeModal();
+        });
+    }
+
+    const deleteBtn = modalOverlay.querySelector('#modal-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            const success = await handleDeleteNR(nr.id);
+            if (success) closeModal();
+        });
+    }
 }
