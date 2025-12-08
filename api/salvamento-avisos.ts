@@ -19,7 +19,7 @@ let cache = {
   data: null as SalvamentoAviso[] | null,
   timestamp: 0,
 };
-const CACHE_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const CACHE_DURATION_MS = 5 * 60 * 1000; // Reduced cache to 5 mins to help debugging updates
 
 /**
  * Main handler function that performs web scraping on the official Salvamento Marítimo page.
@@ -39,9 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const response = await fetch(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
+        'Accept-Language': 'es-ES,es;q=0.9',
+        'Cache-Control': 'no-cache'
       },
       cache: 'no-store',
     });
@@ -53,49 +54,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const html = await response.text();
     const avisos: SalvamentoAviso[] = [];
 
-    // Regex to find all table rows with the specific classes for data.
-    // Adjusted to be more lenient with attributes
-    const rowRegex = /<tr[^>]*class="rg(?:Alt)?Row"[^>]*>([\s\S]*?)<\/tr>/gi;
-    const allRowMatches = html.matchAll(rowRegex);
+    // ROBUST PARSING STRATEGY: SPLIT instead of complex Regex
+    // 1. Split by table rows
+    const rowFragments = html.split(/<tr/i);
 
-    for (const rowMatch of allRowMatches) {
-        const rowHtml = rowMatch[1];
+    for (const frag of rowFragments) {
+        // Only process rows that look like data rows (ASP.NET GridView styles)
+        // Check loosely for class attributes containing "Row"
+        if (!frag.includes('rgRow') && !frag.includes('rgAltRow')) {
+            continue;
+        }
+
+        // 2. Reconstruct row tag for context (optional, but helps mental model)
+        const rowContent = '<tr' + frag;
+
+        // 3. Extract eventTarget for PDF
+        // Pattern is usually: href="javascript:__doPostBack('TARGET','')"
+        // We look for __doPostBack, followed by parenthesis and quotes.
+        let eventTarget = '';
+        // Match __doPostBack(' OR __doPostBack(" OR __doPostBack(&#39;
+        const postBackRegex = /__doPostBack\s*\(\s*(?:'|"|&#39;)([^'",)]+)(?:'|"|&#39;)/i;
+        const postBackMatch = rowContent.match(postBackRegex);
         
-        // Regex to extract all cell (<td>) content from the row.
-        const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-        const cellsHtml = [...rowHtml.matchAll(cellRegex)].map(m => m[1].trim());
+        if (postBackMatch && postBackMatch[1]) {
+            eventTarget = postBackMatch[1];
+        }
 
-        // Extract eventTarget for PDF. It's usually a LinkButton with a __doPostBack call.
-        // We look for the pattern __doPostBack('TARGET', '')
-        // We handle both single and double quotes and possible spacing.
-        const postBackMatch = rowHtml.match(/__doPostBack\s*\(\s*['"]([^'"]+)['"]/);
-        const eventTarget = postBackMatch ? postBackMatch[1] : '';
+        // 4. Split by cells (<td>)
+        const cellFragments = rowContent.split(/<td/i);
+        // The first fragment is before the first <td>, so ignore index 0
+        if (cellFragments.length < 9) continue; // Ensure we have enough columns (index 1 to 8+)
 
-        // Clean up the other cells by removing any HTML tags and decoding common entities.
-        const cleanCells = cellsHtml.slice(0, -1).map(cell =>
-            cell.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
-        );
-        
-        // Ensure the row has the expected number of columns for data.
-        // Usually there are 9 visible columns + hidden ones potentially.
-        // Index 1 is usually the Number.
-        if (cleanCells.length >= 8) {
+        // Helper to clean HTML tags and entities
+        const cleanText = (raw: string) => {
+            // Cut off at the closing </td>
+            const content = raw.split(/<\/td>/i)[0];
+            // Remove scripts, styles, and tags
+            return content
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                .replace(/<[^>]+>/g, '') // Strip tags
+                .replace(/&nbsp;/gi, ' ')
+                .replace(/&amp;/gi, '&')
+                .replace(/&quot;/gi, '"')
+                .replace(/\s+/g, ' ') // Collapse whitespace
+                .trim();
+        };
+
+        const num = cleanText(cellFragments[1]);
+        const emision = cleanText(cellFragments[2]);
+        const asunto = cleanText(cellFragments[3]);
+        const zona = cleanText(cellFragments[4]);
+        const tipo = cleanText(cellFragments[5]);
+        const subtipo = cleanText(cellFragments[6]);
+        const prioridad = cleanText(cellFragments[7]);
+        const caducidad = cleanText(cellFragments[8]);
+
+        // Filter out empty rows or header artifacts
+        if (num && asunto) {
             avisos.push({
-                num: cleanCells[1] || '',
-                emision: cleanCells[2] || '',
-                asunto: cleanCells[3] || '',
-                zona: cleanCells[4] || '',
-                tipo: cleanCells[5] || '',
-                subtipo: cleanCells[6] || '',
-                prioridad: cleanCells[7] || '',
-                caducidad: cleanCells[8] || '', // Sometimes index might vary slightly if table changes
-                eventTarget: eventTarget,
+                num,
+                emision,
+                asunto,
+                zona,
+                tipo,
+                subtipo,
+                prioridad,
+                caducidad,
+                eventTarget,
             });
         }
     }
 
     if (avisos.length === 0) {
-      console.warn("Could not parse any notices from the HTML table. The page structure might have changed or there are no notices currently listed.");
+      console.warn("Parser found 0 notices. HTML structure might have changed significantly.");
     }
 
     cache.data = avisos;
@@ -104,16 +136,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error({
-        message: "Error in /api/salvamento-avisos (scraping)",
-        details: errorMessage,
-        targetUrl: targetUrl
-    });
-    // Clear cache on error to force a refetch next time.
+    console.error("Error in scraping handler:", errorMessage);
+    // Clear cache on error
     cache.data = null;
     cache.timestamp = 0;
     return res.status(500).json({ 
-        error: 'Failed to scrape or process data from Salvamento Marítimo page', 
+        error: 'Failed to process data from Salvamento Marítimo page', 
         details: errorMessage
     });
   }
