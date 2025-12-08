@@ -1,5 +1,6 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db, sql } from '@vercel/postgres';
+import { sql } from '@vercel/postgres';
 import crypto from 'crypto';
 import { Buffer } from 'buffer';
 

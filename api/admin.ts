@@ -1,7 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db, sql } from '@vercel/postgres';
 
-const ADMIN_USERNAME = 'ASANDECA';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { sql } from '@vercel/postgres';
 
 async function verifyAdmin(username: string): Promise<boolean> {
     if (!username) return false;
