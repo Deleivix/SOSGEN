@@ -118,10 +118,15 @@ function formatAviso(xmlDoc: XMLDocument): string {
     const elaborado = isoToFechaEnPalabras(xmlDoc.querySelector("origen > elaborado")?.textContent || "");
     const fin = isoToFechaEnPalabras(xmlDoc.querySelector("origen > fin")?.textContent || "");
     
-    // Intenta buscar zonas (usando selector descendiente para mayor robustez)
-    const avisoNodes = xmlDoc.querySelectorAll("aviso zona");
+    // 1. Intentar estructura de Boletines Costeros (aviso -> zona)
+    let avisoNodes = xmlDoc.querySelectorAll("aviso zona");
+
+    // 2. Intentar estructura de Avisos de Alta Mar / WONT40 (info -> zona)
+    if (avisoNodes.length === 0) {
+        avisoNodes = xmlDoc.querySelectorAll("info zona");
+    }
     
-    // Intenta buscar texto general dentro de aviso
+    // Intenta buscar texto general dentro de aviso (para avisos globales o estructura antigua)
     const generalTextNode = xmlDoc.querySelector("aviso > texto");
     const generalText = generalTextNode ? normalizeMarine(generalTextNode.textContent || "") : "";
 
@@ -148,7 +153,6 @@ function formatAviso(xmlDoc: XMLDocument): string {
     }
 
     // 2. Texto general (si no se encontraron zonas o como complemento si existe)
-    // AEMET a veces pone avisos generales sin zonas específicas en WONT40MM
     if (!contentFound && generalText) {
         // Ignoramos si el texto es explícitamente "NO HAY AVISOS" para usar el formato estándar abajo
         if (!generalText.toUpperCase().includes("NO HAY AVISO") && !generalText.toUpperCase().includes("NINGUNO")) {
