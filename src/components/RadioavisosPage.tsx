@@ -421,7 +421,7 @@ async function handleGoToEdit(fullId: string) {
 }
 
 async function handleViewPdf(eventTarget: string, title: string) {
-    if (!eventTarget) return showToast("No se puede obtener el PDF de este aviso.", "error");
+    if (!eventTarget && !title) return showToast("No se puede obtener el PDF de este aviso.", "error");
     
     // Create and show modal with loading state
     const modalId = `pdf-modal-${Date.now()}`;
@@ -452,7 +452,7 @@ async function handleViewPdf(eventTarget: string, title: string) {
         const response = await fetch('/api/salvamento-pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventTarget })
+            body: JSON.stringify({ eventTarget, nrTitle: title }) // Send both to allow fallback and fresh search
         });
 
         if (!response.ok) {
@@ -574,7 +574,7 @@ function attachEventListeners(container: HTMLElement) {
                 case 'view-pdf': {
                     const eventTarget = actionElement.dataset.eventTarget;
                     const title = actionElement.dataset.title;
-                    if(eventTarget && title) await handleViewPdf(eventTarget, title);
+                    if(eventTarget || title) await handleViewPdf(eventTarget || '', title || '');
                     break;
                 }
             }
@@ -864,6 +864,7 @@ function renderMasterNrTableHTML(): string {
                     const crossIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="var(--danger-color)" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>`;
                     
                     // Logic to show the PDF button only if eventTarget is available
+                    // We pass BOTH the eventTarget (fallback) AND the num (which is the Title) for fresh searching
                     const pdfButton = officialAviso?.eventTarget ? `<button class="secondary-btn" data-action="view-pdf" data-event-target="${officialAviso.eventTarget}" data-title="${officialAviso.num}" title="Ver Texto PDF">${pdfIcon}</button>` : '';
 
                     return `

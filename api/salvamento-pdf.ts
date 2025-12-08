@@ -1,25 +1,29 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pdf from 'pdf-parse';
+import { Buffer } from 'buffer';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { eventTarget } = req.body;
+  // We prefer nrTitle to find the fresh eventTarget, but accept eventTarget as fallback
+  const { eventTarget, nrTitle } = req.body;
 
-  if (!eventTarget) {
-    return res.status(400).json({ error: 'eventTarget is required' });
+  if (!eventTarget && !nrTitle) {
+    return res.status(400).json({ error: 'nrTitle or eventTarget is required' });
   }
 
   const targetUrl = 'https://radioavisos.salvamentomaritimo.es/';
 
   try {
-    // 1. GET Request to establish session and get ViewStates
+    // 1. GET Request to establish session, get ViewStates, and find fresh eventTarget if needed
     const initialResponse = await fetch(targetUrl, {
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Cache-Control': 'no-cache'
         }
     });
 
@@ -36,30 +40,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw new Error('Could not parse ASP.NET ViewStates');
     }
 
+    let finalEventTarget = eventTarget;
+
+    // If we have the NR Title, try to find the FRESH eventTarget from the HTML
+    // This fixes issues where the table order changes and the frontend eventTarget becomes stale
+    if (nrTitle) {
+        // Simple approach: Split by <tr to isolate rows, find the one with nrTitle, extract postback
+        const rows = html.split('<tr');
+        const matchingRow = rows.find(r => r.includes(nrTitle));
+        
+        if (matchingRow) {
+            // Regex to find __doPostBack('TARGET', ...)
+            // Handles both single quotes and HTML encoded quotes
+            const postBackMatch = matchingRow.match(/__doPostBack\s*\(\s*(?:'|"|&#39;)([^'",]+)(?:'|"|&#39;)/i);
+            if (postBackMatch && postBackMatch[1]) {
+                finalEventTarget = postBackMatch[1];
+                console.log(`Found fresh target for ${nrTitle}: ${finalEventTarget}`);
+            } else {
+                console.warn(`Found row for ${nrTitle} but no PostBack target found.`);
+            }
+        } else {
+             console.warn(`Could not find row for ${nrTitle} in fresh HTML.`);
+        }
+    }
+
+    if (!finalEventTarget) {
+        throw new Error("Could not determine download target for this notice.");
+    }
+
     // 2. POST Request to trigger the PDF download (PostBack)
     const formData = new URLSearchParams();
-    formData.append('__EVENTTARGET', eventTarget);
+    formData.append('__EVENTTARGET', finalEventTarget);
     formData.append('__EVENTARGUMENT', '');
     formData.append('__VIEWSTATE', viewState);
     formData.append('__VIEWSTATEGENERATOR', viewStateGenerator);
     formData.append('__EVENTVALIDATION', eventValidation);
-
-    // Add other required form fields that might be present in the form (often empty but required)
-    // Based on standard ASP.NET behavior, usually the above are sufficient for a LinkButton postback.
 
     const pdfResponse = await fetch(targetUrl, {
         method: 'POST',
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Content-Type': 'application/x-www-form-urlencoded',
-            // Crucial: cookies might be needed if the site uses session cookies (ASP.NET_SessionId)
-            'Cookie': initialResponse.headers.get('set-cookie') || ''
+            // Crucial: cookies are needed for session continuity
+            'Cookie': initialResponse.headers.get('set-cookie') || '',
+            'Origin': 'https://radioavisos.salvamentomaritimo.es',
+            'Referer': 'https://radioavisos.salvamentomaritimo.es/'
         },
-        body: formData
+        body: formData,
+        redirect: 'manual' 
     });
 
     if (!pdfResponse.ok) {
         throw new Error(`PDF Download failed with status: ${pdfResponse.status}`);
+    }
+
+    const contentType = pdfResponse.headers.get('content-type') || '';
+    if (!contentType.includes('pdf') && !contentType.includes('application/octet-stream')) {
+         // Sometimes it returns HTML (error page) instead of PDF
+         throw new Error('Server returned HTML instead of PDF. The target might be invalid.');
     }
 
     const arrayBuffer = await pdfResponse.arrayBuffer();
@@ -76,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ text: cleanText });
     } catch (parseError) {
         console.error('PDF Parse Error:', parseError);
-        return res.status(500).json({ error: 'Failed to parse PDF content.' });
+        return res.status(500).json({ error: 'Failed to parse PDF content. Is it a valid PDF?' });
     }
 
   } catch (error) {
