@@ -30,7 +30,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const html = await initialResponse.text();
     
     // Robust Extraction Strategy: Find all input tags, then inspect them
-    // This is more reliable than global regex or indexOf scanning
     const inputTags = html.match(/<input[^>]*>/gi) || [];
     
     let viewState: string | undefined;
@@ -55,11 +54,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     }
 
-    if (!viewState || !eventValidation) {
+    // CRITICAL FIX: Only ViewState is strictly mandatory. EventValidation is optional.
+    if (!viewState) {
         console.error(`Parse Failed. VS found: ${!!viewState}, EV found: ${!!eventValidation}`);
-        // Log a snippet of the HTML to see if structure changed completely
         console.error(`HTML Head: ${html.substring(0, 500)}`);
-        throw new Error('Could not parse ASP.NET ViewStates (VS/EV missing).');
+        throw new Error('Could not parse ASP.NET ViewStates (VS missing).');
     }
 
     let finalEventTarget = eventTarget;
@@ -85,10 +84,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     formData.append('__EVENTTARGET', finalEventTarget);
     formData.append('__EVENTARGUMENT', '');
     formData.append('__VIEWSTATE', viewState);
+    
     if (viewStateGenerator) {
         formData.append('__VIEWSTATEGENERATOR', viewStateGenerator);
     }
-    formData.append('__EVENTVALIDATION', eventValidation);
+    
+    // Only append EventValidation if we found it
+    if (eventValidation) {
+        formData.append('__EVENTVALIDATION', eventValidation);
+    }
 
     const pdfResponse = await fetch(targetUrl, {
         method: 'POST',
