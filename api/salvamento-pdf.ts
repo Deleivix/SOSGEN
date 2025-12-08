@@ -49,20 +49,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const html = await initialResponse.text();
     
     // --- VIEWSTATE PARSING ---
-    const getHiddenValue = (htmlContent: string, fieldName: string): string | undefined => {
-        const regex = new RegExp(`id="${fieldName}"[^>]*value="([^"]*)"`, 'i');
-        const match = htmlContent.match(regex);
-        if (match) return match[1];
-        
-        // Fallback for different attribute ordering
-        const regex2 = new RegExp(`name="${fieldName}"[^>]*value="([^"]*)"`, 'i');
-        const match2 = htmlContent.match(regex2);
-        return match2 ? match2[1] : undefined;
-    };
+    // Robust Extraction Strategy: Find all input tags, then inspect them
+    const inputTags = html.match(/<input[^>]*>/gi) || [];
+    
+    let viewState: string | undefined;
+    let eventValidation: string | undefined;
+    let viewStateGenerator: string | undefined;
 
-    const viewState = getHiddenValue(html, '__VIEWSTATE');
-    const viewStateGenerator = getHiddenValue(html, '__VIEWSTATEGENERATOR');
-    const eventValidation = getHiddenValue(html, '__EVENTVALIDATION');
+    for (const tag of inputTags) {
+        // Check for ViewState
+        if (!viewState && (tag.includes('id="__VIEWSTATE"') || tag.includes('name="__VIEWSTATE"'))) {
+            const match = tag.match(/value\s*=\s*(["'])([\s\S]*?)\1/i);
+            if (match) viewState = match[2];
+        }
+        // Check for EventValidation
+        if (!eventValidation && (tag.includes('id="__EVENTVALIDATION"') || tag.includes('name="__EVENTVALIDATION"'))) {
+            const match = tag.match(/value\s*=\s*(["'])([\s\S]*?)\1/i);
+            if (match) eventValidation = match[2];
+        }
+        // Check for ViewStateGenerator
+        if (!viewStateGenerator && (tag.includes('id="__VIEWSTATEGENERATOR"') || tag.includes('name="__VIEWSTATEGENERATOR"'))) {
+            const match = tag.match(/value\s*=\s*(["'])([\s\S]*?)\1/i);
+            if (match) viewStateGenerator = match[2];
+        }
+    }
 
     if (!viewState) {
         throw new Error('Could not parse ASP.NET ViewState (Critical)');
@@ -119,22 +129,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check for 302 Redirect (Often an error in ASP.NET PostBacks unless it redirects to the file)
     if (pdfResponse.status === 302 || pdfResponse.status === 301) {
         const location = pdfResponse.headers.get('location');
-        console.error(`PDF POST returned redirect to: ${location}`);
+        console.log(`PDF POST returned redirect to: ${location}`);
         
+        if (!location) {
+             throw new Error('Redirect response missing Location header');
+        }
+
+        const nextUrl = new URL(location, targetUrl).toString();
+
         // If it redirects back to the main page (or similar), it's a session rejection
-        if (!location || location === targetUrl || location === '/' || location.includes('Default.aspx')) {
+        if (nextUrl === targetUrl || location === '/' || location.toLowerCase().includes('default.aspx')) {
             throw new Error('Server rejected the download request (Session Expired/Invalid).');
         }
         
-        // If it redirects to a PDF file, follows it
-        if (location.endsWith('.pdf')) {
-             const fileResponse = await fetch(new URL(location, targetUrl).toString(), {
-                 headers: { 'User-Agent': userAgent, 'Cookie': cookies }
-             });
-             return processPdfResponse(fileResponse, res);
-        }
+        // Follow the redirect to whatever URL (e.g. /Informes/Report2b.aspx)
+        const fileResponse = await fetch(nextUrl, {
+             headers: { 
+                 'User-Agent': userAgent, 
+                 'Cookie': cookies,
+                 'Referer': targetUrl
+             }
+        });
         
-        throw new Error(`Unexpected redirect to ${location}`);
+        return processPdfResponse(fileResponse, res);
     }
 
     if (!pdfResponse.ok) {
@@ -158,7 +175,7 @@ async function processPdfResponse(response: Response, res: VercelResponse) {
          const titleMatch = errorHtml.match(/<title>(.*?)<\/title>/i);
          const title = titleMatch ? titleMatch[1] : 'Unknown Page';
          console.error('Non-PDF response content-type:', contentType);
-         throw new Error(`Server returned HTML (${title}) instead of PDF. Possibly an error page.`);
+         throw new Error(`Server returned HTML (${title}) at ${response.url}. The system cannot parse this as PDF.`);
     }
 
     const arrayBuffer = await response.arrayBuffer();
