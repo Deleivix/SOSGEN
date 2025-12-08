@@ -56,10 +56,6 @@ export function renderRegistroOceano(container: HTMLElement) {
                                                 ${copyBtnHtml}
                                             </div>
                                             <div class="reorg-controls" style="padding: 1rem 1.5rem 1rem; border-top: 1px solid var(--border-color);">
-                                                <div><h4>Banda</h4><div class="buoy-selector-group" id="comprobacion-banda-selector">
-                                                    <button class="buoy-selector-btn active" data-value="VHF">VHF</button>
-                                                    <button class="buoy-selector-btn" data-value="MF/HF">MF/HF</button>
-                                                </div></div>
                                                 <div><h4>Resultado</h4><div class="buoy-selector-group" id="comprobacion-resultado-selector">
                                                     <button class="buoy-selector-btn active" data-value="OK">CHECK OK</button>
                                                     <button class="buoy-selector-btn" data-value="NOT OK">CHECK NOT OK</button>
@@ -244,9 +240,14 @@ function initializeRegistroOceano(container: HTMLElement) {
                 break;
             }
             case 'comprobacion-equipos': {
-                const banda = card.querySelector('#comprobacion-banda-selector .active')?.getAttribute('data-value') || 'VHF';
                 const resultado = card.querySelector('#comprobacion-resultado-selector .active')?.getAttribute('data-value') || 'OK';
-                newText = `Realizada comprobación de equipos (${banda}), así como líneas telefónicas, DIVOS, Servicio Navtex, Grafana, AISWeb, NIMBUS y Service Desk. Resultado del check${resultado ? ' ' + resultado : ''}.`;
+                newText = `• Realizada comprobación de equipos: Chequear que las líneas telefónicas funcionan y la integración con la plataforma.
+• Realizar búsqueda y escuchar audio de la emisión programada del parte meteorológico del turno anterior en DIVOS.
+• T&T Frequentis: Comprobación visual de todas las pestañas del T&T (CMB, INBOX, DSC, etc.) en plataforma FRQ.
+• Message Center (MC) Frequentis: Revisar alarmística en plataforma FRQ.
+• Comprobación visual de equipos radio VHF, MF y HF y NAVTEX.
+
+Resultado del check ${resultado}.`;
                 break;
             }
             case 'documentacion': {
