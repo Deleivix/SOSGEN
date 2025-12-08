@@ -5,12 +5,18 @@ export interface Category { category: string; items: Template[]; }
 export interface QuickRef { category: string; content: string; }
 export interface PhoneEntry { name: string; phones: string[]; fax?: string; email?: string; keywords: string[]; }
 export interface Page { name: string; }
-export type ReferenceTableData = {
-    caption: string;
-    captionClass: string;
+
+export interface ReferenceTableEntry {
+    caption?: string;
+    captionClass?: string;
     headers: string[];
     rows: string[][];
-}[];
+    mfSection?: {
+        headers: string[];
+        rows: string[][];
+    };
+}
+export type ReferenceTableData = ReferenceTableEntry[];
 
 export const APP_PAGE_ICONS = [
     // Dashboard: Home
@@ -129,7 +135,15 @@ export const VHF_FREQUENCIES_DATA: ReferenceTableData = [
             ['Pasajes', '27', '6'], ['Bilbao', '26', '74'], ['Santander', '24', '72'], ['Cabo Peñas', '27', '6'],
             ['Navia', '62', '74'], ['Cabo Ortegal', '2', '72'], ['Coruña', '26', '6'], ['Finisterre', '22', '74'],
             ['Vigo', '20', '6'], ['La Guardia', '82', '72']
-        ]
+        ],
+        mfSection: {
+            headers: ['EECC MF', 'RX (kHz)', 'TX (kHz)', 'Canal'],
+            rows: [
+                ['Finisterre', '2123', '1698', '262'],
+                ['Coruña', '2132', '1707', '265'],
+                ['Machichaco', '2102', '1677', '255']
+            ]
+        }
     },
     {
         caption: 'CCR VALENCIA (002241024)',
@@ -139,7 +153,15 @@ export const VHF_FREQUENCIES_DATA: ReferenceTableData = [
             ['Cabo de Gata', '24', '72'], ['Melilla', '25', '6'], ['Cartagena', '27', '6'], ['Cabo la Nao', '85', '74'],
             ['Castellón', '28', '72'], ['Tarragona', '24', '6'], ['Barcelona', '60', '74'], ['Begur', '23', '6'],
             ['Cadaqués', '27', '72'], ['Menorca', '85', '6'], ['Palma', '7', '72'], ['Ibiza', '3', '6']
-        ]
+        ],
+        mfSection: {
+            headers: ['EECC MF', 'RX (kHz)', 'TX (kHz)', 'Canal'],
+            rows: [
+                ['Cabo la Nao', '2111', '1767', '285'],
+                ['Palma', '2099', '1755', '281'],
+                ['Cabo Gata', '2129', '1704', '264']
+            ]
+        }
     },
     {
         caption: 'CCR LAS PALMAS (002241026)',
@@ -150,11 +172,19 @@ export const VHF_FREQUENCIES_DATA: ReferenceTableData = [
             ['Motril', '81', '74'], ['La Palma', '20', '6'], ['Hierro', '23', '74'], ['Gomera', '24', '6'],
             ['Tenerife', '27', '72'], ['Las Palmas', '26', '74'], ['Fuerteventura', '22', '6'],
             ['Yaiza', '3', '74'], ['Arrecife', '25', '72'], ['Restinga', '2', '72'], ['Garafía', '60', '74']
-        ]
+        ],
+        mfSection: {
+            headers: ['EECC MF', 'RX (kHz)', 'TX (kHz)', 'Canal'],
+            rows: [
+                ['Tarifa', '2081', '1656', '248'],
+                ['Las Palmas', '2114', '1689', '259'],
+                ['Arrecife', '2069', '1644', '244']
+            ]
+        }
     }
 ];
 
-export const PHONETIC_ALPHABET_DATA = {
+export const PHONETIC_ALPHABET_DATA: ReferenceTableEntry = {
     headers: ['Letra', 'Código', 'Letra', 'Código'],
     rows: [
         ['A', 'Alfa', 'N', 'November'], ['B', 'Bravo', 'O', 'Oscar'], ['C', 'Charlie', 'P', 'Papa'],
@@ -165,7 +195,7 @@ export const PHONETIC_ALPHABET_DATA = {
     ]
 };
 
-export const Q_CODES_DATA = {
+export const Q_CODES_DATA: ReferenceTableEntry = {
     headers: ['Código', 'Significado'],
     rows: [
         ['QTH', '¿Cuál es su posición? / Mi posición es...'],
@@ -178,7 +208,7 @@ export const Q_CODES_DATA = {
     ]
 };
 
-export const BEAUFORT_SCALE_DATA = {
+export const BEAUFORT_SCALE_DATA: ReferenceTableEntry = {
     headers: ['Fuerza', 'Denominación / Designation', 'Nudos', 'Estado del Mar / Sea State'],
     rows: [
         ['0', 'Calma / Calm', '< 1', 'Espejo / Like a mirror'],
@@ -197,7 +227,7 @@ export const BEAUFORT_SCALE_DATA = {
     ]
 };
 
-export const DOUGLAS_SCALE_DATA = {
+export const DOUGLAS_SCALE_DATA: ReferenceTableEntry = {
     headers: ['Grado', 'Descripción / Description', 'Altura de Olas (m) / Wave Height (m)'],
     rows: [
         ['0', 'Calma / Calm', '0'],

@@ -1,5 +1,4 @@
 
-
 import { 
     QUICK_REFERENCE_DATA, 
     PHONE_DIRECTORY_DATA, 
@@ -8,7 +7,7 @@ import {
     Q_CODES_DATA,
     BEAUFORT_SCALE_DATA,
     DOUGLAS_SCALE_DATA,
-    ReferenceTableData
+    ReferenceTableEntry
 } from "../data";
 import { debounce, initializeInfoTabs, showToast } from "../utils/helpers";
 
@@ -17,13 +16,11 @@ import { debounce, initializeInfoTabs, showToast } from "../utils/helpers";
  * @param config - The table configuration.
  * @returns An HTML string representing the table.
  */
-function renderReferenceTable(config: {
-    caption?: string;
-    captionClass?: string;
-    headers: string[];
-    rows: string[][];
-}): string {
-    return `
+function renderReferenceTable(config: ReferenceTableEntry): string {
+    let html = '';
+    
+    // VHF Table
+    html += `
         <table class="reference-table">
             ${config.caption ? `<caption class="${config.captionClass || ''}">${config.caption}</caption>` : ''}
             <thead>
@@ -34,6 +31,30 @@ function renderReferenceTable(config: {
             </tbody>
         </table>
     `;
+
+    // MF Table (if exists)
+    if (config.mfSection) {
+        html += `
+            <div class="mf-table-separator" style="padding: 0.5rem; background: var(--bg-panel); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); font-weight: 500; text-align: center; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Frecuencias MF</div>
+            <table class="reference-table mf-table" style="margin-top: 0;">
+                <thead>
+                    <tr>${config.mfSection.headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                </thead>
+                <tbody>
+                    ${config.mfSection.rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+        
+        // Wrap everything in a card-like container for better visual grouping
+        return `
+            <div class="station-card-wrapper" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem; background: var(--bg-card); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                ${html}
+            </div>
+        `;
+    }
+
+    return html;
 }
 
 
@@ -60,7 +81,7 @@ export function renderInfo(container: HTMLElement) {
         <div id="phone-directory-list" class="phone-directory-list"></div>`;
 
     fullQuickRefData[2].content = `
-        <h3 class="reference-table-subtitle">Canales VHF</h3>
+        <h3 class="reference-table-subtitle">Canales VHF y Frecuencias MF</h3>
         <div class="vhf-tables-container">
             ${VHF_FREQUENCIES_DATA.map(tableData => renderReferenceTable(tableData)).join('')}
         </div>`;
