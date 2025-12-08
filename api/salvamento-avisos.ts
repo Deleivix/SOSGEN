@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // The data type that reflects the columns of the table
@@ -38,7 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const response = await fetch(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
       },
       cache: 'no-store',
     });
@@ -51,7 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const avisos: SalvamentoAviso[] = [];
 
     // Regex to find all table rows with the specific classes for data.
-    const rowRegex = /<tr class="rg(?:Alt)?Row"[^>]*>([\s\S]*?)<\/tr>/gi;
+    // Adjusted to be more lenient with attributes
+    const rowRegex = /<tr[^>]*class="rg(?:Alt)?Row"[^>]*>([\s\S]*?)<\/tr>/gi;
     const allRowMatches = html.matchAll(rowRegex);
 
     for (const rowMatch of allRowMatches) {
@@ -61,10 +65,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
         const cellsHtml = [...rowHtml.matchAll(cellRegex)].map(m => m[1].trim());
 
-        // We need to handle the last cell (PDF link) separately to extract the eventTarget.
-        const lastCellHtml = cellsHtml[cellsHtml.length - 1] || '';
-        const pdfLinkMatch = lastCellHtml.match(/__doPostBack\('([^']*)'/);
-        const eventTarget = pdfLinkMatch ? pdfLinkMatch[1] : '';
+        // Extract eventTarget for PDF. It's usually a LinkButton with a __doPostBack call.
+        // We look for the pattern __doPostBack('TARGET', '')
+        // We handle both single and double quotes and possible spacing.
+        const postBackMatch = rowHtml.match(/__doPostBack\s*\(\s*['"]([^'"]+)['"]/);
+        const eventTarget = postBackMatch ? postBackMatch[1] : '';
 
         // Clean up the other cells by removing any HTML tags and decoding common entities.
         const cleanCells = cellsHtml.slice(0, -1).map(cell =>
@@ -72,17 +77,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         
         // Ensure the row has the expected number of columns for data.
-        if (cleanCells.length >= 9) {
+        // Usually there are 9 visible columns + hidden ones potentially.
+        // Index 1 is usually the Number.
+        if (cleanCells.length >= 8) {
             avisos.push({
-                num: cleanCells[1],
-                emision: cleanCells[2],
-                asunto: cleanCells[3],
-                zona: cleanCells[4],
-                tipo: cleanCells[5],
-                subtipo: cleanCells[6],
-                prioridad: cleanCells[7],
-                caducidad: cleanCells[8],
-                eventTarget: eventTarget, // Add the extracted target for the PDF link
+                num: cleanCells[1] || '',
+                emision: cleanCells[2] || '',
+                asunto: cleanCells[3] || '',
+                zona: cleanCells[4] || '',
+                tipo: cleanCells[5] || '',
+                subtipo: cleanCells[6] || '',
+                prioridad: cleanCells[7] || '',
+                caducidad: cleanCells[8] || '', // Sometimes index might vary slightly if table changes
+                eventTarget: eventTarget,
             });
         }
     }
