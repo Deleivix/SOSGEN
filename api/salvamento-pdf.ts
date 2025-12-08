@@ -31,13 +31,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const html = await initialResponse.text();
     
-    // Extract ASP.NET Hidden Fields
-    const viewState = html.match(/id="__VIEWSTATE" value="([^"]+)"/)?.[1];
-    const viewStateGenerator = html.match(/id="__VIEWSTATEGENERATOR" value="([^"]+)"/)?.[1];
-    const eventValidation = html.match(/id="__EVENTVALIDATION" value="([^"]+)"/)?.[1];
+    // Helper to extract value by ID, handling different attribute orders
+    const getHiddenValue = (html: string, id: string): string | undefined => {
+        // Look for id="ID" ... value="VAL"
+        let match = html.match(new RegExp(`id="${id}"[^>]*value="([^"]*)"`, 'i'));
+        if (match) return match[1];
+        
+        // Look for value="VAL" ... id="ID"
+        match = html.match(new RegExp(`value="([^"]*)"[^>]*id="${id}"`, 'i'));
+        if (match) return match[1];
 
-    if (!viewState || !viewStateGenerator || !eventValidation) {
-        throw new Error('Could not parse ASP.NET ViewStates');
+        // Fallback: Look for name="ID" if id not found (sometimes they match)
+        match = html.match(new RegExp(`name="${id}"[^>]*value="([^"]*)"`, 'i'));
+        if (match) return match[1];
+
+        return undefined;
+    };
+
+    // Extract ASP.NET Hidden Fields using robust regex
+    const viewState = getHiddenValue(html, '__VIEWSTATE');
+    const viewStateGenerator = getHiddenValue(html, '__VIEWSTATEGENERATOR');
+    const eventValidation = getHiddenValue(html, '__EVENTVALIDATION');
+
+    if (!viewState || !eventValidation) {
+        console.error('HTML content sample:', html.substring(0, 500));
+        throw new Error('Could not parse ASP.NET ViewStates. The page structure might have changed.');
     }
 
     let finalEventTarget = eventTarget;
@@ -73,7 +91,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     formData.append('__EVENTTARGET', finalEventTarget);
     formData.append('__EVENTARGUMENT', '');
     formData.append('__VIEWSTATE', viewState);
-    formData.append('__VIEWSTATEGENERATOR', viewStateGenerator);
+    if (viewStateGenerator) {
+        formData.append('__VIEWSTATEGENERATOR', viewStateGenerator);
+    }
     formData.append('__EVENTVALIDATION', eventValidation);
 
     const pdfResponse = await fetch(targetUrl, {
@@ -97,7 +117,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const contentType = pdfResponse.headers.get('content-type') || '';
     if (!contentType.includes('pdf') && !contentType.includes('application/octet-stream')) {
          // Sometimes it returns HTML (error page) instead of PDF
-         throw new Error('Server returned HTML instead of PDF. The target might be invalid.');
+         // throw new Error('Server returned HTML instead of PDF. The target might be invalid.');
+         // Try to parse error from HTML if possible or just generic error
+         const errorHtml = await pdfResponse.text();
+         console.error('Non-PDF response sample:', errorHtml.substring(0, 300));
+         throw new Error('Server returned HTML instead of PDF. Session might have expired or target is invalid.');
     }
 
     const arrayBuffer = await pdfResponse.arrayBuffer();
