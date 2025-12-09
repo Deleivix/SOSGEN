@@ -215,29 +215,42 @@ function renderStationStatusTableHTML() {
         stationStatus[station] = status;
     });
 
-    const renderCell = (station: string) => `
-        <td style="text-align: center; padding: 0.5rem;">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
-                <span class="status-dot ${stationStatus[station] || 'status-green'}"></span>
-                <span style="font-size: 0.8rem; color: var(--text-secondary);">${station.replace(' VHF','').replace(' MF','')}</span>
-            </div>
-        </td>
+    const renderStationItem = (station: string) => `
+        <div class="station-status-item">
+            <span class="status-dot ${stationStatus[station] || 'status-green'}"></span>
+            <span class="station-name">${station.replace(' VHF','').replace(' MF','')}</span>
+        </div>
     `;
 
     return `
-        <div class="station-table-container" style="margin-bottom: 2rem;">
+        <div class="station-table-container">
             <h3>Estado de Estaciones (Avisos en Vigor)</h3>
-            <div class="table-wrapper">
-                <table class="station-table horizontal-table">
-                    <thead><tr><th colspan="${STATIONS_VHF.length}" class="header-vhf">VHF</th></tr></thead>
-                    <tbody><tr>${STATIONS_VHF.map(s => renderCell(s)).join('')}</tr></tbody>
-                </table>
-                <table class="station-table horizontal-table" style="margin-top: -1px;">
-                    <thead><tr><th colspan="${STATIONS_MF.length}" class="header-mf">MF</th><th class="header-navtex">NAVTEX</th></tr></thead>
-                    <tbody><tr>${STATIONS_MF.map(s => renderCell(s)).join('')}${renderCell('Navtex')}</tr></tbody>
-                </table>
+            
+            <div class="stations-status-panel">
+                <div class="stations-section">
+                    <div class="stations-header header-vhf">VHF</div>
+                    <div class="stations-grid">
+                        ${STATIONS_VHF.map(s => renderStationItem(s)).join('')}
+                    </div>
+                </div>
+                
+                <div class="stations-row-split">
+                    <div class="stations-section" style="flex: 3;">
+                        <div class="stations-header header-mf">MF</div>
+                        <div class="stations-grid">
+                            ${STATIONS_MF.map(s => renderStationItem(s)).join('')}
+                        </div>
+                    </div>
+                    <div class="stations-section" style="flex: 1;">
+                        <div class="stations-header header-navtex">NAVTEX</div>
+                        <div class="stations-grid" style="justify-content: center;">
+                            ${renderStationItem('Navtex')}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="status-legend" style="padding: 0.5rem 1rem;">
+
+            <div class="status-legend" style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); justify-content: center;">
                 <div class="legend-item"><span class="status-dot status-green"></span><span>Sin Avisos</span></div>
                 <div class="legend-item"><span class="status-dot status-yellow"></span><span>Aviso en Vigor</span></div>
                 <div class="legend-item"><span class="status-dot status-orange"></span><span>Caducando</span></div>
