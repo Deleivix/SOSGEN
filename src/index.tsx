@@ -62,7 +62,6 @@ function switchToPage(pageIndex: number, subTabId?: string) {
     }
 
     incomingPanel.classList.add('active');
-    // Force re-render for profile and supervisor to update data
     if (!pageRenderStatus[pageIndex] || pageIndex === 12 || pageIndex === 11) {
         pageRenderers[pageIndex](incomingPanel);
         pageRenderStatus[pageIndex] = true;
@@ -84,15 +83,13 @@ function switchToPage(pageIndex: number, subTabId?: string) {
 (window as any).switchToPage = switchToPage;
 
 async function checkBadges(user: User) {
-    // Check messages
     try {
-        const msgRes = await fetch(`/api/messages?username=${user.username}&type=unread`);
+        const msgRes = await fetch(`/api/user-data?username=${user.username}&type=messages_unread`);
         const msgData = await msgRes.json();
         const msgBadge = document.getElementById('user-msg-badge');
         if (msgBadge) msgBadge.style.display = msgData.count > 0 ? 'block' : 'none';
 
-        // Check drills
-        const drillRes = await fetch(`/api/supervisor?action=get_my_drills&username=${user.username}`);
+        const drillRes = await fetch(`/api/simulacro?action=get_my_drills&username=${user.username}`);
         const drills = await drillRes.json();
         const pending = drills.filter((d: any) => d.status === 'PENDING').length;
         const drillBadge = document.getElementById('nav-drill-badge');
@@ -104,7 +101,6 @@ function renderMainApp(user: User) {
     const container = document.getElementById('app');
     if (!container) return;
     
-    // Init Session Timeout
     initSessionManager(() => handleLogout());
 
     container.innerHTML = `

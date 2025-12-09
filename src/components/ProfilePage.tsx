@@ -9,7 +9,7 @@ let messages: any[] = [];
 async function fetchMessages(otherUser: string) {
     const user = getCurrentUser();
     if (!user) return;
-    const res = await fetch(`/api/messages?username=${user.username}&type=conversation&otherUser=${otherUser}`);
+    const res = await fetch(`/api/user-data?username=${user.username}&type=messages_conversation&otherUser=${otherUser}`);
     messages = await res.json();
     renderChat();
 }
@@ -21,10 +21,14 @@ async function sendMessage(e: Event) {
     if (!content || !activeChatUser) return;
     
     const user = getCurrentUser();
-    await fetch('/api/messages', {
+    await fetch('/api/user-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: user?.username, receiver: activeChatUser.username, content })
+        body: JSON.stringify({ 
+            username: user?.username,
+            type: 'send_message', 
+            data: { receiver: activeChatUser.username, content } 
+        })
     });
     input.value = '';
     fetchMessages(activeChatUser.username);
@@ -65,8 +69,7 @@ export async function renderProfile(container: HTMLElement) {
     const user = getCurrentUser();
     if (!user) return;
 
-    // Fetch users for sidebar
-    const res = await fetch(`/api/messages?username=${user.username}&type=users`);
+    const res = await fetch(`/api/user-data?username=${user.username}&type=messages_users`);
     usersList = await res.json();
 
     container.innerHTML = `

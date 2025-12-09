@@ -15,7 +15,7 @@ async function fetchData(type: string) {
     renderAdminContent();
 
     try {
-        const response = await fetch(`/api/admin?adminUsername=${adminUser.username}&type=${type}`);
+        const response = await fetch(`/api/auth?action=admin_get_data&adminUsername=${adminUser.username}&type=${type}`);
         if (!response.ok) throw new Error('Failed to fetch data');
         const data = await response.json();
         
@@ -36,12 +36,12 @@ async function handleRequestAction(userId: number, action: 'approve' | 'reject')
     if (!adminUser) return;
 
     try {
-        const response = await fetch('/api/admin', {
+        const response = await fetch('/api/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                action: action === 'approve' ? 'admin_approve' : 'admin_reject',
                 adminUsername: adminUser.username,
-                action,
                 targetUserId: userId
             })
         });
@@ -61,10 +61,8 @@ function renderAdminContent() {
     const container = document.getElementById('admin-page-content');
     if (!container) return;
 
-    // We only update the active panel content to avoid redrawing tabs constantly if not needed
     const activeTab = container.querySelector('.info-nav-btn.active')?.getAttribute('data-target');
     
-    // Render Tabs if container is empty or just started
     if (!container.querySelector('.info-nav-tabs')) {
         container.innerHTML = `
             <div class="info-nav-tabs">
@@ -78,12 +76,10 @@ function renderAdminContent() {
         `;
         initializeInfoTabs(container);
         
-        // Add click listeners for data fetching on tab switch
         container.querySelector('[data-target="tab-users"]')?.addEventListener('click', () => fetchData('users'));
         container.querySelector('[data-target="tab-access"]')?.addEventListener('click', () => fetchData('access_logs'));
         container.querySelector('[data-target="tab-activity"]')?.addEventListener('click', () => fetchData('activity_logs'));
         
-        // Initial fetch
         fetchData('users');
         return; 
     }
@@ -97,7 +93,6 @@ function renderAdminContent() {
         return;
     }
 
-    // Render Users
     const usersPanel = container.querySelector('#tab-users');
     if (usersPanel) {
         usersPanel.innerHTML = pendingUsers.length === 0 ? '<p class="drill-placeholder">No hay solicitudes.</p>' : `
@@ -113,7 +108,6 @@ function renderAdminContent() {
             </div>`;
     }
 
-    // Render Access Logs
     const accessPanel = container.querySelector('#tab-access');
     if (accessPanel) {
         accessPanel.innerHTML = `
@@ -130,7 +124,6 @@ function renderAdminContent() {
             </div>`;
     }
 
-    // Render Activity Logs
     const activityPanel = container.querySelector('#tab-activity');
     if (activityPanel) {
         activityPanel.innerHTML = `
