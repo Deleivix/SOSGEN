@@ -36,15 +36,11 @@ export const APP_PAGE_ICONS = [
     // SEÑALES: Lighthouse Icon
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L6 8v12h12V8L12 2z"/><path d="M6 14h12"/><path d="M10 18h4v-4h-4v4z"/><path d="M2 5l4 3"/><path d="M22 5l-4 3"/></svg>`,
     // SIMULACRO: Target
-    `<div style="position: relative;"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg><span id="nav-drill-badge" style="display:none; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background-color: var(--danger-color); border-radius: 50%;"></span></div>`,
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
     // INFO: Info circle
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
     // ADMIN: Shield
-    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
-    // SUPERVISOR: User Check
-    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>`,
-    // PROFILE: User (Hidden in main nav, used for page rendering logic)
-    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`
 ];
 
 export const APP_PAGES: Page[] = [
@@ -59,11 +55,8 @@ export const APP_PAGES: Page[] = [
     { name: 'SIMULACRO' },
     { name: 'INFO' },
     { name: 'ADMIN' },
-    { name: 'SUPERVISOR' },
-    { name: 'PERFIL' }, // Hidden
 ];
 
-// ... (rest of the file content remains the same)
 export const STATIONS_VHF = [
     "La Guardia VHF", "Vigo VHF", "Finisterre VHF", "Coruña VHF", "Ortegal VHF",
     "Navia VHF", "Peñas VHF", "Santander VHF", "Bilbao VHF", "Pasajes VHF"

@@ -50,7 +50,7 @@ const expireNRs = async () => {
                 const details = `La versión ${nr.version} ha caducado automáticamente.`;
                 
                 await client.sql`
-                    INSERT INTO radioaviso_history (id, timestamp, "user", action, nr_id, details)
+                    INSERT INTO history (id, timestamp, "user", action, nr_id, details)
                     VALUES (${logId}, ${timestamp}, ${user}, ${action}, ${nrId}, ${details});
                 `;
             }
@@ -76,13 +76,66 @@ const expireNRs = async () => {
 
 // --- MAIN HANDLER ---
 export default async function handler(request: VercelRequest, response: VercelResponse) {
+    // --- DB SETUP ---
+    try {
+        // The users table is primarily managed by api/auth.ts
+        await sql`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(128) NOT NULL,
+                salt VARCHAR(32) NOT NULL
+            );
+        `;
+        // NRS table is now global, without user_id
+        await sql`
+            CREATE TABLE IF NOT EXISTS nrs (
+                id VARCHAR(255) PRIMARY KEY,
+                base_id VARCHAR(50) NOT NULL,
+                version INT NOT NULL,
+                stations TEXT[] NOT NULL,
+                expiry_date VARCHAR(20),
+                expiry_time VARCHAR(10),
+                is_ampliado BOOLEAN NOT NULL,
+                is_caducado BOOLEAN NOT NULL,
+                is_manual BOOLEAN NOT NULL DEFAULT FALSE,
+                UNIQUE(base_id, version)
+            );
+        `;
+        
+        // Simple migration for is_manual column
+        try {
+            await sql`ALTER TABLE nrs ADD COLUMN is_manual BOOLEAN NOT NULL DEFAULT FALSE`;
+        } catch (e: any) {
+             if (!e.message.includes('already exists')) {
+                console.warn('Migration ALTER TABLE may have failed:', e.message);
+            }
+        }
+
+        // History table is now global, it stores the username in the "user" column for traceability
+        await sql`
+            CREATE TABLE IF NOT EXISTS history (
+                id VARCHAR(255) PRIMARY KEY,
+                timestamp TIMESTAMPTZ NOT NULL,
+                "user" VARCHAR(100) NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                nr_id VARCHAR(50) NOT NULL,
+                details TEXT
+            );
+        `;
+    } catch (e) {
+        console.error("DB Initialization Error:", e);
+        return response.status(500).json({ error: "Database setup failed." });
+    }
+
     try {
         if (request.method === 'GET') {
             await expireNRs(); // Expire NRs globally
 
             const [nrsResult, historyResult] = await Promise.all([
                 sql`SELECT id, base_id as "baseId", version, stations, expiry_date as "expiryDate", expiry_time as "expiryTime", is_ampliado as "isAmpliado", is_caducado as "isCaducado", is_manual as "isManual" FROM nrs ORDER BY base_id, version;`,
-                sql`SELECT id, timestamp, "user", action, nr_id as "nrId", details FROM radioaviso_history ORDER BY timestamp DESC;`
+                sql`SELECT id, timestamp, "user", action, nr_id as "nrId", details FROM history ORDER BY timestamp DESC;`
             ]);
 
             const appData: AppData = {
@@ -104,7 +157,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 await client.sql`BEGIN`;
                 // Wipe global tables before inserting new data
                 await client.sql`DELETE FROM nrs;`;
-                await client.sql`DELETE FROM radioaviso_history;`;
+                await client.sql`DELETE FROM history;`;
 
                 for (const nr of newData.nrs) {
                     await client.sql`
@@ -115,7 +168,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
                 for (const log of newData.history) {
                     await client.sql`
-                        INSERT INTO radioaviso_history (id, timestamp, "user", action, nr_id, details)
+                        INSERT INTO history (id, timestamp, "user", action, nr_id, details)
                         VALUES (${log.id}, ${log.timestamp}, ${log.user}, ${log.action}, ${log.nrId}, ${log.details});
                     `;
                 }

@@ -1,4 +1,3 @@
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -7,9 +6,7 @@
 export type User = {
     id: number;
     username: string;
-    email: string;
     isAdmin: boolean;
-    isSupervisor: boolean;
 };
 
 let currentUser: User | null = null;
