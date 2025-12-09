@@ -120,14 +120,18 @@ export default async function handler(
                 
                 const prompt = `
                 Eres un instructor experto en GMDSS y operaciones de Estaciones Costeras (CCR) de Salvamento Marítimo en España.
-                Genera un simulacro de evaluación avanzado para un operador.
+                Genera un simulacro de evaluación para un operador.
+
+                **ENFOQUE CLARO Y DIRECTO:**
+                Crea un escenario claro y sencillo enfocado en la aplicación correcta del protocolo estándar.
+                Evita situaciones extremadamente complejas, múltiples fallos simultáneos o trampas rebuscadas. 
+                El objetivo es evaluar si el operador conoce el procedimiento básico y correcto para situaciones como: recepción de alerta DSC, Mayday Relay, o comunicaciones de rutina/seguridad.
 
                 **Contexto del Escenario:**
-                Crea un escenario complejo y realista (ej: recepción de alerta DSC, Mayday Relay, coordinación SAR, fallo de comunicaciones, consulta médica radio).
-                Incluye detalles técnicos: canales VHF/MF, frecuencias, MMSI ficticios, nombres de buques, posiciones geográficas.
+                Incluye detalles técnicos básicos: canales VHF/MF, frecuencias, MMSI ficticios, nombres de buques, posiciones geográficas.
 
                 **Estructura de Preguntas:**
-                Genera 4 preguntas que evalúen la toma de decisiones y el conocimiento del protocolo.
+                Genera 4 preguntas que evalúen la toma de decisiones.
                 Usa una mezcla de los siguientes tipos de preguntas:
                 1. 'TEST': Pregunta de opción múltiple (A, B, C).
                 2. 'ORDER': Ordenar una secuencia de pasos (ej: pasos para cancelar una falsa alerta).

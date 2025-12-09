@@ -68,7 +68,7 @@ function renderBuilderQuestions() {
 
     container.innerHTML = currentBuilderQuestions.map((q, i) => `
         <div class="question-block" style="background: var(--bg-card); position: relative;">
-            <button type="button" class="tertiary-btn" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px;" onclick="(window as any).removeBuilderQuestion(${i})">Eliminar</button>
+            <button type="button" class="tertiary-btn delete-q-btn" data-index="${i}" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px;">Eliminar</button>
             
             <div class="form-group">
                 <label>Pregunta ${i + 1} (${q.type === 'TEST' ? 'Tipo Test' : q.type === 'ORDER' ? 'Ordenar' : 'Texto Libre'})</label>
@@ -96,8 +96,7 @@ function renderBuilderQuestions() {
     `).join('');
 }
 
-// Expose helpers to window for inline events
-(window as any).removeBuilderQuestion = removeQuestion;
+// Expose helpers to window for inline events (inputs still use inline for simplicity)
 (window as any).updateBuilderQuestion = updateQuestion;
 (window as any).updateBuilderOption = updateOption;
 
@@ -199,8 +198,7 @@ function renderTabs() {
     const monitorTab = document.getElementById('tab-monitor');
 
     if (createTab) {
-        // Only render if empty to preserve builder state during tab switches if desired, 
-        // OR re-render if we want fresh state. Here we re-render static parts but keep dynamic.
+        // Only render if empty to preserve builder state during tab switches
         if (!createTab.innerHTML) {
             createTab.innerHTML = `
                 <div id="ai-loading-overlay" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 10; justify-content: center; align-items: center; flex-direction: column; color: white; border-radius: 12px;">
@@ -228,19 +226,30 @@ function renderTabs() {
                     <div id="builder-questions-container" style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 1.5rem;"></div>
 
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 2rem;">
-                        <button type="button" class="secondary-btn" onclick="addQuestion('TEST')">+ Test (A/B/C)</button>
-                        <button type="button" class="secondary-btn" onclick="addQuestion('TEXT')">+ Texto Abierto</button>
-                        <button type="button" class="secondary-btn" onclick="addQuestion('ORDER')">+ Ordenar</button>
+                        <button type="button" class="secondary-btn" onclick="(window as any).addQuestion('TEST')">+ Test (A/B/C)</button>
+                        <button type="button" class="secondary-btn" onclick="(window as any).addQuestion('TEXT')">+ Texto Abierto</button>
+                        <button type="button" class="secondary-btn" onclick="(window as any).addQuestion('ORDER')">+ Ordenar</button>
                     </div>
 
                     <button type="submit" class="primary-btn">Guardar Simulacro</button>
                 </form>
             `;
             
-            // Re-attach listeners manually since innerHTML wiped them
-            (window as any).addQuestion = addQuestion; 
+            // Expose addQuestion for the buttons above
+            (window as any).addQuestion = addQuestion;
+            
             document.getElementById('create-drill-form')?.addEventListener('submit', createDrill);
             document.getElementById('ai-generate-btn')?.addEventListener('click', generateAiDrill);
+            
+            // Delegation for delete buttons
+            document.getElementById('builder-questions-container')?.addEventListener('click', (e) => {
+                const target = e.target as HTMLElement;
+                if (target.classList.contains('delete-q-btn')) {
+                    const index = parseInt(target.dataset.index || '0', 10);
+                    removeQuestion(index);
+                }
+            });
+
             renderBuilderQuestions(); // Render initial state (empty)
         }
     }
