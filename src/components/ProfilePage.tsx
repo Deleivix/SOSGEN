@@ -5,13 +5,30 @@ import { showToast } from "../utils/helpers";
 let usersList: any[] = [];
 let activeChatUser: any = null;
 let messages: any[] = [];
+let chatPollingInterval: number | null = null;
 
 async function fetchMessages(otherUser: string) {
+    // If container is gone (user navigated away), stop polling
+    const container = document.getElementById('chat-window');
+    if (!container && chatPollingInterval) {
+        clearInterval(chatPollingInterval);
+        chatPollingInterval = null;
+        return;
+    }
+
     const user = getCurrentUser();
     if (!user) return;
-    const res = await fetch(`/api/user-data?username=${user.username}&type=messages_conversation&otherUser=${otherUser}`);
-    messages = await res.json();
-    renderChat();
+    try {
+        const res = await fetch(`/api/user-data?username=${user.username}&type=messages_conversation&otherUser=${otherUser}`);
+        if(res.ok) {
+            const newMessages = await res.json();
+            // Simple check to avoid re-rendering if no changes (optional but good for performance)
+            if (JSON.stringify(newMessages) !== JSON.stringify(messages)) {
+                messages = newMessages;
+                renderChat();
+            }
+        }
+    } catch(e) { console.error("Error fetching messages", e); }
 }
 
 async function sendMessage(e: Event) {
@@ -22,7 +39,7 @@ async function sendMessage(e: Event) {
     
     const user = getCurrentUser();
     
-    // Optimistic Update (Show immediately)
+    // Optimistic Update
     const tempMsg = {
         sender_name: user?.username,
         content: content,
@@ -42,11 +59,19 @@ async function sendMessage(e: Event) {
                 data: { receiver: activeChatUser.username, content } 
             })
         });
-        // Fetch real messages to sync timestamps/IDs
+        // Immediate fetch to sync
         fetchMessages(activeChatUser.username);
     } catch (error) {
         showToast('Error enviando mensaje', 'error');
     }
+}
+
+function startPolling(username: string) {
+    if (chatPollingInterval) clearInterval(chatPollingInterval);
+    fetchMessages(username); // Initial fetch
+    chatPollingInterval = window.setInterval(() => {
+        fetchMessages(username);
+    }, 3000); // Poll every 3 seconds
 }
 
 function renderChat() {
@@ -59,6 +84,11 @@ function renderChat() {
     }
 
     const user = getCurrentUser();
+    
+    // Save scroll position
+    const chatBoxOld = container.firstElementChild;
+    const isScrolledToBottom = chatBoxOld ? (chatBoxOld.scrollHeight - chatBoxOld.scrollTop === chatBoxOld.clientHeight) : true;
+
     container.innerHTML = `
         <div style="height: 300px; overflow-y: auto; border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: var(--bg-main);">
             ${messages.map(m => `
@@ -75,12 +105,21 @@ function renderChat() {
     `;
     
     const chatBox = container.firstElementChild;
-    if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    if(chatBox && isScrolledToBottom) {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
     
     document.getElementById('msg-form')?.addEventListener('submit', sendMessage);
 }
 
 export async function renderProfile(container: HTMLElement) {
+    if (chatPollingInterval) {
+        clearInterval(chatPollingInterval);
+        chatPollingInterval = null;
+    }
+    activeChatUser = null;
+    messages = [];
+
     const user = getCurrentUser();
     if (!user) return;
 
@@ -110,7 +149,10 @@ export async function renderProfile(container: HTMLElement) {
             activeChatUser = usersList.find(u => u.username === username);
             container.querySelectorAll('.user-chat-btn').forEach(b => b.classList.remove('active'));
             (e.currentTarget as HTMLElement).classList.add('active');
-            fetchMessages(username!);
+            
+            messages = []; // Clear current messages while loading
+            renderChat();
+            startPolling(username!);
         });
     });
     

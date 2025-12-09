@@ -1,3 +1,4 @@
+
 import { DAILY_TIPS } from "../data";
 
 // --- EVENT HANDLERS & LOGIC ---
@@ -25,7 +26,15 @@ export async function handleCopy(textToCopy: string) {
 
 export function initializeInfoTabs(container: HTMLElement) {
     const tabsContainer = container.querySelector('.info-nav-tabs');
-    const contentContainer = container.querySelector('.content-card, .info-content'); // Adjusted selector
+    
+    // Find content container. Prioritize specific classes, fallback to main container if panels exist directly in it.
+    let contentContainer = container.querySelector('.content-card, .info-content') as HTMLElement;
+    if (!contentContainer || contentContainer.querySelectorAll('.sub-tab-panel').length === 0) {
+        if (container.querySelectorAll('.sub-tab-panel').length > 0) {
+            contentContainer = container;
+        }
+    }
+
     if (!tabsContainer || !contentContainer) return;
 
     tabsContainer.addEventListener('click', (event) => {
