@@ -1,4 +1,3 @@
-
 import { getCurrentUser } from "../utils/auth";
 import { showToast, initializeInfoTabs } from "../utils/helpers";
 
@@ -6,7 +5,6 @@ let myDrills: any[] = [];
 let allDrills: any[] = [];
 let users: any[] = [];
 let assignments: any[] = [];
-let currentBuilderQuestions: any[] = []; // State for the drill builder
 
 async function apiCall(action: string, body?: any) {
     const user = getCurrentUser();
@@ -26,131 +24,67 @@ async function loadData() {
         allDrills = await apiCall('get_drills');
         users = await apiCall('get_users');
         assignments = await apiCall('get_assignments_supervisor');
-        renderTabs(); // Refresh tabs with new data
+        renderTabs();
     } catch (e) { showToast('Error cargando datos', 'error'); }
 }
 
-// --- DRILL BUILDER LOGIC ---
-
-function addQuestion(type: 'TEST' | 'TEXT' | 'ORDER') {
-    const newQ = {
-        type,
-        questionText: '',
-        options: type === 'TEXT' ? [] : ['', '', ''],
-        correctAnswer: type === 'ORDER' ? [0, 1, 2] : 0, // Default correct indices
-        feedback: ''
-    };
-    currentBuilderQuestions.push(newQ);
-    renderBuilderQuestions();
+function exportToCSV() {
+    const rows = [['ID', 'Drill', 'Usuario', 'Estado', 'Puntuación', 'Fecha']];
+    assignments.forEach(a => {
+        rows.push([
+            a.id, a.title, a.username, a.status, 
+            `${a.score || 0}/${a.max_score || 0}`, 
+            a.completed_at ? new Date(a.completed_at).toLocaleDateString() : '-'
+        ]);
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "reporte_simulacros.csv");
+    document.body.appendChild(link);
+    link.click();
 }
-
-function removeQuestion(index: number) {
-    currentBuilderQuestions.splice(index, 1);
-    renderBuilderQuestions();
-}
-
-function updateQuestion(index: number, field: string, value: any) {
-    currentBuilderQuestions[index][field] = value;
-}
-
-function updateOption(qIndex: number, optIndex: number, value: string) {
-    currentBuilderQuestions[qIndex].options[optIndex] = value;
-}
-
-function renderBuilderQuestions() {
-    const container = document.getElementById('builder-questions-container');
-    if (!container) return;
-
-    if (currentBuilderQuestions.length === 0) {
-        container.innerHTML = `<p class="drill-placeholder">No hay preguntas añadidas. Utiliza los botones de abajo para añadir.</p>`;
-        return;
-    }
-
-    container.innerHTML = currentBuilderQuestions.map((q, i) => `
-        <div class="question-block" style="background: var(--bg-card); position: relative;">
-            <button type="button" class="tertiary-btn" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px;" onclick="(window as any).removeBuilderQuestion(${i})">Eliminar</button>
-            
-            <div class="form-group">
-                <label>Pregunta ${i + 1} (${q.type === 'TEST' ? 'Tipo Test' : q.type === 'ORDER' ? 'Ordenar' : 'Texto Libre'})</label>
-                <input class="simulator-input" value="${q.questionText}" placeholder="Enunciado de la pregunta..." onchange="(window as any).updateBuilderQuestion(${i}, 'questionText', this.value)">
-            </div>
-
-            ${q.type !== 'TEXT' ? `
-                <div class="form-group">
-                    <label>Opciones</label>
-                    ${q.options.map((opt: string, optIdx: number) => `
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
-                            ${q.type === 'TEST' ? `<input type="radio" name="correct-${i}" ${q.correctAnswer == optIdx ? 'checked' : ''} onchange="(window as any).updateBuilderQuestion(${i}, 'correctAnswer', ${optIdx})">` : `<span style="font-family: monospace;">${optIdx + 1}.</span>`}
-                            <input class="simulator-input" value="${opt}" placeholder="Opción ${optIdx + 1}" onchange="(window as any).updateBuilderOption(${i}, ${optIdx}, this.value)">
-                        </div>
-                    `).join('')}
-                    ${q.type === 'ORDER' ? `<small style="color: var(--text-secondary);">Introduce la secuencia correcta arriba (1 arriba, 3 abajo). El sistema las desordenará al usuario.</small>` : ''}
-                </div>
-            ` : `<div class="form-group"><label>Respuesta Esperada (Palabras Clave)</label><input class="simulator-input" value="${q.correctAnswer || ''}" placeholder="Palabras clave para corrección manual..." onchange="(window as any).updateBuilderQuestion(${i}, 'correctAnswer', this.value)"></div>`}
-
-            <div class="form-group">
-                <label>Explicación / Feedback</label>
-                <input class="simulator-input" value="${q.feedback || ''}" placeholder="Explicación que verá el usuario..." onchange="(window as any).updateBuilderQuestion(${i}, 'feedback', this.value)">
-            </div>
-        </div>
-    `).join('');
-}
-
-// Expose helpers to window for inline events
-(window as any).removeBuilderQuestion = removeQuestion;
-(window as any).updateBuilderQuestion = updateQuestion;
-(window as any).updateBuilderOption = updateOption;
-
 
 async function createDrill(e: Event) {
     e.preventDefault();
-    const title = (document.getElementById('drill-title') as HTMLInputElement).value;
-    const scenario = (document.getElementById('drill-scenario') as HTMLTextAreaElement).value;
+    const form = e.target as HTMLFormElement;
+    const title = (form.querySelector('#drill-title') as HTMLInputElement).value;
+    const scenario = (form.querySelector('#drill-scenario') as HTMLTextAreaElement).value;
+    const questionsStr = (form.querySelector('#drill-questions') as HTMLTextAreaElement).value;
     
-    if (currentBuilderQuestions.length === 0) {
-        showToast('Añade al menos una pregunta', 'error');
-        return;
-    }
-
     try {
-        await apiCall('create_drill', { title, scenario, questions: currentBuilderQuestions });
+        const questions = JSON.parse(questionsStr);
+        await apiCall('create_drill', { title, scenario, questions });
         showToast('Simulacro creado', 'success');
-        (e.target as HTMLFormElement).reset();
-        currentBuilderQuestions = [];
-        renderBuilderQuestions();
+        form.reset();
         loadData();
     } catch (e) {
-        showToast('Error al crear', 'error');
+        showToast('JSON de preguntas inválido', 'error');
     }
 }
 
 async function generateAiDrill() {
     const btn = document.getElementById('ai-generate-btn') as HTMLButtonElement;
-    const loadingOverlay = document.getElementById('ai-loading-overlay');
-    
     if(btn) btn.disabled = true;
-    if(loadingOverlay) loadingOverlay.style.display = 'flex';
-
     try {
+        showToast('Generando con IA...', 'info');
+        // Sending empty body to force POST method
         const data = await apiCall('generate_ai_drill', {});
         
         const titleInput = document.getElementById('drill-title') as HTMLInputElement;
         const scenarioInput = document.getElementById('drill-scenario') as HTMLTextAreaElement;
+        const questionsInput = document.getElementById('drill-questions') as HTMLTextAreaElement;
 
         if (titleInput) titleInput.value = data.title || '';
         if (scenarioInput) scenarioInput.value = data.scenario || '';
+        if (questionsInput) questionsInput.value = JSON.stringify(data.questions || [], null, 2);
         
-        if (data.questions && Array.isArray(data.questions)) {
-            currentBuilderQuestions = data.questions;
-            renderBuilderQuestions();
-        }
-        
-        showToast('Generado con IA', 'success');
+        showToast('Generado', 'success');
     } catch(e) {
         showToast('Error al generar con IA', 'error');
     } finally {
         if(btn) btn.disabled = false;
-        if(loadingOverlay) loadingOverlay.style.display = 'none';
     }
 }
 
@@ -175,74 +109,34 @@ async function assignDrill(e: Event) {
     loadData();
 }
 
-function exportToCSV() {
-    const rows = [['ID', 'Drill', 'Usuario', 'Estado', 'Puntuación', 'Fecha']];
-    assignments.forEach(a => {
-        rows.push([
-            a.id, a.title, a.username, a.status, 
-            `${a.score || 0}/${a.max_score || 0}`, 
-            a.completed_at ? new Date(a.completed_at).toLocaleDateString() : '-'
-        ]);
-    });
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "reporte_simulacros.csv");
-    document.body.appendChild(link);
-    link.click();
-}
-
 function renderTabs() {
     const createTab = document.getElementById('tab-create');
     const assignTab = document.getElementById('tab-assign');
     const monitorTab = document.getElementById('tab-monitor');
 
     if (createTab) {
-        // Only render if empty to preserve builder state during tab switches if desired, 
-        // OR re-render if we want fresh state. Here we re-render static parts but keep dynamic.
-        if (!createTab.innerHTML) {
-            createTab.innerHTML = `
-                <div id="ai-loading-overlay" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 10; justify-content: center; align-items: center; flex-direction: column; color: white; border-radius: 12px;">
-                    <div class="loader" style="border-color: rgba(255,255,255,0.2); border-top-color: var(--accent-color);"></div>
-                    <p style="margin-top: 1rem;">Generando escenario CCR con IA...</p>
+        createTab.innerHTML = `
+            <form id="create-drill-form">
+                <div class="form-group">
+                    <label>Título</label>
+                    <input id="drill-title" class="simulator-input" required placeholder="Título del simulacro">
                 </div>
-                <form id="create-drill-form" style="position: relative;">
-                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; justify-content: flex-end;">
-                        <button type="button" id="ai-generate-btn" class="secondary-btn" style="width: auto;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0z"/><path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5"/></svg>
-                            Generar Caso con IA
-                        </button>
-                    </div>
-                    <div class="form-group">
-                        <label>Título</label>
-                        <input id="drill-title" class="simulator-input" required placeholder="Título del simulacro">
-                    </div>
-                    <div class="form-group">
-                        <label>Escenario</label>
-                        <textarea id="drill-scenario" class="styled-textarea" rows="4" required placeholder="Descripción del escenario..."></textarea>
-                    </div>
-                    
-                    <div class="form-divider"><span>Preguntas</span></div>
-                    
-                    <div id="builder-questions-container" style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 1.5rem;"></div>
-
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 2rem;">
-                        <button type="button" class="secondary-btn" onclick="addQuestion('TEST')">+ Test (A/B/C)</button>
-                        <button type="button" class="secondary-btn" onclick="addQuestion('TEXT')">+ Texto Abierto</button>
-                        <button type="button" class="secondary-btn" onclick="addQuestion('ORDER')">+ Ordenar</button>
-                    </div>
-
-                    <button type="submit" class="primary-btn">Guardar Simulacro</button>
-                </form>
-            `;
-            
-            // Re-attach listeners manually since innerHTML wiped them
-            (window as any).addQuestion = addQuestion; 
-            document.getElementById('create-drill-form')?.addEventListener('submit', createDrill);
-            document.getElementById('ai-generate-btn')?.addEventListener('click', generateAiDrill);
-            renderBuilderQuestions(); // Render initial state (empty)
-        }
+                <div class="form-group">
+                    <label>Escenario</label>
+                    <textarea id="drill-scenario" class="styled-textarea" rows="4" required placeholder="Descripción del escenario..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Preguntas (JSON)</label>
+                    <textarea id="drill-questions" class="styled-textarea" rows="6" placeholder='[{"questionText": "...", "options": ["..."], "correctAnswerIndex": 0, "feedback": "..."}]' required></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="submit" class="primary-btn">Crear Simulacro</button>
+                    <button type="button" id="ai-generate-btn" class="secondary-btn">Generar con IA</button>
+                </div>
+            </form>
+        `;
+        document.getElementById('create-drill-form')?.addEventListener('submit', createDrill);
+        document.getElementById('ai-generate-btn')?.addEventListener('click', generateAiDrill);
     }
 
     if (assignTab) {
@@ -309,13 +203,5 @@ export function renderSupervisorPage(container: HTMLElement) {
         </div>
     `;
     initializeInfoTabs(container);
-    
-    // Add specific listener to reload data when switching tabs inside supervisor
-    container.querySelector('.info-nav-tabs')?.addEventListener('click', (e) => {
-        if((e.target as HTMLElement).classList.contains('info-nav-btn')) {
-            loadData();
-        }
-    });
-
     loadData();
 }
