@@ -119,35 +119,31 @@ export default async function handler(
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
                 
                 const prompt = `
-                Eres un instructor experto en GMDSS.
-                Genera un simulacro para operadores de Estaciones Costeras (CCR).
+                Eres un instructor experto en GMDSS y operaciones de Estaciones Costeras (CCR) de Salvamento Marítimo en España.
+                Genera un simulacro de evaluación avanzado para un operador.
 
-                **OBJETIVO: RUTINA Y PROCEDIMIENTO ESTÁNDAR**
-                El escenario debe ser SENCILLO y REALISTA. 
-                Evita situaciones de múltiples fallos, catástrofes extremas o "trampas".
-                Crea un caso de uso común, como:
-                - Un pesquero informa de una avería de máquinas (Urgencia).
-                - Recepción de una alerta DSC de rutina sin socorro.
-                - Un yate solicita asistencia médica (Medico).
-                - Una falsa alerta DSC que debe ser cancelada.
+                **Contexto del Escenario:**
+                Crea un escenario complejo y realista (ej: recepción de alerta DSC, Mayday Relay, coordinación SAR, fallo de comunicaciones, consulta médica radio).
+                Incluye detalles técnicos: canales VHF/MF, frecuencias, MMSI ficticios, nombres de buques, posiciones geográficas.
 
-                **Datos:** Inventa nombre de buque, MMSI, posición y canal.
-
-                **Preguntas:**
-                Genera 4 preguntas sobre el procedimiento CORRECTO a seguir según el manual IAMSAR/GMDSS.
-                Usa preguntas tipo 'TEST' (opción múltiple) principalmente.
+                **Estructura de Preguntas:**
+                Genera 4 preguntas que evalúen la toma de decisiones y el conocimiento del protocolo.
+                Usa una mezcla de los siguientes tipos de preguntas:
+                1. 'TEST': Pregunta de opción múltiple (A, B, C).
+                2. 'ORDER': Ordenar una secuencia de pasos (ej: pasos para cancelar una falsa alerta).
+                3. 'TEXT': Pregunta abierta breve (ej: "¿Qué fraseología usarías?").
 
                 **Formato de Salida JSON:**
                 {
-                  "title": "Título corto (ej: Avería en Pesquero)",
-                  "scenario": "Descripción clara y breve del evento...",
+                  "title": "Título descriptivo del caso",
+                  "scenario": "Texto detallado del escenario...",
                   "questions": [
                     {
-                      "type": "TEST", 
-                      "questionText": "¿Cuál es la primera acción del operador?",
-                      "options": ["Opción A", "Opción B", "Opción C"],
-                      "correctAnswer": 0,
-                      "feedback": "Breve explicación."
+                      "type": "TEST", // o "ORDER" o "TEXT"
+                      "questionText": "El texto de la pregunta",
+                      "options": ["Opción 1", "Opción 2", "Opción 3"], // Requerido para TEST y ORDER. En ORDER, la IA debe devolver las opciones DESORDENADAS.
+                      "correctAnswer": 0, // Para TEST: índice de la opción correcta. Para ORDER: array de índices en orden correcto [2, 0, 1]. Para TEXT: string con la respuesta esperada o palabras clave.
+                      "feedback": "Explicación breve."
                     }
                   ]
                 }
