@@ -268,7 +268,6 @@ nav {
   overflow-x: auto; /* Enable horizontal scrolling */
   scrollbar-width: none; /* Firefox: hide scrollbar */
   -ms-overflow-style: none; /* IE/Edge: hide scrollbar */
-  padding-right: 2rem; /* Prevent last item cut-off */
 }
 .nav-links-container::-webkit-scrollbar {
     display: none; /* Chrome/Safari: hide scrollbar */

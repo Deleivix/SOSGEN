@@ -119,34 +119,35 @@ export default async function handler(
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
                 
                 const prompt = `
-                Eres un instructor experto en GMDSS. Genera un simulacro de evaluación sencillo y directo para un operador de Estación Costera (CCR).
+                Eres un instructor experto en GMDSS.
+                Genera un simulacro para operadores de Estaciones Costeras (CCR).
 
-                **DIRECTRIZ PRINCIPAL:**
-                Crea UN (1) solo incidente claro. Evita múltiples fallos en cadena o situaciones rocambolescas.
-                Ejemplos válidos: "Un pesquero emite Mayday por incendio", "Fallo de comunicaciones en VHF", "Recepción de alerta DSC sin posición".
-                El escenario debe ser realista pero simple de seguir.
+                **OBJETIVO: RUTINA Y PROCEDIMIENTO ESTÁNDAR**
+                El escenario debe ser SENCILLO y REALISTA. 
+                Evita situaciones de múltiples fallos, catástrofes extremas o "trampas".
+                Crea un caso de uso común, como:
+                - Un pesquero informa de una avería de máquinas (Urgencia).
+                - Recepción de una alerta DSC de rutina sin socorro.
+                - Un yate solicita asistencia médica (Medico).
+                - Una falsa alerta DSC que debe ser cancelada.
 
-                **Datos Técnicos:**
-                Inventa datos precisos: Nombre del buque, MMSI, Posición, Canal/Frecuencia.
+                **Datos:** Inventa nombre de buque, MMSI, posición y canal.
 
                 **Preguntas:**
-                Genera 4 preguntas que evalúen el protocolo estándar para esa situación única.
-                Tipos de pregunta:
-                1. 'TEST' (Opción múltiple A, B, C).
-                2. 'ORDER' (Ordenar pasos lógicos).
-                3. 'TEXT' (Pregunta abierta breve, ej: fraseología).
+                Genera 4 preguntas sobre el procedimiento CORRECTO a seguir según el manual IAMSAR/GMDSS.
+                Usa preguntas tipo 'TEST' (opción múltiple) principalmente.
 
                 **Formato de Salida JSON:**
                 {
-                  "title": "Título descriptivo del caso (ej: Incendio en Pesquero)",
-                  "scenario": "Descripción clara del incidente...",
+                  "title": "Título corto (ej: Avería en Pesquero)",
+                  "scenario": "Descripción clara y breve del evento...",
                   "questions": [
                     {
                       "type": "TEST", 
-                      "questionText": "Pregunta...",
-                      "options": ["A...", "B...", "C..."],
+                      "questionText": "¿Cuál es la primera acción del operador?",
+                      "options": ["Opción A", "Opción B", "Opción C"],
                       "correctAnswer": 0,
-                      "feedback": "Explicación."
+                      "feedback": "Breve explicación."
                     }
                   ]
                 }
