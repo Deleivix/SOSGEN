@@ -247,7 +247,7 @@ export default async function handler(
                 *   Crea preguntas INTERACTIVAS ÚNICAMENTE para la información que FALTA, siguiendo el estricto orden de prioridad: 1º POSICIÓN, 2º POB, 3º NATURALEZA DEL PELIGRO.
                 *   **PROHIBIDO:** No generes preguntas sobre información que ya se ha dado. El objetivo es ser eficiente.
 
-            *   **PREGUNTA OPCIONAL: ABANDONO DE BUQUE.**
+            *   **PREGUNTAS OPCIONAL: ABANDONO DE BUQUE.**
                 *   **PROHIBIDO:** NUNCA generes una pregunta donde la CCR pregunte si van a abandonar el buque.
                 *   **SÓLO SI** el escenario que creaste incluye que el buque informa de su abandono, la siguiente pregunta (después de obtener los datos críticos) debe ser sobre las recomendaciones de seguridad. La opción correcta debe incluir recomendar: **"chalecos salvavidas, radiobaliza (EPIRB) y VHF portátil"**.
 

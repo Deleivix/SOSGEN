@@ -21,27 +21,6 @@ const getUserId = async (username: string): Promise<number | null> => {
 // --- MAIN HANDLER ---
 export default async function handler(request: VercelRequest, response: VercelResponse) {
     try {
-        await sql`
-            CREATE TABLE IF NOT EXISTS sosgen_history (
-                id SERIAL PRIMARY KEY,
-                user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                entry_data JSONB NOT NULL
-            );
-        `;
-        await sql`
-            CREATE TABLE IF NOT EXISTS drill_stats (
-                id SERIAL PRIMARY KEY,
-                user_id INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-                stats_data JSONB NOT NULL
-            );
-        `;
-    } catch (e) {
-        console.error("DB Initialization Error:", e);
-        return response.status(500).json({ error: "Database setup failed." });
-    }
-
-    try {
         if (request.method === 'GET') {
             const username = request.query.username as string;
             const type = request.query.type as string; // 'sosgen', 'messages', etc.

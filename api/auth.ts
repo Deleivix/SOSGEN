@@ -2,7 +2,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
 import crypto from 'crypto';
-import { Buffer } from 'buffer';
 
 const WHITELISTED_EMAILS = new Set([
     'jacinto.alvarez@cellnextelecom.com',
@@ -34,14 +33,40 @@ async function verifyAdmin(username: string): Promise<boolean> {
 }
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
-    // --- DB INIT ---
+    // --- DB INITIALIZATION (Run on every request to ensure schema consistency) ---
     try {
+        // 1. Users & Logs
         await sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, email VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(128) NOT NULL, salt VARCHAR(32) NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'PENDING', is_admin BOOLEAN NOT NULL DEFAULT FALSE, is_supervisor BOOLEAN NOT NULL DEFAULT FALSE);`;
         await sql`CREATE TABLE IF NOT EXISTS access_logs (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id), username VARCHAR(50), timestamp TIMESTAMPTZ DEFAULT NOW(), ip VARCHAR(45), user_agent TEXT);`;
         await sql`CREATE TABLE IF NOT EXISTS activity_logs (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id), username VARCHAR(50), timestamp TIMESTAMPTZ DEFAULT NOW(), action_type VARCHAR(50), details TEXT);`;
+        
+        // 2. Messaging
+        await sql`CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_id INT REFERENCES users(id), receiver_id INT REFERENCES users(id), content TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW(), is_read BOOLEAN DEFAULT FALSE);`;
+
+        // 3. Drills & Assignments
+        await sql`CREATE TABLE IF NOT EXISTS custom_drills (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, scenario TEXT NOT NULL, questions JSONB NOT NULL, created_by INT REFERENCES users(id), created_at TIMESTAMPTZ DEFAULT NOW(), available_from TIMESTAMPTZ, available_until TIMESTAMPTZ, is_draft BOOLEAN DEFAULT TRUE);`;
+        await sql`CREATE TABLE IF NOT EXISTS drill_assignments (id SERIAL PRIMARY KEY, drill_id INT REFERENCES custom_drills(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'PENDING', score INT, max_score INT, completed_at TIMESTAMPTZ, answers JSONB, UNIQUE(drill_id, user_id));`;
+        await sql`CREATE TABLE IF NOT EXISTS drill_stats (id SERIAL PRIMARY KEY, user_id INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, stats_data JSONB NOT NULL);`;
+
+        // 4. User Data
+        await sql`CREATE TABLE IF NOT EXISTS sosgen_history (id SERIAL PRIMARY KEY, user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE, timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(), entry_data JSONB NOT NULL);`;
+
+        // 5. Radioavisos
+        await sql`CREATE TABLE IF NOT EXISTS nrs (id VARCHAR(255) PRIMARY KEY, base_id VARCHAR(50) NOT NULL, version INT NOT NULL, stations TEXT[] NOT NULL, expiry_date VARCHAR(20), expiry_time VARCHAR(10), is_ampliado BOOLEAN NOT NULL, is_caducado BOOLEAN NOT NULL, is_manual BOOLEAN NOT NULL DEFAULT FALSE, UNIQUE(base_id, version));`;
+        await sql`CREATE TABLE IF NOT EXISTS radioaviso_history (id VARCHAR(255) PRIMARY KEY, timestamp TIMESTAMPTZ NOT NULL, "user" VARCHAR(100) NOT NULL, action VARCHAR(50) NOT NULL, nr_id VARCHAR(50) NOT NULL, details TEXT);`;
+
+        // Migrations / Updates
+        try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_supervisor BOOLEAN NOT NULL DEFAULT FALSE`; } catch (e) {}
+        try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE`; } catch (e) {}
+        
+        // Ensure Roles
         await sql`UPDATE users SET is_admin = TRUE WHERE email = ${ADMIN_EMAIL}`;
         await sql`UPDATE users SET is_supervisor = TRUE WHERE email = ${SUPERVISOR_EMAIL}`;
-    } catch (e) {}
+
+    } catch (e) {
+        console.error("DB Init Failed:", e);
+        // Continue execution, don't block login if DB is partially ready
+    }
 
     // --- ADMIN GET ACTIONS ---
     if (request.method === 'GET') {
