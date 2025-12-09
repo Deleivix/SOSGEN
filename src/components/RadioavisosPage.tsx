@@ -215,29 +215,50 @@ function renderStationStatusTableHTML() {
         stationStatus[station] = status;
     });
 
-    const renderCell = (station: string) => `
-        <td style="text-align: center; padding: 0.5rem;">
+    // Helper to render a table cell with optional colspan
+    const renderCell = (station: string, colspan: number = 1) => `
+        <td colspan="${colspan}" style="text-align: center; padding: 0.5rem; vertical-align: middle; border-left: 1px solid var(--border-color);">
             <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
                 <span class="status-dot ${stationStatus[station] || 'status-green'}"></span>
-                <span style="font-size: 0.8rem; color: var(--text-secondary);">${station.replace(' VHF','').replace(' MF','')}</span>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap;">${station.replace(' VHF','').replace(' MF','')}</span>
             </div>
         </td>
     `;
 
+    // Calculate colspans to align MF stations roughly with VHF stations in a 10-column grid
+    // VHF has 10 stations. MF has 3 + Navtex = 4 items. 
+    // Spanning logic: Finisterre(2), Coruña(3), Machichaco(3), Navtex(2) -> Total 10
+    
     return `
-        <div class="station-table-container" style="margin-bottom: 2rem;">
+        <div class="station-table-container">
             <h3>Estado de Estaciones (Avisos en Vigor)</h3>
             <div class="table-wrapper">
-                <table class="station-table horizontal-table">
-                    <thead><tr><th colspan="${STATIONS_VHF.length}" class="header-vhf">VHF</th></tr></thead>
-                    <tbody><tr>${STATIONS_VHF.map(s => renderCell(s)).join('')}</tr></tbody>
-                </table>
-                <table class="station-table horizontal-table" style="margin-top: -1px;">
-                    <thead><tr><th colspan="${STATIONS_MF.length}" class="header-mf">MF</th><th class="header-navtex">NAVTEX</th></tr></thead>
-                    <tbody><tr>${STATIONS_MF.map(s => renderCell(s)).join('')}${renderCell('Navtex')}</tr></tbody>
+                <table class="station-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <thead>
+                        <tr><th colspan="10" class="header-vhf" style="border-bottom: 1px solid var(--border-color);">VHF</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            ${STATIONS_VHF.map(s => renderCell(s)).join('')}
+                        </tr>
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th colspan="8" class="header-mf" style="border-bottom: 1px solid var(--border-color);">MF</th>
+                            <th colspan="2" class="header-navtex" style="border-bottom: 1px solid var(--border-color); border-left: 1px solid var(--border-color);">NAVTEX</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            ${renderCell('Finisterre MF', 2)}
+                            ${renderCell('Coruña MF', 3)}
+                            ${renderCell('Machichaco MF', 3)}
+                            ${renderCell('Navtex', 2)}
+                        </tr>
+                    </tbody>
                 </table>
             </div>
-            <div class="status-legend" style="padding: 0.5rem 1rem;">
+            <div class="status-legend" style="padding: 0.5rem 1rem; border-top: 1px solid var(--border-color);">
                 <div class="legend-item"><span class="status-dot status-green"></span><span>Sin Avisos</span></div>
                 <div class="legend-item"><span class="status-dot status-yellow"></span><span>Aviso en Vigor</span></div>
                 <div class="legend-item"><span class="status-dot status-orange"></span><span>Caducando</span></div>
