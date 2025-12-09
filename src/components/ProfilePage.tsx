@@ -21,17 +21,32 @@ async function sendMessage(e: Event) {
     if (!content || !activeChatUser) return;
     
     const user = getCurrentUser();
-    await fetch('/api/user-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            username: user?.username,
-            type: 'send_message', 
-            data: { receiver: activeChatUser.username, content } 
-        })
-    });
+    
+    // Optimistic Update (Show immediately)
+    const tempMsg = {
+        sender_name: user?.username,
+        content: content,
+        timestamp: new Date().toISOString()
+    };
+    messages.push(tempMsg);
+    renderChat();
     input.value = '';
-    fetchMessages(activeChatUser.username);
+
+    try {
+        await fetch('/api/user-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                username: user?.username,
+                type: 'send_message', 
+                data: { receiver: activeChatUser.username, content } 
+            })
+        });
+        // Fetch real messages to sync timestamps/IDs
+        fetchMessages(activeChatUser.username);
+    } catch (error) {
+        showToast('Error enviando mensaje', 'error');
+    }
 }
 
 function renderChat() {
@@ -45,17 +60,17 @@ function renderChat() {
 
     const user = getCurrentUser();
     container.innerHTML = `
-        <div style="height: 300px; overflow-y: auto; border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        <div style="height: 300px; overflow-y: auto; border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: var(--bg-main);">
             ${messages.map(m => `
-                <div style="align-self: ${m.sender_name === user?.username ? 'flex-end' : 'flex-start'}; background: ${m.sender_name === user?.username ? 'var(--accent-color)' : 'var(--bg-card)'}; color: ${m.sender_name === user?.username ? 'white' : 'var(--text-primary)'}; padding: 0.5rem 1rem; border-radius: 8px; max-width: 70%; border: 1px solid var(--border-color);">
-                    <small style="display:block; opacity: 0.8; font-size: 0.7em;">${new Date(m.timestamp).toLocaleTimeString()}</small>
+                <div style="align-self: ${m.sender_name === user?.username ? 'flex-end' : 'flex-start'}; background: ${m.sender_name === user?.username ? 'var(--accent-color)' : 'var(--bg-card)'}; color: ${m.sender_name === user?.username ? 'white' : 'var(--text-primary)'}; padding: 0.5rem 1rem; border-radius: 8px; max-width: 70%; border: 1px solid var(--border-color); box-shadow: 0 1px 2px var(--shadow-color);">
+                    <small style="display:block; opacity: 0.8; font-size: 0.7em; margin-bottom: 0.2rem;">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
                     ${m.content}
                 </div>
             `).join('')}
         </div>
         <form id="msg-form" style="display:flex; gap:0.5rem;">
             <input class="simulator-input" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
-            <button class="primary-btn-small">Enviar</button>
+            <button type="submit" class="primary-btn-small">Enviar</button>
         </form>
     `;
     
