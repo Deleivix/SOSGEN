@@ -22,6 +22,7 @@ const WHITELISTED_EMAILS = new Set([
     'alba.maria.suarez@cellnextelecom.com'
 ]);
 const ADMIN_EMAIL = 'angel.sande@cellnextelecom.com';
+const SUPERVISOR_EMAIL = 'j.cruz@cellnextelecom.com';
 
 const hashPassword = (password: string, salt: string): string => {
     return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
@@ -43,16 +44,72 @@ export default async function handler(
                 is_admin BOOLEAN NOT NULL DEFAULT FALSE
             );
         `;
-         // Simple migration for existing setups
+        
+        await sql`CREATE TABLE IF NOT EXISTS access_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id),
+            username VARCHAR(50),
+            timestamp TIMESTAMPTZ DEFAULT NOW(),
+            ip VARCHAR(45),
+            user_agent TEXT
+        );`;
+
+        await sql`CREATE TABLE IF NOT EXISTS activity_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id),
+            username VARCHAR(50),
+            timestamp TIMESTAMPTZ DEFAULT NOW(),
+            action_type VARCHAR(50),
+            details TEXT
+        );`;
+
+        await sql`CREATE TABLE IF NOT EXISTS messages (
+            id SERIAL PRIMARY KEY,
+            sender_id INT REFERENCES users(id),
+            receiver_id INT REFERENCES users(id),
+            content TEXT NOT NULL,
+            timestamp TIMESTAMPTZ DEFAULT NOW(),
+            is_read BOOLEAN DEFAULT FALSE
+        );`;
+
+        await sql`CREATE TABLE IF NOT EXISTS custom_drills (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            scenario TEXT NOT NULL,
+            questions JSONB NOT NULL,
+            created_by INT REFERENCES users(id),
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            available_from TIMESTAMPTZ,
+            available_until TIMESTAMPTZ,
+            is_draft BOOLEAN DEFAULT TRUE
+        );`;
+
+        await sql`CREATE TABLE IF NOT EXISTS drill_assignments (
+            id SERIAL PRIMARY KEY,
+            drill_id INT REFERENCES custom_drills(id) ON DELETE CASCADE,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, COMPLETED
+            score INT,
+            max_score INT,
+            completed_at TIMESTAMPTZ,
+            answers JSONB,
+            UNIQUE(drill_id, user_id)
+        );`;
+
+         // Migrations
         try {
             await sql`ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'APPROVED'`;
+        } catch (e) {}
+        try {
             await sql`ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE`;
-            await sql`UPDATE users SET is_admin = TRUE WHERE email = ${ADMIN_EMAIL}`;
-        } catch (e: any) {
-             if (!e.message.includes('already exists')) {
-                console.warn('Migration-like ALTER TABLE may have failed:', e.message);
-            }
-        }
+        } catch (e) {}
+        try {
+            await sql`ALTER TABLE users ADD COLUMN is_supervisor BOOLEAN NOT NULL DEFAULT FALSE`;
+        } catch (e) {}
+
+        // Ensure roles
+        await sql`UPDATE users SET is_admin = TRUE WHERE email = ${ADMIN_EMAIL}`;
+        await sql`UPDATE users SET is_supervisor = TRUE WHERE email = ${SUPERVISOR_EMAIL}`;
 
     } catch (error) {
         console.error('Database connection or table creation error:', error);
@@ -92,10 +149,11 @@ export default async function handler(
             const isWhitelisted = WHITELISTED_EMAILS.has(normalizedEmail);
             const status = isWhitelisted ? 'APPROVED' : 'PENDING';
             const isAdmin = normalizedEmail === ADMIN_EMAIL;
+            const isSupervisor = normalizedEmail === SUPERVISOR_EMAIL;
             
             await sql`
-                INSERT INTO users (username, email, password_hash, salt, status, is_admin)
-                VALUES (${normalizedUsername}, ${normalizedEmail}, ${passwordHash}, ${salt}, ${status}, ${isAdmin});
+                INSERT INTO users (username, email, password_hash, salt, status, is_admin, is_supervisor)
+                VALUES (${normalizedUsername}, ${normalizedEmail}, ${passwordHash}, ${salt}, ${status}, ${isAdmin}, ${isSupervisor});
             `;
             
             const message = isWhitelisted 
@@ -131,8 +189,13 @@ export default async function handler(
             if (storedHashBuffer.length !== suppliedHashBuffer.length || !crypto.timingSafeEqual(storedHashBuffer, suppliedHashBuffer)) {
                  return response.status(401).json({ error: 'Usuario, email o contraseña no válidos.' });
             }
+
+            // Log access
+            const ip = request.headers['x-forwarded-for'] || request.socket.remoteAddress;
+            const userAgent = request.headers['user-agent'];
+            await sql`INSERT INTO access_logs (user_id, username, ip, user_agent) VALUES (${user.id}, ${user.username}, ${ip as string}, ${userAgent as string})`;
             
-            return response.status(200).json({ success: true, user: { id: user.id, username: user.username, isAdmin: user.is_admin } });
+            return response.status(200).json({ success: true, user: { id: user.id, username: user.username, email: user.email, isAdmin: user.is_admin, isSupervisor: user.is_supervisor } });
 
         } else {
             return response.status(400).json({ error: 'Invalid action specified.' });

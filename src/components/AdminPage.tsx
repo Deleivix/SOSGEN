@@ -1,16 +1,13 @@
+
 import { getCurrentUser } from "../utils/auth";
-import { showToast } from "../utils/helpers";
+import { showToast, initializeInfoTabs } from "../utils/helpers";
 
-type PendingUser = {
-    id: number;
-    username: string;
-    email: string;
-};
-
-let pendingUsers: PendingUser[] = [];
+let pendingUsers: any[] = [];
+let accessLogs: any[] = [];
+let activityLogs: any[] = [];
 let isLoading = false;
 
-async function fetchRequests() {
+async function fetchData(type: string) {
     const adminUser = getCurrentUser();
     if (!adminUser) return;
 
@@ -18,16 +15,16 @@ async function fetchRequests() {
     renderAdminContent();
 
     try {
-        const response = await fetch(`/api/admin?adminUsername=${adminUser.username}`);
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to fetch requests');
-        }
-        pendingUsers = await response.json();
+        const response = await fetch(`/api/admin?adminUsername=${adminUser.username}&type=${type}`);
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const data = await response.json();
+        
+        if (type === 'users') pendingUsers = data;
+        if (type === 'access_logs') accessLogs = data;
+        if (type === 'activity_logs') activityLogs = data;
+
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Error desconocido";
-        showToast(`Error al cargar solicitudes: ${message}`, "error");
-        pendingUsers = [];
+        showToast("Error al cargar datos", "error");
     } finally {
         isLoading = false;
         renderAdminContent();
@@ -50,16 +47,13 @@ async function handleRequestAction(userId: number, action: 'approve' | 'reject')
         });
 
         const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || 'La operación falló');
-        }
+        if (!response.ok) throw new Error(result.error);
         
         showToast(result.message, 'success');
-        await fetchRequests(); // Refresh the list
+        await fetchData('users'); 
 
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Error desconocido";
-        showToast(`Error: ${message}`, "error");
+        showToast("Error en la operación", "error");
     }
 }
 
@@ -67,59 +61,97 @@ function renderAdminContent() {
     const container = document.getElementById('admin-page-content');
     if (!container) return;
 
+    // We only update the active panel content to avoid redrawing tabs constantly if not needed
+    const activeTab = container.querySelector('.info-nav-btn.active')?.getAttribute('data-target');
+    
+    // Render Tabs if container is empty or just started
+    if (!container.querySelector('.info-nav-tabs')) {
+        container.innerHTML = `
+            <div class="info-nav-tabs">
+                <button class="info-nav-btn active" data-target="tab-users">Usuarios Pendientes</button>
+                <button class="info-nav-btn" data-target="tab-access">Historial Accesos</button>
+                <button class="info-nav-btn" data-target="tab-activity">Historial Actividad</button>
+            </div>
+            <div id="tab-users" class="sub-tab-panel active"></div>
+            <div id="tab-access" class="sub-tab-panel"></div>
+            <div id="tab-activity" class="sub-tab-panel"></div>
+        `;
+        initializeInfoTabs(container);
+        
+        // Add click listeners for data fetching on tab switch
+        container.querySelector('[data-target="tab-users"]')?.addEventListener('click', () => fetchData('users'));
+        container.querySelector('[data-target="tab-access"]')?.addEventListener('click', () => fetchData('access_logs'));
+        container.querySelector('[data-target="tab-activity"]')?.addEventListener('click', () => fetchData('activity_logs'));
+        
+        // Initial fetch
+        fetchData('users');
+        return; 
+    }
+
     if (isLoading) {
-        container.innerHTML = `<div class="loader-container"><div class="loader"></div></div>`;
+        const loader = `<div class="loader-container"><div class="loader"></div></div>`;
+        if (activeTab) {
+            const panel = container.querySelector(`#${activeTab}`);
+            if(panel) panel.innerHTML = loader;
+        }
         return;
     }
 
-    let listHtml = '';
-    if (pendingUsers.length === 0) {
-        listHtml = '<p class="drill-placeholder">No hay solicitudes de registro pendientes.</p>';
-    } else {
-        listHtml = `
+    // Render Users
+    const usersPanel = container.querySelector('#tab-users');
+    if (usersPanel) {
+        usersPanel.innerHTML = pendingUsers.length === 0 ? '<p class="drill-placeholder">No hay solicitudes.</p>' : `
             <div class="table-wrapper">
                 <table class="reference-table">
-                    <thead>
-                        <tr>
-                            <th>ID de Usuario</th>
-                            <th>Nombre de Usuario</th>
-                            <th>Email</th>
-                            <th style="text-align: right;">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${pendingUsers.map(user => `
-                            <tr data-user-id="${user.id}">
-                                <td>${user.id}</td>
-                                <td>${user.username}</td>
-                                <td>${user.email}</td>
-                                <td>
-                                    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-                                        <button class="primary-btn-small" data-action="approve">Aprobar</button>
-                                        <button class="tertiary-btn" data-action="reject">Rechazar</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
+                    <thead><tr><th>Usuario</th><th>Email</th><th>Acciones</th></tr></thead>
+                    <tbody>${pendingUsers.map(u => `
+                        <tr data-user-id="${u.id}">
+                            <td>${u.username}</td><td>${u.email}</td>
+                            <td><button class="primary-btn-small" data-action="approve">Aprobar</button> <button class="tertiary-btn" data-action="reject">Rechazar</button></td>
+                        </tr>`).join('')}</tbody>
                 </table>
-            </div>
-        `;
+            </div>`;
     }
 
-    container.innerHTML = `
-        <h2 class="content-card-title">Gestionar Solicitudes de Registro</h2>
-        ${listHtml}
-    `;
+    // Render Access Logs
+    const accessPanel = container.querySelector('#tab-access');
+    if (accessPanel) {
+        accessPanel.innerHTML = `
+            <div class="table-wrapper">
+                <table class="reference-table">
+                    <thead><tr><th>Fecha</th><th>Usuario</th><th>IP</th></tr></thead>
+                    <tbody>${accessLogs.map(l => `
+                        <tr>
+                            <td>${new Date(l.timestamp).toLocaleString()}</td>
+                            <td>${l.username}</td>
+                            <td>${l.ip}</td>
+                        </tr>`).join('')}</tbody>
+                </table>
+            </div>`;
+    }
+
+    // Render Activity Logs
+    const activityPanel = container.querySelector('#tab-activity');
+    if (activityPanel) {
+        activityPanel.innerHTML = `
+            <div class="table-wrapper">
+                <table class="reference-table">
+                    <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalles</th></tr></thead>
+                    <tbody>${activityLogs.map(l => `
+                        <tr>
+                            <td>${new Date(l.timestamp).toLocaleString()}</td>
+                            <td>${l.username}</td>
+                            <td>${l.action_type}</td>
+                            <td>${l.details}</td>
+                        </tr>`).join('')}</tbody>
+                </table>
+            </div>`;
+    }
 }
 
 export function renderAdminPage(container: HTMLElement) {
-    container.innerHTML = `
-        <div class="content-card" id="admin-page-content">
-            <!-- Content will be rendered by JS -->
-        </div>
-    `;
-    fetchRequests();
+    container.innerHTML = `<div class="content-card" id="admin-page-content"></div>`;
+    renderAdminContent();
 
     container.addEventListener('click', e => {
         const target = e.target as HTMLElement;
@@ -128,11 +160,8 @@ export function renderAdminPage(container: HTMLElement) {
             const action = button.getAttribute('data-action') as 'approve' | 'reject';
             const row = button.closest('tr');
             const userId = row?.dataset.userId;
-            
             if (action && userId) {
-                 if (action === 'reject' && !window.confirm(`¿Seguro que quiere rechazar y eliminar al usuario ${row.cells[1].textContent}?`)) {
-                    return;
-                }
+                 if (action === 'reject' && !window.confirm(`¿Rechazar usuario?`)) return;
                 handleRequestAction(parseInt(userId, 10), action);
             }
         }

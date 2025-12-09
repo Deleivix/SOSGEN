@@ -4,12 +4,9 @@ import { sql } from '@vercel/postgres';
 
 async function verifyAdmin(username: string): Promise<boolean> {
     if (!username) return false;
-    // In a real-world scenario, you might check a session token or a more robust role system.
-    // For this app, we verify against a known admin username.
     const { rows } = await sql`SELECT is_admin FROM users WHERE username = ${username.toUpperCase()};`;
     return rows.length > 0 && rows[0].is_admin === true;
 }
-
 
 export default async function handler(
     request: VercelRequest,
@@ -22,8 +19,18 @@ export default async function handler(
                 return response.status(403).json({ error: 'Acceso denegado.' });
             }
             
-            const { rows } = await sql`SELECT id, username, email FROM users WHERE status = 'PENDING' ORDER BY id ASC;`;
-            return response.status(200).json(rows);
+            const type = request.query.type;
+
+            if (type === 'access_logs') {
+                const { rows } = await sql`SELECT * FROM access_logs ORDER BY timestamp DESC LIMIT 100;`;
+                return response.status(200).json(rows);
+            } else if (type === 'activity_logs') {
+                const { rows } = await sql`SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 100;`;
+                return response.status(200).json(rows);
+            } else {
+                const { rows } = await sql`SELECT id, username, email FROM users WHERE status = 'PENDING' ORDER BY id ASC;`;
+                return response.status(200).json(rows);
+            }
         }
 
         if (request.method === 'POST') {

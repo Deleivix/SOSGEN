@@ -1,7 +1,10 @@
-import { checkDrillAnswers, renderDrillCalendar, renderDrillDashboard } from "../utils/drill";
-import { showToast } from "../utils/helpers";
 
-export function renderSimulacro(container: HTMLElement) {
+import { checkDrillAnswers, renderDrillCalendar, renderDrillDashboard } from "../utils/drill";
+import { showToast, initializeInfoTabs } from "../utils/helpers";
+import { getCurrentUser } from "../utils/auth";
+
+// --- EXISTING AI DRILL LOGIC WRAPPED IN FUNCTION ---
+function renderPersonalDrills(container: HTMLElement) {
     container.innerHTML = `
         <div class="simulacro-layout-grid">
             <div id="drill-dashboard-container"></div>
@@ -20,83 +23,169 @@ export function renderSimulacro(container: HTMLElement) {
             <div id="drill-calendar-container"></div>
         </div>
     `;
-    initializeSimulacro();
-    renderDrillDashboard(); // These now fetch data from the backend via drill.ts
+    initializeSimulacroEvents();
+    renderDrillDashboard();
     renderDrillCalendar();
 }
 
-function initializeSimulacro() {
+function initializeSimulacroEvents() {
     const drillContainer = document.querySelector('.drill-container');
     if (!drillContainer) return;
-
     const drillButtons = drillContainer.querySelectorAll<HTMLButtonElement>('.drill-actions button');
     const drillContent = drillContainer.querySelector<HTMLDivElement>('#drill-content');
-
     if (!drillButtons.length || !drillContent) return;
-    
-    const skeletonHtml = `
-        <div class="skeleton skeleton-scenario"></div>
-        <div class="skeleton skeleton-question"></div>
-        <div class="skeleton skeleton-question"></div>
-    `;
 
     const generateDrill = async (drillType: string) => {
-        drillContent.innerHTML = skeletonHtml;
-        drillContent.classList.add('loading');
-        drillButtons.forEach(btn => btn.disabled = true);
-
+        drillContent.innerHTML = `<div class="loader"></div>`;
         try {
             const apiResponse = await fetch('/api/simulacro', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: drillType })
             });
-
-            if (!apiResponse.ok) {
-                const errorData = await apiResponse.json();
-                throw new Error(errorData.details || 'La API devolvió un error.');
-            }
             const drillData = await apiResponse.json();
-            
-            let html = `<div class="drill-scenario">${drillData.scenario}</div><div class="drill-questions">`;
-            drillData.questions.forEach((q: any, index: number) => {
-                html += `
-                    <div class="question-block" id="question-${index}" data-correct-index="${q.correctAnswerIndex}">
-                        <p class="question-text">${index + 1}. ${q.questionText}</p>
-                        <div class="answer-options">
-                            ${q.options.map((opt: string, optIndex: number) => `
-                                <label class="answer-option" for="q${index}-opt${optIndex}">
-                                    <input type="radio" name="question-${index}" id="q${index}-opt${optIndex}" value="${optIndex}">
-                                    <span>${opt}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
+            renderDrillUI(drillData, drillContent, (score, total) => {
+                 // Update local stats only for personal drills
+                 import("../utils/drill").then(m => m.updateDrillStats(score, total, drillType));
             });
-            html += `</div><button id="drill-check-btn" class="primary-btn">Verificar Respuestas</button><div id="drill-results" class="drill-results-summary"></div>`;
-            drillContent.innerHTML = html;
-
-            const checkBtn = drillContent.querySelector('#drill-check-btn');
-            checkBtn?.addEventListener('click', () => checkDrillAnswers(drillData, drillContent), { once: true });
-
         } catch (error) {
-            console.error("Drill Generation Error:", error);
-            const errorMessage = error instanceof Error ? error.message : "No se pudo generar el simulacro.";
-            drillContent.innerHTML = `<p class="error">${errorMessage}</p>`;
-            showToast(errorMessage, 'error');
-        } finally {
-            drillContent.classList.remove('loading');
-            drillButtons.forEach(btn => btn.disabled = false);
+            drillContent.innerHTML = `<p class="error">Error generando simulacro</p>`;
         }
     };
+    drillButtons.forEach(b => b.addEventListener('click', () => generateDrill(b.dataset.drillType!)));
+}
+
+// --- NEW AUDITED DRILLS LOGIC ---
+async function renderAuditedDrills(container: HTMLElement) {
+    const user = getCurrentUser();
+    if (!user) return;
     
-    drillButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const drillType = button.dataset.drillType;
-            if (drillType) {
-                generateDrill(drillType);
+    container.innerHTML = `<div class="loader"></div>`;
+    
+    try {
+        const res = await fetch(`/api/supervisor?action=get_my_drills&username=${user.username}`);
+        const drills = await res.json();
+        
+        if (drills.length === 0) {
+            container.innerHTML = `<p class="drill-placeholder">No tienes simulacros asignados.</p>`;
+            return;
+        }
+
+        const listHtml = drills.map((d: any) => `
+            <div class="log-entry" style="margin-bottom: 1rem;">
+                <div class="log-entry-header">
+                    <span>${d.title}</span>
+                    <span class="category-badge ${d.status === 'COMPLETED' ? 'green' : 'orange'}">${d.status === 'COMPLETED' ? `Completado (${d.score}/${d.max_score})` : 'Pendiente'}</span>
+                </div>
+                <div class="log-entry-content">
+                    <p>${d.scenario.substring(0, 100)}...</p>
+                    ${d.status !== 'COMPLETED' ? `<button class="primary-btn-small start-audit-btn" data-id="${d.id}">Realizar</button>` : ''}
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = listHtml;
+        
+        container.querySelectorAll('.start-audit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const drill = drills.find((d: any) => d.id == (btn as HTMLElement).dataset.id);
+                startAuditedDrill(drill, container);
+            });
+        });
+
+    } catch (e) { container.innerHTML = '<p class="error">Error cargando simulacros.</p>'; }
+}
+
+function startAuditedDrill(drill: any, container: HTMLElement) {
+    const drillData = {
+        scenario: drill.scenario,
+        questions: drill.questions,
+        type: 'AUDITED'
+    };
+    
+    container.innerHTML = `<div id="audit-content"></div>`;
+    const contentDiv = container.querySelector('#audit-content') as HTMLDivElement;
+    
+    renderDrillUI(drillData, contentDiv, async (score, total, answers) => {
+        // Submit to supervisor API
+        const user = getCurrentUser();
+        await fetch('/api/supervisor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'submit_drill',
+                username: user?.username,
+                assignmentId: drill.id,
+                score,
+                maxScore: total,
+                answers
+            })
+        });
+        showToast('Simulacro enviado al supervisor.', 'success');
+        renderAuditedDrills(container); // Go back to list
+    }, true);
+}
+
+// --- SHARED UI RENDERER ---
+function renderDrillUI(data: any, container: HTMLDivElement, onFinish: (score: number, total: number, answers?: any) => void, isAudit = false) {
+    let html = `<div class="drill-scenario">${data.scenario}</div><div class="drill-questions">`;
+    data.questions.forEach((q: any, index: number) => {
+        html += `
+            <div class="question-block" id="q-block-${index}">
+                <p class="question-text">${index + 1}. ${q.questionText}</p>
+                <div class="answer-options">
+                    ${q.options.map((opt: string, optIndex: number) => `
+                        <label class="answer-option"><input type="radio" name="q-${index}" value="${optIndex}"> <span>${opt}</span></label>
+                    `).join('')}
+                </div>
+            </div>`;
+    });
+    html += `</div><button id="finish-btn" class="primary-btn">Finalizar</button>`;
+    container.innerHTML = html;
+
+    container.querySelector('#finish-btn')?.addEventListener('click', () => {
+        let score = 0;
+        const answers: any[] = [];
+        data.questions.forEach((q: any, index: number) => {
+            const selected = container.querySelector(`input[name="q-${index}"]:checked`) as HTMLInputElement;
+            const val = selected ? parseInt(selected.value) : -1;
+            const correct = parseInt(q.correctAnswerIndex);
+            if (val === correct) score++;
+            answers.push({ question: q.questionText, selected: val, correct });
+            
+            // Show feedback immediately
+            const block = container.querySelector(`#q-block-${index}`);
+            if(block) {
+                if (val === correct) block.classList.add('correct-block'); // CSS class needed
+                else block.classList.add('incorrect-block');
+                block.insertAdjacentHTML('beforeend', `<div class="answer-feedback">Correcta: ${q.options[correct]}</div>`);
             }
         });
+        
+        container.querySelector('#finish-btn')?.remove();
+        onFinish(score, data.questions.length, answers);
+        
+        if (!isAudit) {
+             container.insertAdjacentHTML('beforeend', `<div class="drill-results-summary"><h3>Resultado: ${score}/${data.questions.length}</h3></div>`);
+        }
+    });
+}
+
+export function renderSimulacro(container: HTMLElement) {
+    container.innerHTML = `
+        <div class="info-nav-tabs">
+            <button class="info-nav-btn active" data-target="tab-personal">Personales</button>
+            <button class="info-nav-btn" data-target="tab-audit">Auditados</button>
+        </div>
+        <div id="tab-personal" class="sub-tab-panel active"></div>
+        <div id="tab-audit" class="sub-tab-panel"></div>
+    `;
+    
+    initializeInfoTabs(container);
+    renderPersonalDrills(container.querySelector('#tab-personal') as HTMLElement);
+    
+    const auditTab = container.querySelector('.info-nav-btn[data-target="tab-audit"]');
+    auditTab?.addEventListener('click', () => {
+        renderAuditedDrills(container.querySelector('#tab-audit') as HTMLElement);
     });
 }
