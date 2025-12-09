@@ -119,35 +119,34 @@ export default async function handler(
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
                 
                 const prompt = `
-                Eres un instructor experto en GMDSS y operaciones de Estaciones Costeras (CCR) de Salvamento Marítimo en España.
-                Genera un simulacro de evaluación para un operador.
+                Eres un instructor experto en GMDSS. Genera un simulacro de evaluación sencillo y directo para un operador de Estación Costera (CCR).
 
-                **ENFOQUE CLARO Y DIRECTO:**
-                Crea un escenario claro y sencillo enfocado en la aplicación correcta del protocolo estándar.
-                Evita situaciones extremadamente complejas, múltiples fallos simultáneos o trampas rebuscadas. 
-                El objetivo es evaluar si el operador conoce el procedimiento básico y correcto para situaciones como: recepción de alerta DSC, Mayday Relay, o comunicaciones de rutina/seguridad.
+                **DIRECTRIZ PRINCIPAL:**
+                Crea UN (1) solo incidente claro. Evita múltiples fallos en cadena o situaciones rocambolescas.
+                Ejemplos válidos: "Un pesquero emite Mayday por incendio", "Fallo de comunicaciones en VHF", "Recepción de alerta DSC sin posición".
+                El escenario debe ser realista pero simple de seguir.
 
-                **Contexto del Escenario:**
-                Incluye detalles técnicos básicos: canales VHF/MF, frecuencias, MMSI ficticios, nombres de buques, posiciones geográficas.
+                **Datos Técnicos:**
+                Inventa datos precisos: Nombre del buque, MMSI, Posición, Canal/Frecuencia.
 
-                **Estructura de Preguntas:**
-                Genera 4 preguntas que evalúen la toma de decisiones.
-                Usa una mezcla de los siguientes tipos de preguntas:
-                1. 'TEST': Pregunta de opción múltiple (A, B, C).
-                2. 'ORDER': Ordenar una secuencia de pasos (ej: pasos para cancelar una falsa alerta).
-                3. 'TEXT': Pregunta abierta breve (ej: "¿Qué fraseología usarías?").
+                **Preguntas:**
+                Genera 4 preguntas que evalúen el protocolo estándar para esa situación única.
+                Tipos de pregunta:
+                1. 'TEST' (Opción múltiple A, B, C).
+                2. 'ORDER' (Ordenar pasos lógicos).
+                3. 'TEXT' (Pregunta abierta breve, ej: fraseología).
 
                 **Formato de Salida JSON:**
                 {
-                  "title": "Título descriptivo del caso",
-                  "scenario": "Texto detallado del escenario...",
+                  "title": "Título descriptivo del caso (ej: Incendio en Pesquero)",
+                  "scenario": "Descripción clara del incidente...",
                   "questions": [
                     {
-                      "type": "TEST", // o "ORDER" o "TEXT"
-                      "questionText": "El texto de la pregunta",
-                      "options": ["Opción 1", "Opción 2", "Opción 3"], // Requerido para TEST y ORDER. En ORDER, la IA debe devolver las opciones DESORDENADAS.
-                      "correctAnswer": 0, // Para TEST: índice de la opción correcta. Para ORDER: array de índices en orden correcto [2, 0, 1]. Para TEXT: string con la respuesta esperada o palabras clave.
-                      "feedback": "Explicación breve."
+                      "type": "TEST", 
+                      "questionText": "Pregunta...",
+                      "options": ["A...", "B...", "C..."],
+                      "correctAnswer": 0,
+                      "feedback": "Explicación."
                     }
                   ]
                 }
