@@ -1,4 +1,38 @@
 
+/* ... (Existing styles kept same until Station Table Styles) ... */
+
+/* --- Station Table Styles (Restored & Updated) --- */
+.station-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Essential for alignment */
+}
+.station-table th, .station-table td {
+    padding: 0.5rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+.station-table th {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap; /* Prevent wrapping in headers */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.station-table td { border: none; border-left: 1px solid var(--border-color); } 
+
+/* Specific Header Colors matching screenshot */
+.station-table th.header-vhf { background-color: #E1F5FE; color: #0277BD; } /* Light Blue */
+.station-table th.header-mf { background-color: #E8F5E9; color: #2E7D32; } /* Light Green */
+.station-table th.header-navtex { background-color: #F5F5F5; color: #616161; } /* Light Grey */
+
+body.dark-theme .station-table th.header-vhf { background-color: #01579B; color: #E1F5FE; }
+body.dark-theme .station-table th.header-mf { background-color: #1B5E20; color: #E8F5E9; }
+body.dark-theme .station-table th.header-navtex { background-color: #424242; color: #F5F5F5; }
+
+/* ... (Rest of styles remain unchanged) ... */
 :root {
   --accent-color: #8BC34A;
   --accent-color-dark: #7aa841;
@@ -1256,33 +1290,6 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 .table-wrapper {
     overflow-x: auto;
 }
-
-/* --- Station Table Styles (Restored) --- */
-.station-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed; /* Essential for alignment */
-}
-.station-table th, .station-table td {
-    padding: 0.5rem;
-    text-align: center;
-    border: 1px solid var(--border-color);
-    font-size: 0.85rem;
-    vertical-align: middle;
-}
-.station-table th {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-.station-table td { border: none; border-left: 1px solid var(--border-color); } 
-
-.station-table th.header-vhf { background-color: var(--info-color-bg); }
-.station-table th.header-mf { background-color: #E8F5E9; }
-.station-table th.header-navtex { background-color: var(--bg-main); }
-
-body.dark-theme .station-table th.header-vhf { background-color: var(--info-color-dark-bg); }
-body.dark-theme .station-table th.header-mf { background-color: #1A331C; }
-body.dark-theme .station-table th.header-navtex { background-color: var(--bg-card-dark); }
 
 .stats-grid {
     display: grid;

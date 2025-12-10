@@ -215,40 +215,31 @@ function renderStationStatusTableHTML() {
         stationStatus[station] = status;
     });
 
-    const renderCell = (station: string, colspan: number = 1) => `
-        <td colspan="${colspan}" style="text-align: center; padding: 0.5rem; vertical-align: middle; border-left: 1px solid var(--border-color);">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+    const renderCell = (station: string) => `
+        <td style="text-align: center; padding: 0.75rem 0.5rem; vertical-align: middle; border-left: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: center;">
                 <span class="status-dot ${stationStatus[station] || 'status-green'}"></span>
-                <span style="font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap;">${station.replace(' VHF','').replace(' MF','')}</span>
             </div>
         </td>
     `;
 
     return `
         <div class="station-table-container">
-            <h3>Estado de Estaciones (Avisos en Vigor)</h3>
+            <h3>NX Vigentes por Estación</h3>
             <div class="table-wrapper">
-                <table class="station-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <table class="station-table" style="min-width: 1200px;">
                     <thead>
-                        <tr><th colspan="10" class="header-vhf" style="border-bottom: 1px solid var(--border-color);">VHF</th></tr>
+                        <tr>
+                            ${STATIONS_VHF.map(s => `<th class="header-vhf">${s.replace(' VHF', '')}</th>`).join('')}
+                            ${STATIONS_MF.map(s => `<th class="header-mf">${s.replace(' MF', '')}</th>`).join('')}
+                            <th class="header-navtex">Navtex</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        <tr style="border-bottom: 1px solid var(--border-color);">
+                        <tr>
                             ${STATIONS_VHF.map(s => renderCell(s)).join('')}
-                        </tr>
-                    </tbody>
-                    <thead>
-                        <tr>
-                            <th colspan="8" class="header-mf" style="border-bottom: 1px solid var(--border-color);">MF</th>
-                            <th colspan="2" class="header-navtex" style="border-bottom: 1px solid var(--border-color); border-left: 1px solid var(--border-color);">NAVTEX</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            ${renderCell('Finisterre MF', 2)}
-                            ${renderCell('Coruña MF', 3)}
-                            ${renderCell('Machichaco MF', 3)}
-                            ${renderCell('Navtex', 2)}
+                            ${STATIONS_MF.map(s => renderCell(s)).join('')}
+                            ${renderCell('Navtex')}
                         </tr>
                     </tbody>
                 </table>
@@ -258,6 +249,27 @@ function renderStationStatusTableHTML() {
                 <div class="legend-item"><span class="status-dot status-yellow"></span><span>Aviso en Vigor</span></div>
                 <div class="legend-item"><span class="status-dot status-orange"></span><span>Caducando</span></div>
             </div>
+        </div>
+        <div class="stats-grid">
+             <div class="stat-card">
+                <div class="label">Total NRs vigentes:</div>
+                <div class="value green">${relevantNrs.length}</div>
+             </div>
+             <div class="stat-card">
+                <div class="label">Último NR añadido:</div>
+                <div class="value" style="font-size: 1.1rem;">${state.appData.history.find(h => h.action === 'AÑADIDO')?.nrId || '-'}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">Por: ${state.appData.history.find(h => h.action === 'AÑADIDO')?.user || '-'}</div>
+             </div>
+             <div class="stat-card">
+                <div class="label">Último NR editado:</div>
+                <div class="value" style="font-size: 1.1rem;">${state.appData.history.find(h => h.action === 'EDITADO')?.nrId || '-'}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">Por: ${state.appData.history.find(h => h.action === 'EDITADO')?.user || '-'}</div>
+             </div>
+             <div class="stat-card">
+                <div class="label">Último NR borrado:</div>
+                <div class="value" style="font-size: 1.1rem;">${state.appData.history.find(h => h.action === 'CANCELADO' || h.action === 'BORRADO')?.nrId || '-'}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">Por: ${state.appData.history.find(h => h.action === 'CANCELADO' || h.action === 'BORRADO')?.user || '-'}</div>
+             </div>
         </div>
     `;
 }
@@ -281,44 +293,65 @@ function renderMasterNrTableHTML() {
     if (nrs.length === 0) return `<div class="content-card"><p class="drill-placeholder">No hay radioavisos registrados.</p></div>`;
 
     return `
-        <div class="filterable-table-header">
-            <input type="text" class="filter-input" placeholder="Filtrar por ID..." value="${state.filterText}" oninput="window.updateNrFilter(this.value)">
+        <div class="filterable-table-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <input type="text" class="filter-input" placeholder="Filtrar radioavisos vigentes..." value="${state.filterText}" oninput="window.updateNrFilter(this.value)" style="margin-bottom: 0; width: 300px;">
+            <div class="last-update-text">
+                <span style="color: #43A047; font-size: 0.8rem; margin-right: 1rem;">Fuente: Salvamento Marítimo <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg></span>
+                <span>${state.lastSalvamentoUpdate ? state.lastSalvamentoUpdate.toLocaleString('es-ES') : '-'}</span>
+                <button class="secondary-btn" data-action="refresh-salvamento" style="margin-left: 1rem; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg> Actualizar
+                </button>
+            </div>
         </div>
         <div class="table-wrapper">
             <table class="reference-table data-table">
                 <thead>
-                    <tr>
-                        <th data-sort-key="id" class="${state.sortConfig.key === 'id' ? (state.sortConfig.direction === 'ascending' ? 'sort-ascending' : 'sort-descending') : ''}" onclick="window.sortNrs('id')">ID</th>
-                        <th>Ver.</th>
+                    <tr style="background-color: #f1f3f5;">
+                        <th style="width: 40px;"></th>
+                        <th data-sort-key="id" class="${state.sortConfig.key === 'id' ? (state.sortConfig.direction === 'ascending' ? 'sort-ascending' : 'sort-descending') : ''}" onclick="window.sortNrs('id')">NR</th>
+                        <th>Asunto</th>
+                        <th>Zona</th>
                         <th>Estaciones</th>
+                        <th>Prioridad</th>
+                        <th>Medio</th>
                         <th>Caducidad</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
+                        <th style="text-align: center;">Revisado</th>
+                        <th style="text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${nrs.map(nr => {
                         const statusColor = nr.isCaducado ? 'gray' : (getExpiryStatus(nr) === 'status-orange' ? 'orange' : 'green');
-                        const statusText = nr.isCaducado ? 'CANCELADO' : 'EN VIGOR';
-                        // Try to find official title
+                        // Try to find official title and details
                         const official = state.salvamentoAvisos.find(a => getBaseId(a.num) === nr.baseId);
-                        const titleForPdf = official ? official.asunto : '';
+                        const titleForPdf = official ? official.asunto : (nr.isManual ? 'Aviso Manual' : 'Sin título');
                         const targetForPdf = official ? official.eventTarget : '';
+                        const prioridad = official ? official.prioridad : (nr.isManual ? '-' : '-');
+                        const subtipo = official ? official.subtipo : '-';
+                        const zona = official ? official.zona : '-';
+                        const tipoBadge = nr.stations.includes('Navtex') ? '<span class="category-badge navtex">NAVTEX</span>' : '';
+                        const foniaBadge = nr.stations.some(s => s !== 'Navtex') ? '<span class="category-badge fonia">FONÍA</span>' : '';
 
                         return `
                         <tr style="${nr.isCaducado ? 'opacity: 0.6; background-color: var(--bg-main);' : ''}">
-                            <td style="font-weight: 500;">${nr.id}</td>
-                            <td style="text-align: center;">${nr.version}</td>
-                            <td><div style="display:flex; gap:0.25rem; flex-wrap:wrap;">${nr.stations.map(s => `<span style="font-size:0.75rem; background:var(--bg-nav-top); color:white; padding:2px 4px; border-radius:4px;">${s.replace(' VHF','').replace(' MF','')}</span>`).join('')}</div></td>
-                            <td>${getFormattedDateTime(`${nr.expiryDate}T${nr.expiryTime}`)}</td>
-                            <td><span class="category-badge" style="background-color: ${statusColor === 'green' ? 'var(--accent-color)' : (statusColor === 'orange' ? 'var(--danger-color)' : 'var(--text-secondary)')};">${statusText}</span></td>
+                            <td style="text-align: center;"><span class="status-dot status-${statusColor}"></span></td>
+                            <td style="font-weight: 500; white-space: nowrap;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <span>${nr.id}</span>
+                                </div>
+                            </td>
+                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${titleForPdf}</td>
+                            <td style="font-size: 0.85rem; color: var(--text-secondary);">${zona}</td>
+                            <td style="font-size: 0.85rem;">${nr.stations.length > 5 ? nr.stations.length + ' estaciones' : (nr.stations.length === 0 ? '-' : nr.stations.map(s => s.replace(' VHF','').replace(' MF','')).join(', '))}</td>
+                            <td>${prioridad ? `<span class="category-badge importante" style="background-color: ${prioridad === 'VITAL' ? 'var(--danger-color)' : 'var(--importante-color)'};">${prioridad}</span>` : '-'}</td>
+                            <td><div style="display: flex; gap: 4px;">${tipoBadge}${foniaBadge}</div></td>
+                            <td style="font-size: 0.9rem;">${getFormattedDateTime(`${nr.expiryDate}T${nr.expiryTime}`).replace('UTC', '')}</td>
+                            <td style="text-align: center; color: var(--danger-color);">✕</td>
                             <td>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    ${targetForPdf ? `<button class="secondary-btn" data-action="view-pdf" data-event-target="${targetForPdf}" data-title="${titleForPdf}" title="Ver Texto PDF"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg></button>` : ''}
-                                    ${!nr.isCaducado ? `<button class="tertiary-btn" onclick="window.cancelNr('${nr.id}')" title="Cancelar">Cancelar</button>` : ''}
-                                    <button class="secondary-btn" onclick="window.deleteNr('${nr.id}')" title="Borrar">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
-                                    </button>
+                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    ${targetForPdf ? `<button class="secondary-btn" data-action="view-pdf" data-event-target="${targetForPdf}" data-title="${titleForPdf}" title="Ver Texto PDF" style="padding: 4px 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg></button>` : ''}
+                                    <button class="secondary-btn" style="padding: 4px 8px; font-size: 0.8rem;">Editar</button>
+                                    ${!nr.isCaducado ? `<button class="tertiary-btn" onclick="window.cancelNr('${nr.id}')" title="Cancelar" style="padding: 4px 8px; font-size: 0.8rem; color: var(--danger-color); border-color: var(--danger-color-bg);">Cancelar</button>` : ''}
                                 </div>
                             </td>
                         </tr>
