@@ -46,6 +46,48 @@ body.dark-theme .station-table th.header-navtex { background-color: #424242; col
 .station-nr-tag.status-yellow { color: var(--warning-color-dark); background-color: #FFFDE7; border-color: #FFF59D; }
 .station-nr-tag.status-orange { color: var(--danger-color); background-color: #FFEBEE; border-color: #FFCDD2; }
 
+/* --- Visual Station Toggle Button Grid --- */
+.station-toggle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.station-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    text-align: center;
+}
+
+.station-toggle-btn:hover {
+    border-color: var(--accent-color);
+    background-color: var(--bg-card);
+}
+
+.station-toggle-btn input[type="checkbox"] {
+    display: none;
+}
+
+.station-toggle-btn:has(input:checked) {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.station-toggle-btn span {
+    font-size: 0.9rem;
+}
+
 /* ... (Keep remaining CSS) ... */
 :root {
   --accent-color: #8BC34A;

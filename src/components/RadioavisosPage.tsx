@@ -53,8 +53,66 @@ const api = {
 function getBaseId(fullId: string): string { return (fullId || '').replace(/^NR-/, '').split('-')[0]; }
 const getFormattedDateTime = (isoString?: string) => { if (!isoString) return '-'; try { const date = new Date(isoString); return date.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'; } catch { return isoString; } };
 function parseExpiry(caducidad: string) { if (!caducidad) return { expiryDate: '', expiryTime: '' }; const parts = caducidad.trim().split(/\s+/); if (parts.length < 2) return { expiryDate: '', expiryTime: '' }; const datePart = parts[0]; let timePart = parts[1] ? parts[1].trim() : ''; if (timePart.includes(':')) { const c = timePart.split(':'); if (c.length === 2) { c[0] = c[0].padStart(2, '0'); timePart = c.join(':'); } } const dateParts = datePart.split('/'); if (dateParts.length < 3) return { expiryDate: '', expiryTime: '' }; const [day, month, year] = dateParts; if (!day || !month || !year || !timePart || year.length !== 4) return { expiryDate: '', expiryTime: '' }; return { expiryDate: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`, expiryTime: timePart }; }
-function isDstSpain(date: Date = new Date()): boolean { const year = date.getFullYear(); const mar = new Date(Date.UTC(year, 2, 31)); const startDay = mar.getUTCDate() - mar.getUTCDay(); const dstStart = new Date(Date.UTC(year, 2, startDay, 1, 0, 0)); const oct = new Date(Date.UTC(year, 9, 31)); const endDay = oct.getUTCDate() - oct.getUTCDay(); const dstEnd = new Date(Date.UTC(year, 9, endDay, 1, 0, 0)); return date >= dstStart && date < dstEnd; }
-function getExpiryStatus(nr: NR): 'status-green' | 'status-yellow' | 'status-orange' { if (!nr.expiryDate || !nr.expiryTime || nr.isCaducado) return 'status-green'; try { const expiryDateTime = new Date(`${nr.expiryDate}T${(nr.expiryTime || '').trim()}Z`); if (isNaN(expiryDateTime.getTime())) return 'status-green'; const now = new Date(); if (expiryDateTime <= now) return 'status-green'; const hoursUntilExpiry = (expiryDateTime.getTime() - now.getTime()) / (1000 * 60 * 60); if (hoursUntilExpiry > 24) return 'status-green'; return 'status-orange'; } catch (e) { return 'status-green'; } }
+
+// Updated Shift Logic: 07-15, 15-23, 23-07
+function getExpiryStatus(nr: NR): 'status-green' | 'status-yellow' | 'status-orange' {
+    if (!nr.expiryDate || !nr.expiryTime || nr.isCaducado) return 'status-green';
+    
+    try {
+        // Construct expiration date (UTC)
+        // Note: The UI displays UTC, we assume inputs are UTC. 
+        // We need to compare against "Now" in UTC to be consistent.
+        const expiryDateTime = new Date(`${nr.expiryDate}T${(nr.expiryTime || '').trim()}Z`);
+        if (isNaN(expiryDateTime.getTime())) return 'status-green';
+
+        const now = new Date();
+        
+        // If already expired
+        if (expiryDateTime <= now) return 'status-green'; // Or grey, technically it's expired but "safe"
+
+        // Calculate end of current shift
+        const currentHour = now.getUTCHours();
+        const shiftEnd = new Date(now);
+        shiftEnd.setUTCMinutes(0);
+        shiftEnd.setUTCSeconds(0);
+        shiftEnd.setUTCMilliseconds(0);
+
+        if (currentHour >= 7 && currentHour < 15) {
+            // Morning Shift: Ends at 15:00 UTC today
+            shiftEnd.setUTCHours(15);
+        } else if (currentHour >= 15 && currentHour < 23) {
+            // Afternoon Shift: Ends at 23:00 UTC today
+            shiftEnd.setUTCHours(23);
+        } else {
+            // Night Shift: Ends at 07:00 UTC tomorrow (or today if currently 00-07)
+            if (currentHour >= 23) {
+                shiftEnd.setUTCDate(shiftEnd.getUTCDate() + 1);
+                shiftEnd.setUTCHours(7);
+            } else {
+                shiftEnd.setUTCHours(7);
+            }
+        }
+
+        // Logic:
+        // Orange: Expires BEFORE the end of the current shift
+        // Yellow: Expires within 24h
+        // Green: Expires > 24h
+
+        if (expiryDateTime < shiftEnd) {
+            return 'status-orange';
+        }
+
+        const oneDayLater = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+        if (expiryDateTime < oneDayLater) {
+            return 'status-yellow';
+        }
+
+        return 'status-green';
+
+    } catch (e) {
+        return 'status-green';
+    }
+}
 
 async function syncWithSalvamento() {
     const user = getCurrentUser();
@@ -154,8 +212,20 @@ async function handleViewPdf(eventTarget: string, title: string) {
         });
         if (!response.ok) throw new Error((await response.json()).error);
         const data = await response.json();
+        
+        // IMPROVED PDF FORMATTING
+        let formattedText = data.text;
+        
+        // Highlight keys
+        formattedText = formattedText.replace(/(NR-|FECHA EMISIÓN:|FECHA CADUCIDAD:|ASUNTO:|ZONA:|TEXTO:)/gi, '<strong style="color: var(--accent-color-dark);">$1</strong>');
+        // Add breaks
+        formattedText = formattedText.replace(/\n/g, '<br>');
+
         const contentDiv = document.getElementById(`pdf-content-${modalId}`);
-        if (contentDiv) contentDiv.innerHTML = `<div style="background: var(--bg-main); padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: var(--font-mono); white-space: pre-wrap; font-size: 0.9rem; max-height: 60vh; overflow-y: auto;">${data.text}</div>`;
+        if (contentDiv) contentDiv.innerHTML = `
+            <div style="background: var(--bg-main); padding: 2rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: var(--font-mono); font-size: 1rem; max-height: 60vh; overflow-y: auto; line-height: 1.8;">
+                ${formattedText}
+            </div>`;
     } catch (error) {
         const contentDiv = document.getElementById(`pdf-content-${modalId}`);
         if (contentDiv) contentDiv.innerHTML = `<p class="error">Error: ${error instanceof Error ? error.message : "Desconocido"}</p>`;
@@ -343,7 +413,7 @@ function renderMasterNrTableHTML() {
                             <td>
                                 <div style="display: flex; gap: 0.5rem; justify-content: center;">
                                     ${targetForPdf ? `<button class="secondary-btn" data-action="view-pdf" data-event-target="${targetForPdf}" data-title="${titleForPdf}" title="Ver Texto PDF" style="padding: 4px 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg></button>` : ''}
-                                    <button class="secondary-btn" style="padding: 4px 8px; font-size: 0.8rem;">Editar</button>
+                                    <button class="secondary-btn" data-action="edit-nr" data-id="${nr.id}" style="padding: 4px 8px; font-size: 0.8rem;">Editar</button>
                                     <button class="tertiary-btn" onclick="window.cancelNr('${nr.id}')" title="Cancelar" style="padding: 4px 8px; font-size: 0.8rem; color: var(--danger-color); border-color: var(--danger-color-bg);">Cancelar</button>
                                 </div>
                             </td>
@@ -363,32 +433,123 @@ function renderMasterNrTableHTML() {
 
 function renderAddView() {
     return `
-        <form id="add-nr-form" class="simulator-form" style="display: block; max-width: 600px; margin: 0 auto;">
-            <div class="form-group">
-                <label>ID Base (ej: 2237/2025)</label>
-                <input name="baseId" class="simulator-input" required placeholder="XXXX/YYYY">
+        <form id="add-nr-form" class="simulator-form" style="display: block; max-width: 800px; margin: 0 auto; background: var(--bg-card); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color);">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label>ID Base (ej: 2237/2025)</label>
+                    <input name="baseId" class="simulator-input" required placeholder="XXXX/YYYY">
+                </div>
+                <div class="form-group">
+                    <label>Fecha Caducidad</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="date" name="expiryDate" class="simulator-input" required>
+                        <input type="time" name="expiryTime" class="simulator-input" required>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Estaciones Afectadas</label>
-                <div class="checkbox-group">
+            
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label style="margin-bottom: 0.75rem; display: block;">Estaciones Afectadas</label>
+                <div class="station-toggle-grid">
                     ${ALL_STATIONS.map(s => `
-                        <label class="checkbox-item">
+                        <label class="station-toggle-btn">
                             <input type="checkbox" name="stations" value="${s}">
                             <span>${s}</span>
                         </label>
                     `).join('')}
                 </div>
             </div>
-            <div class="form-group">
-                <label>Fecha Caducidad</label>
-                <div style="display: flex; gap: 1rem;">
-                    <input type="date" name="expiryDate" class="simulator-input" required>
-                    <input type="time" name="expiryTime" class="simulator-input" required>
-                </div>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" class="primary-btn" style="width: auto; padding: 0.75rem 2rem;">Añadir Radioaviso</button>
             </div>
-            <button type="submit" class="primary-btn">Añadir Radioaviso</button>
         </form>
     `;
+}
+
+function renderEditModal(nr: NR) {
+    const modalId = `edit-nr-modal-${nr.id}`;
+    if (document.getElementById(modalId)) return;
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.id = modalId;
+
+    modalOverlay.innerHTML = `
+        <div class="modal-content" style="max-width: 700px; text-align: left;">
+            <h2 class="modal-title">Editar Radioaviso ${nr.baseId}</h2>
+            <form id="edit-nr-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Fecha Caducidad (UTC)</label>
+                    <div style="display: flex; gap: 1rem;">
+                        <input type="date" name="expiryDate" class="simulator-input" required value="${nr.expiryDate}">
+                        <input type="time" name="expiryTime" class="simulator-input" required value="${nr.expiryTime}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label style="margin-bottom: 0.5rem; display: block;">Estaciones Afectadas</label>
+                    <div class="station-toggle-grid">
+                        ${ALL_STATIONS.map(s => `
+                            <label class="station-toggle-btn">
+                                <input type="checkbox" name="stations" value="${s}" ${nr.stations.includes(s) ? 'checked' : ''}>
+                                <span>${s}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="button-container" style="justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 0;">
+                    <button type="button" class="secondary-btn modal-close-btn">Cancelar</button>
+                    <button type="submit" class="primary-btn" style="width: auto;">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modalOverlay);
+
+    const form = modalOverlay.querySelector('#edit-nr-form') as HTMLFormElement;
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const stations = formData.getAll('stations') as string[];
+        const expiryDate = formData.get('expiryDate') as string;
+        const expiryTime = formData.get('expiryTime') as string;
+
+        if (stations.length === 0) {
+            showToast('Debe seleccionar al menos una estación.', 'error');
+            return;
+        }
+
+        const index = state.appData.nrs.findIndex(n => n.id === nr.id);
+        if (index > -1) {
+            state.appData.nrs[index].stations = stations;
+            state.appData.nrs[index].expiryDate = expiryDate;
+            state.appData.nrs[index].expiryTime = expiryTime;
+            state.appData.nrs[index].version += 1; // Increment version on edit
+
+            state.appData.history.unshift({ 
+                id: `log-${Date.now()}`, 
+                timestamp: new Date().toISOString(), 
+                user: getCurrentUser()?.username || '?', 
+                action: 'EDITADO', 
+                nrId: nr.baseId, 
+                details: 'Edición manual' 
+            });
+
+            await api.saveData(state.appData);
+            reRender();
+            showToast('Radioaviso actualizado', 'success');
+            modalOverlay.remove();
+        }
+    });
+
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay || (e.target as HTMLElement).classList.contains('modal-close-btn')) {
+            modalOverlay.remove();
+        }
+    });
 }
 
 function renderHistoryView() {
@@ -447,6 +608,11 @@ function attachEventListeners(container: HTMLElement) {
             if(action === 'refresh-salvamento') { state.isSalvamentoLoading = true; await reRender(); await updateSalvamentoData(); await reRender(); }
             else if(action === 'switch-view') { state.currentView = actionElement.dataset.view as View; await reRender(); }
             else if(action === 'view-pdf') await handleViewPdf(actionElement.dataset.eventTarget!, actionElement.dataset.title!);
+            else if(action === 'edit-nr') {
+                const nrId = actionElement.dataset.id;
+                const nr = state.appData.nrs.find(n => n.id === nrId);
+                if (nr) renderEditModal(nr);
+            }
         }
     });
     
