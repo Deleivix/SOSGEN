@@ -1256,43 +1256,34 @@ body.dark-theme .procedure-box { background-color: var(--info-color-dark-bg); co
 .table-wrapper {
     overflow-x: auto;
 }
-.station-table.horizontal-table {
+
+/* --- Station Table Styles (Restored) --- */
+.station-table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* Forces equal column widths */
-    border: none; /* Removes outer table border for a cleaner look */
+    table-layout: fixed; /* Essential for alignment */
 }
-
-.station-table.horizontal-table th, .station-table.horizontal-table td {
+.station-table th, .station-table td {
+    padding: 0.5rem;
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden; /* Prevents long text from breaking the layout */
-    text-overflow: ellipsis; /* Adds '...' if text overflows */
-    font-size: 0.85rem; /* Slightly smaller for better fit */
-    padding: 0.8rem 0.5rem; /* Increased padding for more breathing room */
-    border: none;
-    border-bottom: 1px solid var(--border-color); /* Clean horizontal lines */
-    font-family: var(--font-mono); /* Monospaced font for IDs */
+    border: 1px solid var(--border-color);
+    font-size: 0.85rem;
+    vertical-align: middle;
 }
-
-.station-table.horizontal-table th {
-    font-family: var(--font-sans); /* Use standard font for headers */
-    font-weight: 500;
+.station-table th {
+    font-weight: 600;
     color: var(--text-primary);
-    border-bottom-width: 2px; /* Thicker line below headers */
 }
+.station-table td { border: none; border-left: 1px solid var(--border-color); } 
 
-.station-table.horizontal-table tbody tr:last-child td {
-    border-bottom: none; /* Remove border from the very last row */
-}
+.station-table th.header-vhf { background-color: var(--info-color-bg); }
+.station-table th.header-mf { background-color: #E8F5E9; }
+.station-table th.header-navtex { background-color: var(--bg-main); }
 
-/* Specific styling for the placeholder cell when the table is empty */
-.station-table.horizontal-table .drill-placeholder {
-    font-family: var(--font-sans);
-    color: var(--text-secondary);
-    font-style: italic;
-    padding: 2.5rem; /* More padding to make it look less cramped */
-}
+body.dark-theme .station-table th.header-vhf { background-color: var(--info-color-dark-bg); }
+body.dark-theme .station-table th.header-mf { background-color: #1A331C; }
+body.dark-theme .station-table th.header-navtex { background-color: var(--bg-card-dark); }
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1477,13 +1468,6 @@ body.dark-theme .category-badge.fonia {
   background-color: var(--info-color-dark);
   color: var(--bg-main-dark);
 }
-.station-table th.header-vhf { background-color: var(--info-color-bg); }
-.station-table th.header-mf { background-color: #E8F5E9; } /* Light green */
-.station-table th.header-navtex { background-color: var(--bg-main); }
-
-body.dark-theme .station-table th.header-vhf { background-color: var(--info-color-dark-bg); }
-body.dark-theme .station-table th.header-mf { background-color: #1A331C; } /* Dark green */
-body.dark-theme .station-table th.header-navtex { background-color: var(--bg-card-dark); }
 .status-dot {
     display: inline-block;
     width: 12px;
