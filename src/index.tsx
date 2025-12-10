@@ -126,6 +126,8 @@ function switchToPage(pageIndex: number, subTabId?: string) {
             const subTabButton = incomingPanel?.querySelector<HTMLButtonElement>(`[data-target="${subTabId}"]`);
             subTabButton?.click();
         }
+        // Also close any open dropdowns
+        document.querySelectorAll('.nav-item-container.open').forEach(el => el.classList.remove('open'));
         return;
     }
 
@@ -135,15 +137,27 @@ function switchToPage(pageIndex: number, subTabId?: string) {
     }
 
     isTransitioning = true;
+    
+    // Update active nav state
+    // 1. Remove active from all nav links
     document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
-    // Activate nav link. Note: For dropdown items, we don't strictly activate the main dropdown toggle unless we add extra logic, 
-    // but we can activate the link if it corresponds to a direct button.
-    document.querySelector(`.nav-link[data-page-index="${pageIndex}"]`)?.classList.add('active');
+    document.querySelectorAll('.dropdown-item').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.nav-item-container').forEach(el => el.classList.remove('active-parent'));
 
-    // Also highlight the dropdown parent if a child is active (optional, simplified here)
-    document.querySelectorAll('.dropdown-item').forEach(item => {
-        item.classList.toggle('active', item.getAttribute('data-page-index') === String(pageIndex));
-    });
+    // 2. Add active to the specific link clicked (could be a top link or a dropdown item)
+    const targetLink = document.querySelector(`.nav-link[data-page-index="${pageIndex}"], .dropdown-item[data-page-index="${pageIndex}"]`);
+    if (targetLink) {
+        targetLink.classList.add('active');
+        // If it's a dropdown item, highlight the parent dropdown toggle
+        const parentDropdown = targetLink.closest('.nav-item-container');
+        if (parentDropdown) {
+            parentDropdown.classList.add('active-parent');
+            parentDropdown.querySelector('.dropdown-toggle')?.classList.add('active');
+        }
+    }
+
+    // Close any open dropdowns
+    document.querySelectorAll('.nav-item-container.open').forEach(el => el.classList.remove('open'));
 
     if (outgoingPanel) {
         outgoingPanel.classList.add('is-exiting');
@@ -308,7 +322,26 @@ function addMainAppEventListeners() {
         const brandLink = target.closest('.nav-brand');
         const logoutBtn = target.closest('#logout-btn');
         
-        // Handle Nav Link or Dropdown Item
+        // Handle Dropdown Toggles
+        const toggleBtn = target.closest('.dropdown-toggle');
+        if (toggleBtn) {
+            const container = toggleBtn.closest('.nav-item-container');
+            if (container) {
+                const isOpen = container.classList.contains('open');
+                // Close all others
+                document.querySelectorAll('.nav-item-container.open').forEach(el => el.classList.remove('open'));
+                // Toggle current
+                if (!isOpen) container.classList.add('open');
+            }
+            return; // Stop here for dropdown clicks
+        }
+
+        // Close dropdowns if clicking elsewhere (not on a toggle or a dropdown item)
+        if (!target.closest('.dropdown-item')) {
+             document.querySelectorAll('.nav-item-container.open').forEach(el => el.classList.remove('open'));
+        }
+
+        // Handle Nav Links (Standard + Dropdown Items)
         const navItem = target.closest('[data-page-index]');
 
         if (brandLink) switchToPage(0);

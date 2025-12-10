@@ -178,8 +178,16 @@ nav {
     padding: 0.5rem 0;
 }
 
-.nav-item-container:hover .dropdown-menu {
+/* Open state handles visibility now instead of just hover */
+.nav-item-container.open .dropdown-menu {
     display: flex;
+}
+
+/* Also support hover for desktop if desired, but JS click is cleaner for hybrid */
+@media (min-width: 769px) {
+    .nav-item-container:hover .dropdown-menu {
+        display: flex;
+    }
 }
 
 .dropdown-item {
@@ -204,6 +212,12 @@ nav {
     color: var(--accent-color);
 }
 
+.dropdown-item.active {
+    background-color: var(--bg-panel);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
 .dropdown-item .nav-icon {
     width: 18px;
     height: 18px;
@@ -225,6 +239,7 @@ nav {
     transition: transform 0.2s;
 }
 
+.nav-item-container.open .dropdown-arrow,
 .nav-item-container:hover .dropdown-arrow {
     transform: rotate(180deg);
 }
