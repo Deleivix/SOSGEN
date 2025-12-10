@@ -36,6 +36,21 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 stats_data JSONB NOT NULL
             );
         `;
+        // Ensure Assigned Drills Table exists here too
+        await sql`
+            CREATE TABLE IF NOT EXISTS assigned_drills (
+                id SERIAL PRIMARY KEY,
+                supervisor_id INT NOT NULL REFERENCES users(id),
+                user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                drill_type VARCHAR(50) NOT NULL,
+                drill_data JSONB NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                score INT,
+                max_score INT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                completed_at TIMESTAMPTZ
+            );
+        `;
     } catch (e) {
         console.error("DB Initialization Error:", e);
         return response.status(500).json({ error: "Database setup failed." });

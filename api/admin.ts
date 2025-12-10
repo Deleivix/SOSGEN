@@ -13,6 +13,17 @@ export default async function handler(
     response: VercelResponse,
 ) {
     try {
+        // --- ENSURE DB SCHEMA ---
+        await sql`
+            CREATE TABLE IF NOT EXISTS access_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INT NOT NULL REFERENCES users(id),
+                action VARCHAR(50) NOT NULL,
+                details TEXT,
+                timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `;
+
         if (request.method === 'GET') {
             const adminUsername = request.query.adminUsername as string;
             const type = request.query.type as string; // 'requests' (default) or 'audit'

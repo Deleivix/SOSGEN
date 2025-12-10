@@ -79,7 +79,8 @@ const expireNRs = async () => {
 export default async function handler(request: VercelRequest, response: VercelResponse) {
     // --- DB SETUP ---
     try {
-        // The users table is primarily managed by api/auth.ts
+        // The users table is primarily managed by api/auth.ts but radioavisos often runs first.
+        // We must ensure the table structure is complete here too to avoid race conditions.
         await sql`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -89,6 +90,14 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 salt VARCHAR(32) NOT NULL
             );
         `;
+        // Ensure columns exist even if table was created by this file previously
+        try {
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'APPROVED'`;
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE`;
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_supervisor BOOLEAN NOT NULL DEFAULT FALSE`;
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ`;
+        } catch (e) { /* ignore migration errors if cols exist */ }
+
         // NRS table is now global, without user_id
         await sql`
             CREATE TABLE IF NOT EXISTS nrs (

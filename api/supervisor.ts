@@ -19,6 +19,35 @@ export default async function handler(
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    // --- DB MIGRATION CHECK ---
+    try {
+        // Ensure users columns
+        try {
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'APPROVED'`;
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE`;
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_supervisor BOOLEAN NOT NULL DEFAULT FALSE`;
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ`;
+        } catch (e) {}
+
+        // Ensure assigned_drills table
+        await sql`
+            CREATE TABLE IF NOT EXISTS assigned_drills (
+                id SERIAL PRIMARY KEY,
+                supervisor_id INT NOT NULL REFERENCES users(id),
+                user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                drill_type VARCHAR(50) NOT NULL,
+                drill_data JSONB NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                score INT,
+                max_score INT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                completed_at TIMESTAMPTZ
+            );
+        `;
+    } catch (e) {
+        console.error("Supervisor DB Init Error", e);
+    }
+
     const { action, supervisorUsername } = request.body;
     const supervisorId = await verifySupervisor(supervisorUsername);
 

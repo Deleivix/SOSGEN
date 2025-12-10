@@ -19,6 +19,26 @@ export default async function handler(
         return response.status(401).json({ error: 'Usuario no autenticado.' });
     }
 
+    // --- DB MIGRATION CHECK ---
+    try {
+        await sql`
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                sender_id INT NOT NULL REFERENCES users(id),
+                receiver_id INT NOT NULL REFERENCES users(id),
+                content TEXT NOT NULL,
+                is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `;
+        // Ensure created_at exists (migration for existing tables)
+        try {
+            await sql`ALTER TABLE messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+        } catch (e) { /* ignore */ }
+    } catch (error) {
+        console.error("Messages DB Init Error", error);
+    }
+
     try {
         // --- 1. Get Conversations / Messages ---
         if (request.method === 'GET' || (request.method === 'POST' && action === 'get_messages')) {
