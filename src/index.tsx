@@ -136,6 +136,7 @@ function switchToPage(pageIndex: number, subTabId?: string) {
 
     isTransitioning = true;
     document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
+    // Only highlight if it's in the top nav
     document.querySelector(`.nav-link[data-page-index="${pageIndex}"]`)?.classList.add('active');
 
     if (outgoingPanel) {
@@ -145,7 +146,7 @@ function switchToPage(pageIndex: number, subTabId?: string) {
 
     incomingPanel.classList.add('active');
     // Always render dynamic pages to ensure data freshness
-    if (pageIndex === 11 || pageIndex === 12 || !pageRenderStatus[pageIndex]) {
+    if (pageIndex === 10 || pageIndex === 11 || pageIndex === 12 || !pageRenderStatus[pageIndex]) {
         pageRenderers[pageIndex](incomingPanel);
         pageRenderStatus[pageIndex] = true;
     }
@@ -169,10 +170,27 @@ function renderMainApp(user: User) {
     const container = document.getElementById('app');
     if (!container) return;
     
-    // Define the profile page index (last in the list, hidden from standard nav)
+    // Page Indices (must match APP_PAGES)
+    const adminPageIndex = 10;
+    const supervisorPageIndex = 11;
     const profilePageIndex = 12; 
 
     // --- SIDEBAR HTML ---
+    // Inject Admin and Supervisor buttons here if role permits
+    const adminBtn = user.isAdmin ? `
+        <button class="sidebar-menu-item sidebar-nav-btn" data-page-index="${adminPageIndex}">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.775 11.775 0 0 1-2.517 2.453 7.159 7.159 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7.158 7.158 0 0 1-1.048-.625 11.777 11.777 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 62.456 62.456 0 0 1 5.072.56z"/></svg>
+            <span>Administrador</span>
+        </button>
+    ` : '';
+
+    const supervisorBtn = (user.isSupervisor || user.isAdmin) ? `
+        <button class="sidebar-menu-item sidebar-nav-btn" data-page-index="${supervisorPageIndex}">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path fill-rule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/><path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>
+            <span>Supervisor</span>
+        </button>
+    ` : '';
+
     const sidebarHTML = `
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
         <div class="app-sidebar" id="app-sidebar">
@@ -182,7 +200,9 @@ function renderMainApp(user: User) {
                 <div class="sidebar-userrole">${user.isAdmin ? 'Administrador' : (user.isSupervisor ? 'Supervisor' : 'Operador')}</div>
             </div>
             <div class="sidebar-content">
-                <button class="sidebar-menu-item" id="sidebar-profile-btn" data-page-index="${profilePageIndex}">
+                ${adminBtn}
+                ${supervisorBtn}
+                <button class="sidebar-menu-item sidebar-nav-btn" data-page-index="${profilePageIndex}">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>
                     <span>Mi Perfil</span>
                 </button>
@@ -217,8 +237,8 @@ function renderMainApp(user: User) {
                 <div class="nav-links-container">
                     ${APP_PAGES.map((page, index) => {
                         if (page.name === 'HOME') return '';
-                        if (page.name === 'ADMIN' && !user.isAdmin) return '';
-                        if (page.name === 'SUPERVISOR' && !(user.isSupervisor || user.isAdmin)) return '';
+                        if (page.name === 'ADMIN') return ''; // Removed from top nav
+                        if (page.name === 'SUPERVISOR') return ''; // Removed from top nav
                         
                         return `
                         <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
@@ -238,8 +258,7 @@ function renderMainApp(user: User) {
         </nav>
         <main>
             ${APP_PAGES.map((page, index) => {
-                if (page.name === 'ADMIN' && !user.isAdmin) return '';
-                if (page.name === 'SUPERVISOR' && !(user.isSupervisor || user.isAdmin)) return '';
+                // We still render the panels, they are just triggered from sidebar now
                 return `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`;
             }).join('')}
             <div class="page-panel" id="page-${profilePageIndex}"></div>
@@ -273,7 +292,6 @@ function addMainAppEventListeners() {
     const sidebar = document.getElementById('app-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const logoutBtn = document.getElementById('sidebar-logout-btn');
-    const profileBtn = document.getElementById('sidebar-profile-btn');
     const themeToggle = document.getElementById('sidebar-theme-toggle') as HTMLInputElement;
 
     const toggleSidebar = () => {
@@ -288,16 +306,22 @@ function addMainAppEventListeners() {
 
     overlay?.addEventListener('click', toggleSidebar);
 
+    // Generic Sidebar Navigation Handler (Profile, Admin, Supervisor)
+    sidebar?.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const navBtn = target.closest<HTMLElement>('.sidebar-nav-btn');
+        if (navBtn) {
+            const pageIndex = navBtn.dataset.pageIndex;
+            if (pageIndex) {
+                switchToPage(parseInt(pageIndex, 10));
+                toggleSidebar();
+            }
+        }
+    });
+
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             handleLogout();
-        });
-    }
-
-    if (profileBtn) {
-        profileBtn.addEventListener('click', () => {
-            switchToPage(12); // Profile Index
-            toggleSidebar(); // Close sidebar
         });
     }
 
