@@ -1,5 +1,5 @@
 
-/* ... (Existing styles kept same until Station Table Styles) ... */
+/* ... (Keep existing CSS) ... */
 
 /* --- Station Table Styles (Restored & Updated) --- */
 .station-table {
@@ -32,7 +32,21 @@ body.dark-theme .station-table th.header-vhf { background-color: #01579B; color:
 body.dark-theme .station-table th.header-mf { background-color: #1B5E20; color: #E8F5E9; }
 body.dark-theme .station-table th.header-navtex { background-color: #424242; color: #F5F5F5; }
 
-/* ... (Rest of styles remain unchanged) ... */
+.station-nr-tag {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    width: 100%;
+    text-align: center;
+    border: 1px solid transparent;
+}
+.station-nr-tag.status-green { color: var(--accent-color-dark); background-color: #F1F8E9; border-color: #C5E1A5; }
+.station-nr-tag.status-yellow { color: var(--warning-color-dark); background-color: #FFFDE7; border-color: #FFF59D; }
+.station-nr-tag.status-orange { color: var(--danger-color); background-color: #FFEBEE; border-color: #FFCDD2; }
+
+/* ... (Keep remaining CSS) ... */
 :root {
   --accent-color: #8BC34A;
   --accent-color-dark: #7aa841;

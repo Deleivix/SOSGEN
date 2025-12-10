@@ -200,25 +200,21 @@ function renderCurrentViewContent(): string {
 // --- RENDER IMPLEMENTATIONS ---
 
 function renderStationStatusTableHTML() {
-    const relevantNrs = state.appData.nrs.filter(nr => !nr.isCaducado);
-    const stationStatus: Record<string, string> = {};
+    const activeNrs = state.appData.nrs.filter(nr => !nr.isCaducado);
     
-    ALL_STATIONS.forEach(station => {
-        const nrsForStation = relevantNrs.filter(nr => nr.stations.includes(station));
-        let status = 'status-green';
-        if (nrsForStation.length > 0) {
-            status = 'status-yellow';
-            if (nrsForStation.some(nr => getExpiryStatus(nr) === 'status-orange')) {
-                status = 'status-orange';
-            }
-        }
-        stationStatus[station] = status;
-    });
+    // Helper to get NRs for a specific station
+    const getNrsForStation = (station: string) => {
+        const stationNrs = activeNrs.filter(nr => nr.stations.includes(station));
+        if (stationNrs.length === 0) return '';
+        return stationNrs
+            .map(nr => `<div class="station-nr-tag ${getExpiryStatus(nr)}">${nr.baseId}</div>`)
+            .join('');
+    };
 
     const renderCell = (station: string) => `
-        <td style="text-align: center; padding: 0.75rem 0.5rem; vertical-align: middle; border-left: 1px solid var(--border-color);">
-            <div style="display: flex; justify-content: center;">
-                <span class="status-dot ${stationStatus[station] || 'status-green'}"></span>
+        <td style="text-align: center; padding: 0.5rem; vertical-align: top; border-left: 1px solid var(--border-color); height: 100px;">
+            <div style="display: flex; flex-direction: column; gap: 4px; align-items: center; width: 100%;">
+                ${getNrsForStation(station)}
             </div>
         </td>
     `;
@@ -244,16 +240,11 @@ function renderStationStatusTableHTML() {
                     </tbody>
                 </table>
             </div>
-            <div class="status-legend" style="padding: 0.5rem 1rem; border-top: 1px solid var(--border-color);">
-                <div class="legend-item"><span class="status-dot status-green"></span><span>Sin Avisos</span></div>
-                <div class="legend-item"><span class="status-dot status-yellow"></span><span>Aviso en Vigor</span></div>
-                <div class="legend-item"><span class="status-dot status-orange"></span><span>Caducando</span></div>
-            </div>
         </div>
         <div class="stats-grid">
              <div class="stat-card">
                 <div class="label">Total NRs vigentes:</div>
-                <div class="value green">${relevantNrs.length}</div>
+                <div class="value green">${activeNrs.length}</div>
              </div>
              <div class="stat-card">
                 <div class="label">Último NR añadido:</div>
@@ -275,7 +266,9 @@ function renderStationStatusTableHTML() {
 }
 
 function renderMasterNrTableHTML() {
-    let nrs = state.appData.nrs;
+    // Only show Active (not Caducado) NRs in the main table
+    let nrs = state.appData.nrs.filter(nr => !nr.isCaducado);
+    
     if (state.filterText) {
         const ft = state.filterText.toLowerCase();
         nrs = nrs.filter(nr => nr.id.toLowerCase().includes(ft) || nr.baseId.toLowerCase().includes(ft));
@@ -290,7 +283,7 @@ function renderMasterNrTableHTML() {
         return state.sortConfig.direction === 'ascending' ? (valA < valB ? -1 : 1) : (valA > valB ? -1 : 1);
     });
 
-    if (nrs.length === 0) return `<div class="content-card"><p class="drill-placeholder">No hay radioavisos registrados.</p></div>`;
+    if (nrs.length === 0) return `<div class="content-card"><p class="drill-placeholder">No hay radioavisos vigentes registrados.</p></div>`;
 
     return `
         <div class="filterable-table-header" style="display: flex; justify-content: space-between; align-items: center;">
@@ -321,7 +314,7 @@ function renderMasterNrTableHTML() {
                 </thead>
                 <tbody>
                     ${nrs.map(nr => {
-                        const statusColor = nr.isCaducado ? 'gray' : (getExpiryStatus(nr) === 'status-orange' ? 'orange' : 'green');
+                        const statusColor = (getExpiryStatus(nr) === 'status-orange' ? 'orange' : 'green');
                         // Try to find official title and details
                         const official = state.salvamentoAvisos.find(a => getBaseId(a.num) === nr.baseId);
                         const titleForPdf = official ? official.asunto : (nr.isManual ? 'Aviso Manual' : 'Sin título');
@@ -333,7 +326,7 @@ function renderMasterNrTableHTML() {
                         const foniaBadge = nr.stations.some(s => s !== 'Navtex') ? '<span class="category-badge fonia">FONÍA</span>' : '';
 
                         return `
-                        <tr style="${nr.isCaducado ? 'opacity: 0.6; background-color: var(--bg-main);' : ''}">
+                        <tr>
                             <td style="text-align: center;"><span class="status-dot status-${statusColor}"></span></td>
                             <td style="font-weight: 500; white-space: nowrap;">
                                 <div style="display: flex; flex-direction: column;">
@@ -351,7 +344,7 @@ function renderMasterNrTableHTML() {
                                 <div style="display: flex; gap: 0.5rem; justify-content: center;">
                                     ${targetForPdf ? `<button class="secondary-btn" data-action="view-pdf" data-event-target="${targetForPdf}" data-title="${titleForPdf}" title="Ver Texto PDF" style="padding: 4px 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg></button>` : ''}
                                     <button class="secondary-btn" style="padding: 4px 8px; font-size: 0.8rem;">Editar</button>
-                                    ${!nr.isCaducado ? `<button class="tertiary-btn" onclick="window.cancelNr('${nr.id}')" title="Cancelar" style="padding: 4px 8px; font-size: 0.8rem; color: var(--danger-color); border-color: var(--danger-color-bg);">Cancelar</button>` : ''}
+                                    <button class="tertiary-btn" onclick="window.cancelNr('${nr.id}')" title="Cancelar" style="padding: 4px 8px; font-size: 0.8rem; color: var(--danger-color); border-color: var(--danger-color-bg);">Cancelar</button>
                                 </div>
                             </td>
                         </tr>
@@ -359,6 +352,11 @@ function renderMasterNrTableHTML() {
                     }).join('')}
                 </tbody>
             </table>
+        </div>
+        <div class="status-legend" style="padding: 1rem; border-top: 1px solid var(--border-color); justify-content: center; gap: 2rem;">
+            <div class="legend-item"><span class="status-dot status-orange"></span><span>Caduca en este turno</span></div>
+            <div class="legend-item"><span class="status-dot status-yellow"></span><span>Caduca en las próximas 24h</span></div>
+            <div class="legend-item"><span class="status-dot status-green"></span><span>Vigente (> 24h)</span></div>
         </div>
     `;
 }
