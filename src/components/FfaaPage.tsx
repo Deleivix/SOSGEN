@@ -337,7 +337,8 @@ async function fetchFfaaData() {
     }
 
     try {
-        const response = await fetch('/api/meteoalarm');
+        // Updated Endpoint: /api/aemet?type=meteoalarm
+        const response = await fetch('/api/aemet?type=meteoalarm');
         if (!response.ok) throw new Error('Error al conectar con MeteoAlarm');
         
         const data: MeteoResponse = await response.json();
