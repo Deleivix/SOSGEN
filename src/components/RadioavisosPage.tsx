@@ -1,5 +1,4 @@
 
-
 import { ALL_STATIONS, STATIONS_VHF, STATIONS_MF } from "../data";
 import { getCurrentUser } from "../utils/auth";
 import { debounce, showToast } from "../utils/helpers";
@@ -140,9 +139,10 @@ async function syncWithSalvamento() {
         const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
         
         // Strict check for Coruña Auto-Confirmation
-        // Removes whitespace, punctuation, and checks specific keywords
-        const zonaNorm = aviso.zona.toUpperCase().replace(/\./g, '').trim();
-        const isOnlyCoruna = zonaNorm === 'CORUÑA' || zonaNorm === 'A CORUÑA';
+        // Matches exactly "CORUÑA" or "A CORUÑA", allowing for an optional trailing dot.
+        // It does NOT match if other zones are present (e.g., "ESPAÑA COSTA NW, CORUÑA").
+        const zonaString = aviso.zona ? aviso.zona.toUpperCase().trim() : '';
+        const isOnlyCoruna = /^A?\s?CORUÑA\.?$/.test(zonaString);
 
         const activeLocalVersion = nrsActualizados.find(nr => nr.baseId === avisoBaseId && !nr.isCaducado);
 
@@ -519,7 +519,7 @@ function renderMasterNrTableHTML() {
         <div class="table-wrapper">
             <table class="reference-table data-table">
                 <thead>
-                    <tr style="background-color: #f1f3f5;">
+                    <tr>
                         <th style="width: 40px;"></th>
                         <th data-sort-key="id" class="${state.sortConfig.key === 'id' ? (state.sortConfig.direction === 'ascending' ? 'sort-ascending' : 'sort-descending') : ''}" style="cursor: pointer;" data-action="sort-nr">NR</th>
                         <th>Asunto</th>
