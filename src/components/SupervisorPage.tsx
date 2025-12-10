@@ -168,7 +168,8 @@ async function generateDrillPreview(type: string) {
         });
         if (!response.ok) throw new Error('Failed to generate');
         generatedDrillData = await response.json();
-        renderAssignTab(); // Re-render to show editor populated
+        // Force refresh of the view to display the generated data
+        renderContent();
     } catch (e) {
         showToast("Error generando simulacro", "error");
         container.innerHTML = `<p class="error">Error al generar.</p>`;
@@ -188,7 +189,8 @@ function createManualDrill() {
             }
         ]
     };
-    renderAssignTab();
+    // Force refresh of the view to display the manual editor
+    renderContent();
 }
 
 function exportToCSV() {
