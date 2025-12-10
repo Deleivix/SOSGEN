@@ -10,7 +10,7 @@ type SalvamentoAviso = {
 };
 type NR = {
     id: string; baseId: string; version: number; stations: string[];
-    expiryDate: string; expiryTime: string; isAmpliado: boolean; isCaducado: boolean; isManual: boolean;
+    expiryDate: string; expiryTime: string; isAmpliado: boolean; isCaducado: boolean; isManual: boolean; isConfirmed: boolean;
 };
 type HistoryLog = { id: string; timestamp: string; user: string; action: string; nrId: string; details: string; };
 type AppData = { nrs: NR[]; history: HistoryLog[]; };
@@ -59,16 +59,13 @@ function getExpiryStatus(nr: NR): 'status-green' | 'status-yellow' | 'status-ora
     if (!nr.expiryDate || !nr.expiryTime || nr.isCaducado) return 'status-green';
     
     try {
-        // Construct expiration date (UTC)
-        // Note: The UI displays UTC, we assume inputs are UTC. 
-        // We need to compare against "Now" in UTC to be consistent.
         const expiryDateTime = new Date(`${nr.expiryDate}T${(nr.expiryTime || '').trim()}Z`);
         if (isNaN(expiryDateTime.getTime())) return 'status-green';
 
         const now = new Date();
         
-        // If already expired
-        if (expiryDateTime <= now) return 'status-green'; // Or grey, technically it's expired but "safe"
+        // If expired or technically in the past but not flagged yet, treat as green/done for this logic
+        if (expiryDateTime <= now) return 'status-green';
 
         // Calculate end of current shift
         const currentHour = now.getUTCHours();
@@ -128,6 +125,10 @@ async function syncWithSalvamento() {
     for (const aviso of avisosRelevantes) {
         const avisoBaseId = getBaseId(aviso.num);
         const isNavtexAviso = aviso.tipo.toUpperCase() === 'NAVTEX' || aviso.zona.toUpperCase().includes('CORUÑA');
+        // Auto-confirm logic: If zone is *exactly* or contains 'CORUÑA' and no other major zones? 
+        // Requirement: "Salvo si solo tiene zona 'CORUÑA' que debe ponerse automaticamente como ya revisado."
+        const isOnlyCoruna = aviso.zona.toUpperCase().includes('CORUÑA'); 
+        
         const activeLocalVersion = nrsActualizados.find(nr => nr.baseId === avisoBaseId && !nr.isCaducado);
 
         if (activeLocalVersion) {
@@ -139,6 +140,14 @@ async function syncWithSalvamento() {
                     nrsActualizados[index].stations.push('Navtex');
                     nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: `Añadida automáticamente la estación Navtex.` });
                 }
+            }
+            // Check Auto-confirm
+            if (isOnlyCoruna && !activeLocalVersion.isConfirmed) {
+                 hayCambios = true;
+                 const index = nrsActualizados.findIndex(nr => nr.id === activeLocalVersion.id);
+                 if (index > -1) {
+                     nrsActualizados[index].isConfirmed = true;
+                 }
             }
         } else {
             const allLocalVersions = nrsActualizados.filter(nr => nr.baseId === avisoBaseId);
@@ -152,12 +161,13 @@ async function syncWithSalvamento() {
                     nrsActualizados[index].expiryDate = expiryDate;
                     nrsActualizados[index].expiryTime = expiryTime;
                     if (isNavtexAviso && !nrsActualizados[index].stations.includes('Navtex')) nrsActualizados[index].stations.push('Navtex');
+                    if (isOnlyCoruna) nrsActualizados[index].isConfirmed = true;
                     nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'EDITADO', nrId: avisoBaseId, details: `Reactivado automáticamente desde SASEMAR.` });
                 }
             } else {
                 hayCambios = true;
                 const { expiryDate, expiryTime } = parseExpiry(aviso.caducidad);
-                const newNR: NR = { id: `NR-${avisoBaseId}`, baseId: avisoBaseId, version: 1, stations: [], expiryDate, expiryTime, isAmpliado: false, isCaducado: false, isManual: false };
+                const newNR: NR = { id: `NR-${avisoBaseId}`, baseId: avisoBaseId, version: 1, stations: [], expiryDate, expiryTime, isAmpliado: false, isCaducado: false, isManual: false, isConfirmed: isOnlyCoruna };
                 if (isNavtexAviso) newNR.stations.push('Navtex');
                 nrsActualizados.push(newNR);
                 nuevosLogs.push({ id: `log-${Date.now()}-${avisoBaseId}`, timestamp: new Date().toISOString(), user: 'SISTEMA', action: 'AÑADIDO', nrId: avisoBaseId, details: `Añadido automáticamente desde SASEMAR.` });
@@ -394,6 +404,9 @@ function renderMasterNrTableHTML() {
                         const zona = official ? official.zona : '-';
                         const tipoBadge = nr.stations.includes('Navtex') ? '<span class="category-badge navtex">NAVTEX</span>' : '';
                         const foniaBadge = nr.stations.some(s => s !== 'Navtex') ? '<span class="category-badge fonia">FONÍA</span>' : '';
+                        const confirmedIcon = nr.isConfirmed 
+                            ? `<span style="color: #2E7D32; font-weight: bold; font-size: 1.2rem;">✓</span>` 
+                            : `<span style="color: var(--danger-color); font-weight: bold; font-size: 1.2rem;">✕</span>`;
 
                         return `
                         <tr>
@@ -409,7 +422,7 @@ function renderMasterNrTableHTML() {
                             <td>${prioridad ? `<span class="category-badge importante" style="background-color: ${prioridad === 'VITAL' ? 'var(--danger-color)' : 'var(--importante-color)'};">${prioridad}</span>` : '-'}</td>
                             <td><div style="display: flex; gap: 4px;">${tipoBadge}${foniaBadge}</div></td>
                             <td style="font-size: 0.9rem;">${getFormattedDateTime(`${nr.expiryDate}T${nr.expiryTime}`).replace('UTC', '')}</td>
-                            <td style="text-align: center; color: var(--danger-color);">✕</td>
+                            <td style="text-align: center;">${confirmedIcon}</td>
                             <td>
                                 <div style="display: flex; gap: 0.5rem; justify-content: center;">
                                     ${targetForPdf ? `<button class="secondary-btn" data-action="view-pdf" data-event-target="${targetForPdf}" data-title="${titleForPdf}" title="Ver Texto PDF" style="padding: 4px 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg></button>` : ''}
@@ -501,7 +514,7 @@ function renderEditModal(nr: NR) {
 
                 <div class="button-container" style="justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 0;">
                     <button type="button" class="secondary-btn modal-close-btn">Cancelar</button>
-                    <button type="submit" class="primary-btn" style="width: auto;">Guardar Cambios</button>
+                    <button type="submit" class="primary-btn" style="width: auto;">Guardar y Confirmar Revisión</button>
                 </div>
             </form>
         </div>
@@ -528,6 +541,7 @@ function renderEditModal(nr: NR) {
             state.appData.nrs[index].expiryDate = expiryDate;
             state.appData.nrs[index].expiryTime = expiryTime;
             state.appData.nrs[index].version += 1; // Increment version on edit
+            state.appData.nrs[index].isConfirmed = true; // Mark as Confirmed
 
             state.appData.history.unshift({ 
                 id: `log-${Date.now()}`, 
@@ -540,7 +554,7 @@ function renderEditModal(nr: NR) {
 
             await api.saveData(state.appData);
             reRender();
-            showToast('Radioaviso actualizado', 'success');
+            showToast('Radioaviso actualizado y confirmado', 'success');
             modalOverlay.remove();
         }
     });
@@ -635,7 +649,8 @@ function attachEventListeners(container: HTMLElement) {
                 expiryTime: formData.get('expiryTime') as string,
                 isAmpliado: false,
                 isCaducado: false,
-                isManual: true
+                isManual: true,
+                isConfirmed: false
             };
             
             state.appData.nrs.push(newNr);

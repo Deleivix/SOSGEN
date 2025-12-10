@@ -32,61 +32,44 @@ body.dark-theme .station-table th.header-vhf { background-color: #01579B; color:
 body.dark-theme .station-table th.header-mf { background-color: #1B5E20; color: #E8F5E9; }
 body.dark-theme .station-table th.header-navtex { background-color: #424242; color: #F5F5F5; }
 
+/* Improved visibility for Station Tags */
 .station-nr-tag {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
-    padding: 2px 6px;
+    font-size: 0.85rem;
+    padding: 3px 6px;
     border-radius: 4px;
     white-space: nowrap;
     width: 100%;
     text-align: center;
     border: 1px solid transparent;
-}
-.station-nr-tag.status-green { color: var(--accent-color-dark); background-color: #F1F8E9; border-color: #C5E1A5; }
-.station-nr-tag.status-yellow { color: var(--warning-color-dark); background-color: #FFFDE7; border-color: #FFF59D; }
-.station-nr-tag.status-orange { color: var(--danger-color); background-color: #FFEBEE; border-color: #FFCDD2; }
-
-/* --- Visual Station Toggle Button Grid --- */
-.station-toggle-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.75rem;
+    font-weight: 600;
 }
 
-.station-toggle-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.75rem;
-    background-color: var(--bg-main);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    user-select: none;
-    text-align: center;
+/* Green: Valid > 24h */
+.station-nr-tag.status-green { 
+    color: #1B5E20; /* Dark Green text */
+    background-color: #C8E6C9; /* Light Green BG */
+    border-color: #81C784; 
 }
 
-.station-toggle-btn:hover {
-    border-color: var(--accent-color);
-    background-color: var(--bg-card);
+/* Yellow: Expires < 24h */
+.station-nr-tag.status-yellow { 
+    color: #E65100; /* Dark Orange/Brown text for contrast */
+    background-color: #FFF9C4; /* Light Yellow BG */
+    border-color: #FBC02D; /* Strong Yellow Border */
 }
 
-.station-toggle-btn input[type="checkbox"] {
-    display: none;
+/* Orange/Red: Expires in current shift */
+.station-nr-tag.status-orange { 
+    color: #B71C1C; /* Dark Red text */
+    background-color: #FFCDD2; /* Light Red BG */
+    border-color: #E57373; 
 }
 
-.station-toggle-btn:has(input:checked) {
-    background-color: var(--accent-color);
-    color: white;
-    border-color: var(--accent-color);
-    font-weight: 500;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.station-toggle-btn span {
-    font-size: 0.9rem;
-}
+/* Dark Mode Adjustments */
+body.dark-theme .station-nr-tag.status-green { color: #A5D6A7; background-color: #1B5E20; border-color: #2E7D32; }
+body.dark-theme .station-nr-tag.status-yellow { color: #FFF59D; background-color: #F57F17; border-color: #FBC02D; }
+body.dark-theme .station-nr-tag.status-orange { color: #EF9A9A; background-color: #B71C1C; border-color: #D32F2F; }
 
 /* ... (Keep remaining CSS) ... */
 :root {

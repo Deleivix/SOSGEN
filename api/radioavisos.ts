@@ -13,6 +13,7 @@ type NR = {
     isAmpliado: boolean;
     isCaducado: boolean;
     isManual: boolean;
+    isConfirmed: boolean;
 };
 type HistoryLog = {
     id: string; timestamp: string; user: string; action: 'AÑADIDO' | 'EDITADO' | 'BORRADO' | 'CANCELADO';
@@ -100,13 +101,15 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 is_ampliado BOOLEAN NOT NULL,
                 is_caducado BOOLEAN NOT NULL,
                 is_manual BOOLEAN NOT NULL DEFAULT FALSE,
+                is_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
                 UNIQUE(base_id, version)
             );
         `;
         
-        // Simple migration for is_manual column
+        // Simple migration for new columns
         try {
-            await sql`ALTER TABLE nrs ADD COLUMN is_manual BOOLEAN NOT NULL DEFAULT FALSE`;
+            await sql`ALTER TABLE nrs ADD COLUMN IF NOT EXISTS is_manual BOOLEAN NOT NULL DEFAULT FALSE`;
+            await sql`ALTER TABLE nrs ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN NOT NULL DEFAULT FALSE`;
         } catch (e: any) {
              if (!e.message.includes('already exists')) {
                 console.warn('Migration ALTER TABLE may have failed:', e.message);
@@ -134,7 +137,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
             await expireNRs(); // Expire NRs globally
 
             const [nrsResult, historyResult] = await Promise.all([
-                sql`SELECT id, base_id as "baseId", version, stations, expiry_date as "expiryDate", expiry_time as "expiryTime", is_ampliado as "isAmpliado", is_caducado as "isCaducado", is_manual as "isManual" FROM nrs ORDER BY base_id, version;`,
+                sql`SELECT id, base_id as "baseId", version, stations, expiry_date as "expiryDate", expiry_time as "expiryTime", is_ampliado as "isAmpliado", is_caducado as "isCaducado", is_manual as "isManual", is_confirmed as "isConfirmed" FROM nrs ORDER BY base_id, version;`,
                 sql`SELECT id, timestamp, "user", action, nr_id as "nrId", details FROM history ORDER BY timestamp DESC;`
             ]);
 
@@ -161,8 +164,8 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
                 for (const nr of newData.nrs) {
                     await client.sql`
-                        INSERT INTO nrs (id, base_id, version, stations, expiry_date, expiry_time, is_ampliado, is_caducado, is_manual)
-                        VALUES (${nr.id}, ${nr.baseId}, ${nr.version}, ${nr.stations as any}, ${nr.expiryDate}, ${nr.expiryTime}, ${nr.isAmpliado}, ${nr.isCaducado}, ${nr.isManual});
+                        INSERT INTO nrs (id, base_id, version, stations, expiry_date, expiry_time, is_ampliado, is_caducado, is_manual, is_confirmed)
+                        VALUES (${nr.id}, ${nr.baseId}, ${nr.version}, ${nr.stations as any}, ${nr.expiryDate}, ${nr.expiryTime}, ${nr.isAmpliado}, ${nr.isCaducado}, ${nr.isManual}, ${nr.isConfirmed});
                     `;
                 }
 
