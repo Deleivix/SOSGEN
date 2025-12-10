@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Cache to avoid excessive API calls
@@ -15,9 +14,7 @@ const AEMET_URLS: { [key: string]: string } = {
     'FQXX41MM': 'https://www.aemet.es/xml/maritima/FQXX41MM.xml',
 };
 
-const METEOALARM_FEED_URL = 'https://feeds.meteoalarm.org/api/v1/warnings/feeds-spain';
-
-// --- Helper Functions for warnings (AEMET text) ---
+// --- Helper Functions for warnings ---
 function parseWarningFromXml(xmlText: string): string | null {
     const avisoMatch = xmlText.match(/<aviso>[\s\S]*?<texto>([\s\S]*?)<\/texto>[\s\S]*?<\/aviso>/i);
     if (avisoMatch && avisoMatch[1]) {
@@ -134,28 +131,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check cache
     const cachedEntry = cache.get(cacheKey);
     if (cachedEntry && (now - cachedEntry.timestamp < CACHE_DURATION_MS)) {
-        // Return raw for meteoalarm (handled by client parsing in this specific case, 
-        // or just pass through json if we stored object)
-        if (type === 'meteoalarm') {
-             // For MeteoAlarm, we likely stored the text body
-             res.setHeader('Content-Type', 'application/json');
-             return res.status(200).send(cachedEntry.data);
-        }
         return res.status(200).json(cachedEntry.data);
     }
 
     try {
         let data;
         switch (type) {
-            case 'meteoalarm':
-                // Fetch external feed
-                const feedRes = await fetch(METEOALARM_FEED_URL);
-                if (!feedRes.ok) throw new Error(`External API status: ${feedRes.status}`);
-                data = await feedRes.text(); // Raw JSON text
-                res.setHeader('Content-Type', 'application/json');
-                cache.set(cacheKey, { timestamp: now, data });
-                return res.status(200).send(data);
-
             case 'warnings':
                 data = await getWarnings();
                 break;
@@ -176,9 +157,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(data);
 
     } catch (error) {
-        console.error("AEMET/Meteo API Error", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        return res.status(500).json({ error: `Failed to fetch data for type '${type}'.`, details: errorMessage });
+        return res.status(500).json({ error: `Failed to fetch AEMET data for type '${type}'.`, details: errorMessage });
     }
 }
 
