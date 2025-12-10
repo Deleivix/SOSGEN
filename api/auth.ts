@@ -22,7 +22,6 @@ const WHITELISTED_EMAILS = new Set([
     'alba.maria.suarez@cellnextelecom.com'
 ]);
 const ADMIN_EMAIL = 'angel.sande@cellnextelecom.com';
-const SUPERVISOR_EMAIL = 'j.cruz@cellnextelecom.com';
 
 const hashPassword = (password: string, salt: string): string => {
     return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
@@ -33,9 +32,6 @@ export default async function handler(
     response: VercelResponse,
 ) {
     try {
-        // --- PHASE 1: DB MIGRATIONS ---
-        
-        // 1. Base Users Table
         await sql`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -47,61 +43,16 @@ export default async function handler(
                 is_admin BOOLEAN NOT NULL DEFAULT FALSE
             );
         `;
-
-        // 2. Add Columns to Users
+         // Simple migration for existing setups
         try {
-            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'APPROVED'`;
-            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE`;
-            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_supervisor BOOLEAN NOT NULL DEFAULT FALSE`;
-            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ`;
-            
-            // Set Roles
+            await sql`ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'APPROVED'`;
+            await sql`ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE`;
             await sql`UPDATE users SET is_admin = TRUE WHERE email = ${ADMIN_EMAIL}`;
-            await sql`UPDATE users SET is_supervisor = TRUE WHERE email = ${SUPERVISOR_EMAIL}`;
         } catch (e: any) {
              if (!e.message.includes('already exists')) {
-                console.warn('Migration ALTER TABLE users failed:', e.message);
+                console.warn('Migration-like ALTER TABLE may have failed:', e.message);
             }
         }
-
-        // 3. Assigned Drills Table (Simulacros Auditados)
-        await sql`
-            CREATE TABLE IF NOT EXISTS assigned_drills (
-                id SERIAL PRIMARY KEY,
-                supervisor_id INT NOT NULL REFERENCES users(id),
-                user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                drill_type VARCHAR(50) NOT NULL,
-                drill_data JSONB NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, COMPLETED
-                score INT,
-                max_score INT,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                completed_at TIMESTAMPTZ
-            );
-        `;
-
-        // 4. Messages Table (Mensajería)
-        await sql`
-            CREATE TABLE IF NOT EXISTS messages (
-                id SERIAL PRIMARY KEY,
-                sender_id INT NOT NULL REFERENCES users(id),
-                receiver_id INT NOT NULL REFERENCES users(id),
-                content TEXT NOT NULL,
-                is_read BOOLEAN NOT NULL DEFAULT FALSE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-        `;
-
-        // 5. Access Logs (Auditoría)
-        await sql`
-            CREATE TABLE IF NOT EXISTS access_logs (
-                id SERIAL PRIMARY KEY,
-                user_id INT NOT NULL REFERENCES users(id),
-                action VARCHAR(50) NOT NULL,
-                details TEXT,
-                timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-        `;
 
     } catch (error) {
         console.error('Database connection or table creation error:', error);
@@ -141,11 +92,10 @@ export default async function handler(
             const isWhitelisted = WHITELISTED_EMAILS.has(normalizedEmail);
             const status = isWhitelisted ? 'APPROVED' : 'PENDING';
             const isAdmin = normalizedEmail === ADMIN_EMAIL;
-            const isSupervisor = normalizedEmail === SUPERVISOR_EMAIL;
             
             await sql`
-                INSERT INTO users (username, email, password_hash, salt, status, is_admin, is_supervisor)
-                VALUES (${normalizedUsername}, ${normalizedEmail}, ${passwordHash}, ${salt}, ${status}, ${isAdmin}, ${isSupervisor});
+                INSERT INTO users (username, email, password_hash, salt, status, is_admin)
+                VALUES (${normalizedUsername}, ${normalizedEmail}, ${passwordHash}, ${salt}, ${status}, ${isAdmin});
             `;
             
             const message = isWhitelisted 
@@ -181,29 +131,9 @@ export default async function handler(
             if (storedHashBuffer.length !== suppliedHashBuffer.length || !crypto.timingSafeEqual(storedHashBuffer, suppliedHashBuffer)) {
                  return response.status(401).json({ error: 'Usuario, email o contraseña no válidos.' });
             }
-
-            // Log access
-            await sql`INSERT INTO access_logs (user_id, action, details) VALUES (${user.id}, 'LOGIN', 'Inicio de sesión exitoso')`;
             
-            // Update last activity
-            await sql`UPDATE users SET last_activity = NOW() WHERE id = ${user.id}`;
-            
-            return response.status(200).json({ 
-                success: true, 
-                user: { 
-                    id: user.id, 
-                    username: user.username, 
-                    isAdmin: user.is_admin,
-                    isSupervisor: user.is_supervisor 
-                } 
-            });
+            return response.status(200).json({ success: true, user: { id: user.id, username: user.username, isAdmin: user.is_admin } });
 
-        } else if (action === 'logout') {
-             const { userId } = request.body;
-             if (userId) {
-                 await sql`INSERT INTO access_logs (user_id, action, details) VALUES (${userId}, 'LOGOUT', 'Cierre de sesión')`;
-             }
-             return response.status(200).json({ success: true });
         } else {
             return response.status(400).json({ error: 'Invalid action specified.' });
         }

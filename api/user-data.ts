@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db, sql } from '@vercel/postgres';
 
@@ -12,7 +11,7 @@ type SosgenHistoryEntry = {
 };
 
 // --- HELPER TO GET USER ID ---
-const getUserId = async (username: string): Promise<number | null> {
+const getUserId = async (username: string): Promise<number | null> => {
     if (!username) return null;
     const { rows } = await sql`SELECT id FROM users WHERE username = ${username.toUpperCase()};`;
     return rows.length > 0 ? rows[0].id : null;
@@ -44,24 +43,9 @@ export default async function handler(request: VercelRequest, response: VercelRe
     try {
         if (request.method === 'GET') {
             const username = request.query.username as string;
-            const type = request.query.type as string; // Optional: 'assigned_drills'
-            
             const userId = await getUserId(username);
             if (!userId) return response.status(401).json({ error: 'Authentication required.' });
 
-            // Fetch Assigned Drills specifically
-            if (type === 'assigned_drills') {
-                const { rows } = await sql`
-                    SELECT ad.*, u.username as supervisor_name 
-                    FROM assigned_drills ad
-                    JOIN users u ON ad.supervisor_id = u.id
-                    WHERE ad.user_id = ${userId} AND ad.status = 'PENDING'
-                    ORDER BY ad.created_at DESC;
-                `;
-                return response.status(200).json(rows);
-            }
-
-            // Default: Fetch standard user data
             const [historyResult, statsResult] = await Promise.all([
                 sql`SELECT entry_data FROM sosgen_history WHERE user_id = ${userId} ORDER BY timestamp DESC;`,
                 sql`SELECT stats_data FROM drill_stats WHERE user_id = ${userId};`
@@ -105,16 +89,6 @@ export default async function handler(request: VercelRequest, response: VercelRe
                     VALUES (${userId}, ${JSON.stringify(data)})
                     ON CONFLICT (user_id)
                     DO UPDATE SET stats_data = EXCLUDED.stats_data;
-                `;
-            } else if (type === 'submit_assigned_drill') {
-                // Submitting a result for an assigned drill
-                const { assignedDrillId, score } = data;
-                if (!assignedDrillId) return response.status(400).json({ error: 'Missing drill ID.' });
-
-                await sql`
-                    UPDATE assigned_drills 
-                    SET status = 'COMPLETED', score = ${score}, completed_at = NOW()
-                    WHERE id = ${assignedDrillId} AND user_id = ${userId};
                 `;
             } else {
                 return response.status(400).json({ error: 'Invalid data type.' });
