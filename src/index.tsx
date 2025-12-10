@@ -92,11 +92,11 @@ async function checkNotifications() {
 }
 
 function updateNotificationBadges(unreadMessages: boolean, pendingDrills: boolean) {
-    // 1. Profile/User Badge
-    const userDisplay = document.querySelector('.nav-user-display');
-    const existingBadge = userDisplay?.querySelector('.notification-badge');
-    if (unreadMessages) {
-        if (!existingBadge && userDisplay) userDisplay.innerHTML += `<span class="notification-badge"></span>`;
+    // 1. Sidebar Trigger Badge (Generic Alert)
+    const sidebarTrigger = document.getElementById('sidebar-trigger');
+    const existingBadge = sidebarTrigger?.querySelector('.notification-badge');
+    if (unreadMessages || pendingDrills) {
+        if (!existingBadge && sidebarTrigger) sidebarTrigger.innerHTML += `<span class="notification-badge"></span>`;
     } else {
         if (existingBadge) existingBadge.remove();
     }
@@ -172,7 +172,41 @@ function renderMainApp(user: User) {
     // Define the profile page index (last in the list, hidden from standard nav)
     const profilePageIndex = 12; 
 
+    // --- SIDEBAR HTML ---
+    const sidebarHTML = `
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        <div class="app-sidebar" id="app-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-avatar-large">${user.username.charAt(0).toUpperCase()}</div>
+                <div class="sidebar-username">${user.username}</div>
+                <div class="sidebar-userrole">${user.isAdmin ? 'Administrador' : (user.isSupervisor ? 'Supervisor' : 'Operador')}</div>
+            </div>
+            <div class="sidebar-content">
+                <button class="sidebar-menu-item" id="sidebar-profile-btn" data-page-index="${profilePageIndex}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>
+                    <span>Mi Perfil</span>
+                </button>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-menu-item sidebar-theme-row">
+                    <div style="display:flex; align-items:center; gap:1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg>
+                        <span>Modo Oscuro</span>
+                    </div>
+                    <input type="checkbox" id="sidebar-theme-toggle" class="theme-switcher-input">
+                    <label for="sidebar-theme-toggle" class="theme-switcher-toggle"></label>
+                </div>
+            </div>
+            <div class="sidebar-footer">
+                <button class="logout-btn-full" id="sidebar-logout-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>
+                    <span>Cerrar Sesión</span>
+                </button>
+            </div>
+        </div>
+    `;
+
     container.innerHTML = `
+        ${sidebarHTML}
         <nav>
             <div class="nav-top"></div>
             <div class="nav-bottom">
@@ -194,25 +228,16 @@ function renderMainApp(user: User) {
                     `}).join('')}
                 </div>
                 <div class="nav-right-controls">
-                    <div class="theme-switcher">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/></svg>
-                        <input type="checkbox" id="theme-toggle">
-                        <label for="theme-toggle" class="theme-switcher-label"></label>
-                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg>
-                    </div>
-                    <div class="user-session-controls">
-                        <span class="nav-user-display" title="Ver Perfil" data-page-index="${profilePageIndex}">${user.username}</span>
-                        <button class="logout-btn" id="logout-btn" title="Cerrar sesión">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>
-                            <span>Salir</span>
-                        </button>
-                    </div>
+                    <button class="sidebar-trigger-btn" id="sidebar-trigger" title="Menú de Usuario">
+                        <div class="sidebar-user-avatar-small">${user.username.charAt(0).toUpperCase()}</div>
+                        <span class="sidebar-user-name-small">${user.username}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>
+                    </button>
                 </div>
             </div>
         </nav>
         <main>
             ${APP_PAGES.map((page, index) => {
-                // Should render page panels for all pages, including hidden ones logic check handled in routing
                 if (page.name === 'ADMIN' && !user.isAdmin) return '';
                 if (page.name === 'SUPERVISOR' && !(user.isSupervisor || user.isAdmin)) return '';
                 return `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`;
@@ -243,24 +268,39 @@ function addMainAppEventListeners() {
     const container = document.getElementById('app');
     if (!container) return;
 
-    container.addEventListener('click', (event) => {
-        resetSessionTimeout(); // User activity resets timeout
-        const target = event.target as HTMLElement;
-        const navLink = target.closest('.nav-link');
-        const brandLink = target.closest('.nav-brand');
-        const logoutBtn = target.closest('#logout-btn');
-        const userDisplay = target.closest('.nav-user-display');
+    // --- SIDEBAR LOGIC ---
+    const sidebarTrigger = document.getElementById('sidebar-trigger');
+    const sidebar = document.getElementById('app-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const logoutBtn = document.getElementById('sidebar-logout-btn');
+    const profileBtn = document.getElementById('sidebar-profile-btn');
+    const themeToggle = document.getElementById('sidebar-theme-toggle') as HTMLInputElement;
 
-        if (brandLink) switchToPage(0);
-        if (navLink) switchToPage(parseInt(navLink.getAttribute('data-page-index')!, 10));
-        if (userDisplay) switchToPage(parseInt(userDisplay.getAttribute('data-page-index')!, 10));
-        if (logoutBtn) handleLogout();
+    const toggleSidebar = () => {
+        sidebar?.classList.toggle('open');
+        overlay?.classList.toggle('open');
+    };
+
+    sidebarTrigger?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSidebar();
     });
 
-    // Reset timeout on keypress too
-    window.addEventListener('keypress', resetSessionTimeout);
+    overlay?.addEventListener('click', toggleSidebar);
 
-    const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            handleLogout();
+        });
+    }
+
+    if (profileBtn) {
+        profileBtn.addEventListener('click', () => {
+            switchToPage(12); // Profile Index
+            toggleSidebar(); // Close sidebar
+        });
+    }
+
     if (themeToggle) {
         themeToggle.addEventListener('change', () => {
             const isDark = themeToggle.checked;
@@ -268,11 +308,26 @@ function addMainAppEventListeners() {
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
         });
     }
+
+    // --- MAIN NAV LOGIC ---
+    container.addEventListener('click', (event) => {
+        resetSessionTimeout(); // User activity resets timeout
+        const target = event.target as HTMLElement;
+        const navLink = target.closest('.nav-link');
+        const brandLink = target.closest('.nav-brand');
+
+        if (brandLink) switchToPage(0);
+        if (navLink) switchToPage(parseInt(navLink.getAttribute('data-page-index')!, 10));
+    });
+
+    // Reset timeout on keypress too
+    window.addEventListener('keypress', resetSessionTimeout);
 }
 
 function initializeTheme() {
     const savedTheme = localStorage.getItem('theme');
-    const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
+    // Note: ID changed to match sidebar
+    const themeToggle = document.getElementById('sidebar-theme-toggle') as HTMLInputElement; 
     const isDark = savedTheme === 'dark';
     document.body.classList.toggle('dark-theme', isDark);
     if (themeToggle) themeToggle.checked = isDark;
