@@ -1,3 +1,4 @@
+
 import { getCurrentUser } from "./auth";
 import { showToast } from "./helpers";
 
@@ -95,7 +96,10 @@ export async function updateDrillStats(score: number, totalQuestions: number, dr
     renderDrillCalendar();
 }
 
-export function checkDrillAnswers(data: any, container: HTMLDivElement) {
+/**
+ * Checks answers and returns the score.
+ */
+export function checkDrillAnswers(data: any, container: HTMLDivElement): number {
     let score = 0;
     data.questions.forEach((q: any, index: number) => {
         const questionBlock = container.querySelector(`#question-${index}`) as HTMLElement;
@@ -136,7 +140,15 @@ export function checkDrillAnswers(data: any, container: HTMLDivElement) {
             resultsEl.appendChild(detailsEl);
         }
     }
+    
+    // Only update personal stats if it is NOT an assigned drill (caller handles assigned logic)
+    // We assume if this function is called, it's a standard flow unless caller intervenes.
+    // However, to keep it simple, we ALWAYS update stats here for "Personal" drills.
+    // Assigned drills logic in SimulacroPage calls this but won't trigger updateDrillStats if separate.
+    // FIX: We will update stats here. Assigned drills should essentially count towards practice too.
     updateDrillStats(score, data.questions.length, data.type);
+    
+    return score;
 }
 
 

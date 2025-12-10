@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { APP_PAGE_ICONS, APP_PAGES, SOSGEN_LOGO_SVG } from './data';
-import { showTipOfTheDay } from './utils/helpers';
+import { showTipOfTheDay, showToast } from './utils/helpers';
 import { setCurrentUser, getCurrentUser, clearCurrentUser, User } from './utils/auth';
 import { renderLoginPage } from './components/LoginPage';
 import { renderDashboard } from './components/DashboardPage';
@@ -18,11 +18,15 @@ import { renderMeteos } from './components/MeteosPage';
 import { renderRadioavisos } from './components/RadioavisosPage';
 import { renderAdminPage } from './components/AdminPage';
 import { renderFfaaPage } from './components/FfaaPage';
+import { renderSupervisorPage } from './components/SupervisorPage';
+import { renderProfilePage } from './components/ProfilePage';
 
 const pageRenderStatus: { [key: number]: boolean } = {};
 let isTransitioning = false;
 const animationDuration = 400;
 
+// Page Mapping must match APP_PAGES in data.ts
+// 0: HOME, 1: RELAY, 2: OCEANO, 3: PROTOCOLO, 4: NX, 5: WX, 6: FFAA, 7: SEÑALES, 8: SIMULACRO, 9: INFO, 10: ADMIN, 11: SUPERVISOR, 12: PROFILE (Hidden)
 const pageRenderers = [
     renderDashboard,
     renderSosgen,
@@ -35,7 +39,79 @@ const pageRenderers = [
     renderSimulacro,
     renderInfo,
     renderAdminPage,
+    renderSupervisorPage,
+    renderProfilePage
 ];
+
+// --- SESSION & NOTIFICATION LOGIC ---
+let sessionTimeoutId: number | null = null;
+let notificationIntervalId: number | null = null;
+const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 Hours
+const NOTIFICATION_POLL_MS = 60 * 1000; // 1 Minute
+
+function resetSessionTimeout() {
+    if (sessionTimeoutId) window.clearTimeout(sessionTimeoutId);
+    sessionTimeoutId = window.setTimeout(() => {
+        showToast("Sesión caducada por inactividad.", "error");
+        handleLogout();
+    }, SESSION_TIMEOUT_MS);
+}
+
+async function checkNotifications() {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    try {
+        // Poll messages
+        const msgRes = await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_messages', username: user.username })
+        });
+        
+        let hasUnreadMessages = false;
+        if (msgRes.ok) {
+            const msgs: any[] = await msgRes.json();
+            hasUnreadMessages = msgs.some(m => m.receiver_name === user.username && !m.is_read);
+        }
+
+        // Poll assigned drills
+        const drillRes = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills`);
+        let hasPendingDrills = false;
+        if (drillRes.ok) {
+            const drills: any[] = await drillRes.json();
+            hasPendingDrills = drills.length > 0;
+        }
+
+        // Update UI
+        updateNotificationBadges(hasUnreadMessages, hasPendingDrills);
+
+    } catch (e) {
+        console.error("Notification poll failed", e);
+    }
+}
+
+function updateNotificationBadges(unreadMessages: boolean, pendingDrills: boolean) {
+    // 1. Profile/User Badge
+    const userDisplay = document.querySelector('.nav-user-display');
+    const existingBadge = userDisplay?.querySelector('.notification-badge');
+    if (unreadMessages) {
+        if (!existingBadge && userDisplay) userDisplay.innerHTML += `<span class="notification-badge"></span>`;
+    } else {
+        if (existingBadge) existingBadge.remove();
+    }
+
+    // 2. Drill Tab Badge
+    const drillTab = document.querySelector('.nav-link[title="SIMULACRO"]');
+    const drillBadge = drillTab?.querySelector('.notification-badge');
+    if (pendingDrills) {
+        if (!drillBadge && drillTab) drillTab.innerHTML += `<span class="notification-badge" style="background-color: var(--warning-color); border: 1px solid #fff;"></span>`;
+    } else {
+        if (drillBadge) drillBadge.remove();
+    }
+}
+
+// --- ROUTING ---
 
 function switchToPage(pageIndex: number, subTabId?: string) {
     if (isTransitioning) return;
@@ -43,7 +119,15 @@ function switchToPage(pageIndex: number, subTabId?: string) {
     const outgoingPanel = document.querySelector('.page-panel.active') as HTMLElement | null;
     const incomingPanel = document.getElementById(`page-${pageIndex}`) as HTMLElement | null;
 
-    if (!incomingPanel || incomingPanel === outgoingPanel) return;
+    if (!incomingPanel) return;
+    if (incomingPanel === outgoingPanel) {
+        // Special case: if we switch to same page with a subtab, just do the subtab
+        if (subTabId) {
+            const subTabButton = incomingPanel?.querySelector<HTMLButtonElement>(`[data-target="${subTabId}"]`);
+            subTabButton?.click();
+        }
+        return;
+    }
 
     isTransitioning = true;
     document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
@@ -55,7 +139,8 @@ function switchToPage(pageIndex: number, subTabId?: string) {
     }
 
     incomingPanel.classList.add('active');
-    if (!pageRenderStatus[pageIndex]) {
+    // Always render dynamic pages to ensure data freshness
+    if (pageIndex === 11 || pageIndex === 12 || !pageRenderStatus[pageIndex]) {
         pageRenderers[pageIndex](incomingPanel);
         pageRenderStatus[pageIndex] = true;
     }
@@ -64,7 +149,7 @@ function switchToPage(pageIndex: number, subTabId?: string) {
         setTimeout(() => {
             const subTabButton = incomingPanel?.querySelector<HTMLButtonElement>(`[data-target="${subTabId}"]`);
             subTabButton?.click();
-        }, 0);
+        }, 100);
     }
 
     setTimeout(() => {
@@ -79,6 +164,9 @@ function renderMainApp(user: User) {
     const container = document.getElementById('app');
     if (!container) return;
     
+    // Define the profile page index (last in the list, hidden from standard nav)
+    const profilePageIndex = 12; 
+
     container.innerHTML = `
         <nav>
             <div class="nav-top"></div>
@@ -89,7 +177,10 @@ function renderMainApp(user: User) {
                 </div>
                 <div class="nav-links-container">
                     ${APP_PAGES.map((page, index) => {
-                        if (page.name === 'HOME' || (page.name === 'ADMIN' && !user.isAdmin)) return '';
+                        if (page.name === 'HOME') return '';
+                        if (page.name === 'ADMIN' && !user.isAdmin) return '';
+                        if (page.name === 'SUPERVISOR' && !(user.isSupervisor || user.isAdmin)) return '';
+                        
                         return `
                         <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
                             ${APP_PAGE_ICONS[index]}
@@ -105,8 +196,8 @@ function renderMainApp(user: User) {
                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg>
                     </div>
                     <div class="user-session-controls">
-                        <span class="nav-user-display" title="Usuario conectado">${user.username}</span>
-                        <button class="logout-btn" id="logout-btn" title="Cerrar sesión de ${user.username}">
+                        <span class="nav-user-display" title="Ver Perfil" data-page-index="${profilePageIndex}">${user.username}</span>
+                        <button class="logout-btn" id="logout-btn" title="Cerrar sesión">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>
                             <span>Salir</span>
                         </button>
@@ -114,10 +205,15 @@ function renderMainApp(user: User) {
                 </div>
             </div>
         </nav>
-        <main>${APP_PAGES.map((page, index) => {
-            if (page.name === 'ADMIN' && !user.isAdmin) return '';
-            return `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`;
-        }).join('')}</main>
+        <main>
+            ${APP_PAGES.map((page, index) => {
+                // Should render page panels for all pages, including hidden ones logic check handled in routing
+                if (page.name === 'ADMIN' && !user.isAdmin) return '';
+                if (page.name === 'SUPERVISOR' && !(user.isSupervisor || user.isAdmin)) return '';
+                return `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`;
+            }).join('')}
+            <div class="page-panel" id="page-${profilePageIndex}"></div>
+        </main>
     `;
 
     initializeTheme();
@@ -130,6 +226,12 @@ function renderMainApp(user: User) {
 
     addMainAppEventListeners();
     showTipOfTheDay();
+    resetSessionTimeout();
+    
+    // Start polling for notifications
+    if (notificationIntervalId) clearInterval(notificationIntervalId);
+    notificationIntervalId = window.setInterval(checkNotifications, NOTIFICATION_POLL_MS);
+    checkNotifications(); // Initial check
 }
 
 function addMainAppEventListeners() {
@@ -137,15 +239,21 @@ function addMainAppEventListeners() {
     if (!container) return;
 
     container.addEventListener('click', (event) => {
+        resetSessionTimeout(); // User activity resets timeout
         const target = event.target as HTMLElement;
         const navLink = target.closest('.nav-link');
         const brandLink = target.closest('.nav-brand');
         const logoutBtn = target.closest('#logout-btn');
+        const userDisplay = target.closest('.nav-user-display');
 
         if (brandLink) switchToPage(0);
         if (navLink) switchToPage(parseInt(navLink.getAttribute('data-page-index')!, 10));
+        if (userDisplay) switchToPage(parseInt(userDisplay.getAttribute('data-page-index')!, 10));
         if (logoutBtn) handleLogout();
     });
+
+    // Reset timeout on keypress too
+    window.addEventListener('keypress', resetSessionTimeout);
 
     const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
     if (themeToggle) {
@@ -174,7 +282,9 @@ function handleLogin(user: User) {
 function handleLogout() {
     sessionStorage.removeItem('sosgen_user');
     clearCurrentUser();
-    // Reset page status to force re-render on next login
+    if (sessionTimeoutId) clearTimeout(sessionTimeoutId);
+    if (notificationIntervalId) clearInterval(notificationIntervalId);
+    
     Object.keys(pageRenderStatus).forEach(key => delete pageRenderStatus[Number(key)]);
     const container = document.getElementById('app');
     if(container) renderLoginPage(container, handleLogin);
