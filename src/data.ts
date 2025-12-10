@@ -18,6 +18,8 @@ export interface ReferenceTableEntry {
 }
 export type ReferenceTableData = ReferenceTableEntry[];
 
+export const SOSGEN_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
+
 export const APP_PAGE_ICONS = [
     // Dashboard: Home
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`,
@@ -256,7 +258,6 @@ export const DAILY_TIPS: string[] = [
 ];
 
 export const LIGHT_CHARACTERISTIC_TERMS: { [key: string]: { es: string; en: string } } = {
-    // Rhythms
     'F': { es: 'Fija', en: 'Fixed' },
     'FL': { es: 'de Destellos', en: 'Flashing' },
     'LFL': { es: 'de Destello Largo', en: 'Long-Flashing' },
@@ -271,10 +272,8 @@ export const LIGHT_CHARACTERISTIC_TERMS: { [key: string]: { es: string; en: stri
     'MO': { es: 'de Código Morse', en: 'Morse Code' },
     'F FL': { es: 'Fija y de Destellos', en: 'Fixed and Flashing' },
     'AL': { es: 'Alternativa', en: 'Alternating' },
-    // Groupings
     'GROUP': { es: 'de Grupo', en: 'Group' },
     'COMPOSITE': { es: 'de Grupo Compuesto', en: 'Composite Group' },
-    // Colors
     'W': { es: 'Blanca', en: 'White' },
     'R': { es: 'Roja', en: 'Red' },
     'G': { es: 'Verde', en: 'Green' },
@@ -283,25 +282,18 @@ export const LIGHT_CHARACTERISTIC_TERMS: { [key: string]: { es: string; en: stri
 };
 
 export const IALA_BUOY_DATA = [
-    // Lateral Marks
     { category: 'Laterales', type: 'Babor', region: 'A', daymark: { shape: 'can', colors: ['red'], topmark: { shape: 'can', color: 'red' } }, light: { characteristic: 'Fl R', color: 'R' }, purpose: 'Región A: Señal de babor. Debe dejarse por babor (izquierda) al entrar a puerto.' },
     { category: 'Laterales', type: 'Estribor', region: 'A', daymark: { shape: 'conical', colors: ['green'], topmark: { shape: 'cone', arrangement: 'up', color: 'green' } }, light: { characteristic: 'Fl G', color: 'G' }, purpose: 'Región A: Señal de estribor. Debe dejarse por estribor (derecha) al entrar a puerto.' },
     { category: 'Laterales', type: 'Babor', region: 'B', daymark: { shape: 'can', colors: ['green'], topmark: { shape: 'can', color: 'green' } }, light: { characteristic: 'Fl G', color: 'G' }, purpose: 'Región B: Señal de babor. Debe dejarse por babor (izquierda) al entrar a puerto.' },
     { category: 'Laterales', type: 'Estribor', region: 'B', daymark: { shape: 'conical', colors: ['red'], topmark: { shape: 'cone', arrangement: 'up', color: 'red' } }, light: { characteristic: 'Fl R', color: 'R' }, purpose: 'Región B: Señal de estribor. Debe dejarse por estribor (derecha) al entrar a puerto.' },
-    
-    // Preferred Channel Marks
     { category: 'Canal Preferido', type: 'Estribor', region: 'A', daymark: { shape: 'can', colors: ['red', 'green', 'red'], topmark: { shape: 'can', color: 'red' } }, light: { characteristic: 'Fl(2+1) R 10s', color: 'R' }, purpose: 'Región A: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
     { category: 'Canal Preferido', type: 'Babor', region: 'A', daymark: { shape: 'conical', colors: ['green', 'red', 'green'], topmark: { shape: 'cone', arrangement: 'up', color: 'green' } }, light: { characteristic: 'Fl(2+1) G 10s', color: 'G' }, purpose: 'Región A: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
     { category: 'Canal Preferido', type: 'Estribor', region: 'B', daymark: { shape: 'can', colors: ['green', 'red', 'green'], topmark: { shape: 'can', color: 'green' } }, light: { characteristic: 'Fl(2+1) G 10s', color: 'G' }, purpose: 'Región B: Canal preferido a estribor. El canal principal está a la derecha, se puede pasar por babor.' },
     { category: 'Canal Preferido', type: 'Babor', region: 'B', daymark: { shape: 'conical', colors: ['red', 'green', 'red'], topmark: { shape: 'cone', arrangement: 'up', color: 'red' } }, light: { characteristic: 'Fl(2+1) R 10s', color: 'R' }, purpose: 'Región B: Canal preferido a babor. El canal principal está a la izquierda, se puede pasar por estribor.' },
-
-    // Cardinal Marks
     { category: 'Cardinales', type: 'Norte', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'yellow'], topmark: { shape: 'double_cone', arrangement: 'up', color: 'black' } }, light: { characteristic: 'VQ W', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Norte de la marca. Se debe pasar al Norte de ella.' },
     { category: 'Cardinales', type: 'Este', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'yellow', 'black'], topmark: { shape: 'double_cone', arrangement: 'base_to_base', color: 'black' } }, light: { characteristic: 'VQ(3) W 5s', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Este de la marca. Se debe pasar al Este de ella.' },
     { category: 'Cardinales', type: 'Sur', region: 'Both', daymark: { shape: 'pillar', colors: ['yellow', 'black'], topmark: { shape: 'double_cone', arrangement: 'down', color: 'black' } }, light: { characteristic: 'VQ(6)+LFl W 10s', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Sur de la marca. Se debe pasar al Sur de ella.' },
     { category: 'Cardinales', type: 'Oeste', region: 'Both', daymark: { shape: 'pillar', colors: ['yellow', 'black', 'yellow'], topmark: { shape: 'double_cone', arrangement: 'point_to_point', color: 'black' } }, light: { characteristic: 'VQ(9) W 10s', color: 'W' }, purpose: 'Indica que las aguas seguras se encuentran al Oeste de la marca. Se debe pasar al Oeste de ella.' },
-
-    // Other Marks
     { category: 'Otras', type: 'Peligro Aislado', region: 'Both', daymark: { shape: 'pillar', colors: ['black', 'red', 'black'], topmark: { shape: 'double_sphere', color: 'black' } }, light: { characteristic: 'Fl(2) W 5s', color: 'W' }, purpose: 'Se erige sobre un peligro de extensión reducida rodeado de aguas navegables. Se puede pasar por cualquier lado.' },
     { category: 'Otras', type: 'Aguas Seguras', region: 'Both', daymark: { shape: 'spherical', colors: ['red', 'white'], vertical: true, topmark: { shape: 'sphere', color: 'red' } }, light: { characteristic: 'Iso W 6s', color: 'W' }, purpose: 'Indica que hay aguas navegables en todas sus bandas. Usada como marca de centro de canal o de recalada.' },
     { category: 'Otras', type: 'Marca Especial', region: 'Both', daymark: { shape: 'optional', colors: ['yellow'], topmark: { shape: 'cross_upright', color: 'yellow' } }, light: { characteristic: 'Fl Y 5s', color: 'Y' }, purpose: 'Indica una zona o configuración especial (zona de ejercicios, cables submarinos, ODAS, etc.).' },

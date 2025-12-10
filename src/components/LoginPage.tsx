@@ -1,7 +1,7 @@
+
+import { SOSGEN_LOGO_SVG } from "../data";
 import { User } from "../utils/auth";
 import { showToast } from "../utils/helpers";
-
-const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
 
 let isRegisterView = false;
 
@@ -146,7 +146,7 @@ export function renderLoginPage(container: HTMLElement, onLogin: (user: User) =>
         <div class="login-page">
             <div class="login-container">
                 <h1 class="login-title">
-                    ${NEW_LOGO_SVG.replace('nav-logo', 'banner-logo')}
+                    ${SOSGEN_LOGO_SVG.replace('nav-logo', 'banner-logo')}
                     <span>SOSGEN</span>
                 </h1>
                 <p class="login-subtitle">Asistente de comunicaciones marítimas con IA.</p>

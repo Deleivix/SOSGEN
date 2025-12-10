@@ -3,7 +3,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import { APP_PAGE_ICONS, APP_PAGES } from './data';
+import { APP_PAGE_ICONS, APP_PAGES, SOSGEN_LOGO_SVG } from './data';
 import { showTipOfTheDay } from './utils/helpers';
 import { setCurrentUser, getCurrentUser, clearCurrentUser, User } from './utils/auth';
 import { renderLoginPage } from './components/LoginPage';
@@ -19,24 +19,22 @@ import { renderRadioavisos } from './components/RadioavisosPage';
 import { renderAdminPage } from './components/AdminPage';
 import { renderFfaaPage } from './components/FfaaPage';
 
-const NEW_LOGO_SVG = `<svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="#2D8B8B" d="M50,10 A40,40 0 1 1 50,90 A40,40 0 1 1 50,10 M50,18 A32,32 0 1 0 50,82 A32,32 0 1 0 50,18"></path><path fill="white" d="M50,22 A28,28 0 1 1 50,78 A28,28 0 1 1 50,22"></path><path fill="#8BC34A" d="M50,10 A40,40 0 0 1 90,50 L82,50 A32,32 0 0 0 50,18 Z"></path><path fill="#F7F9FA" d="M10,50 A40,40 0 0 1 50,10 L50,18 A32,32 0 0 0 18,50 Z"></path><path fill="#2D8B8B" d="M50,90 A40,40 0 0 1 10,50 L18,50 A32,32 0 0 0 50,82 Z"></path><path fill="white" d="M90,50 A40,40 0 0 1 50,90 L50,82 A32,32 0 0 0 82,50 Z"></path></svg>`;
-
 const pageRenderStatus: { [key: number]: boolean } = {};
 let isTransitioning = false;
 const animationDuration = 400;
 
 const pageRenderers = [
-    (container: HTMLElement) => renderDashboard(container),
-    (container: HTMLElement) => renderSosgen(container),
-    (container: HTMLElement) => renderRegistroOceano(container),
-    (container: HTMLElement) => renderProtocolo(container),
-    (container: HTMLElement) => renderRadioavisos(container),
-    (container: HTMLElement) => renderMeteos(container),
-    (container: HTMLElement) => renderFfaaPage(container),
-    (container: HTMLElement) => renderMaritimeSignalsSimulator(container),
-    (container: HTMLElement) => renderSimulacro(container),
-    (container: HTMLElement) => renderInfo(container),
-    (container: HTMLElement) => renderAdminPage(container), // Admin page renderer
+    renderDashboard,
+    renderSosgen,
+    renderRegistroOceano,
+    renderProtocolo,
+    renderRadioavisos,
+    renderMeteos,
+    renderFfaaPage,
+    renderMaritimeSignalsSimulator,
+    renderSimulacro,
+    renderInfo,
+    renderAdminPage,
 ];
 
 function switchToPage(pageIndex: number, subTabId?: string) {
@@ -86,17 +84,12 @@ function renderMainApp(user: User) {
             <div class="nav-top"></div>
             <div class="nav-bottom">
                 <div class="nav-brand" style="cursor: pointer;" title="Ir a HOME">
-                    ${NEW_LOGO_SVG}
+                    ${SOSGEN_LOGO_SVG}
                     <span>SOSGEN</span>
                 </div>
                 <div class="nav-links-container">
                     ${APP_PAGES.map((page, index) => {
-                        if (page.name === 'HOME') {
-                            return ''; // Do not render HOME tab
-                        }
-                        if (page.name === 'ADMIN' && !user.isAdmin) {
-                            return ''; // Don't render admin tab for non-admins
-                        }
+                        if (page.name === 'HOME' || (page.name === 'ADMIN' && !user.isAdmin)) return '';
                         return `
                         <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
                             ${APP_PAGE_ICONS[index]}
@@ -128,6 +121,7 @@ function renderMainApp(user: User) {
     `;
 
     initializeTheme();
+    // Render first page immediately
     const initialActivePanel = container.querySelector<HTMLElement>('.page-panel.active');
     if (initialActivePanel) {
         pageRenderers[0](initialActivePanel);
@@ -149,18 +143,16 @@ function addMainAppEventListeners() {
         const logoutBtn = target.closest('#logout-btn');
 
         if (brandLink) switchToPage(0);
-        if (navLink) {
-            const pageIndex = parseInt(navLink.getAttribute('data-page-index')!, 10);
-            switchToPage(pageIndex);
-        }
+        if (navLink) switchToPage(parseInt(navLink.getAttribute('data-page-index')!, 10));
         if (logoutBtn) handleLogout();
     });
 
     const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
     if (themeToggle) {
         themeToggle.addEventListener('change', () => {
-            document.body.classList.toggle('dark-theme', themeToggle.checked);
-            localStorage.setItem('theme', themeToggle.checked ? 'dark' : 'light');
+            const isDark = themeToggle.checked;
+            document.body.classList.toggle('dark-theme', isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
         });
     }
 }
