@@ -22,6 +22,7 @@ type UserStat = {
 
 let usersStats: UserStat[] = [];
 let selectedUserIds: number[] = [];
+// generatedDrillData structure: { type: string, scenario: string, questions: [{ type: 'choice'|'ordering', questionText: string, options: string[], correctAnswerIndex?: number }] }
 let generatedDrillData: any = null;
 let isLoading = false;
 let currentTab: 'dashboard' | 'assign' | 'history' = 'dashboard';
@@ -50,10 +51,85 @@ async function fetchUsersStats() {
     }
 }
 
+function scrapeDrillDataFromEditor() {
+    const editor = document.getElementById('drill-editor');
+    if (!editor) return null;
+
+    const scenarioInput = document.getElementById('editor-scenario') as HTMLTextAreaElement;
+    const typeSelect = document.getElementById('editor-drill-type') as HTMLSelectElement;
+    
+    if (!scenarioInput.value.trim()) {
+        showToast("El escenario no puede estar vacío", "error");
+        return null;
+    }
+
+    const questions: any[] = [];
+    const questionBlocks = editor.querySelectorAll('.editor-question-block');
+    let isValid = true;
+
+    questionBlocks.forEach((block) => {
+        const qText = (block.querySelector('.q-text-input') as HTMLInputElement).value.trim();
+        const qType = (block.querySelector('.q-type-select') as HTMLSelectElement).value;
+        const optionsInputs = block.querySelectorAll('.q-option-input');
+        
+        if (!qText) { isValid = false; return; }
+
+        const options: string[] = [];
+        let correctAnswerIndex = 0;
+
+        optionsInputs.forEach((input, idx) => {
+            const val = (input as HTMLInputElement).value.trim();
+            if (val) options.push(val);
+            // Check if this option is selected as correct (only for choice type)
+            const radio = block.querySelector(`input[name="radio-grp-${block.id}"]`) as HTMLInputElement; // simplistic check, logic below handles specific radio
+        });
+
+        if (options.length < 2) {
+            showToast("Cada pregunta debe tener al menos 2 opciones.", "error");
+            isValid = false;
+            return;
+        }
+
+        if (qType === 'choice') {
+            const checkedRadio = block.querySelector('input[type="radio"]:checked') as HTMLInputElement;
+            if (!checkedRadio) {
+                showToast("Marque la respuesta correcta en las preguntas tipo Test.", "error");
+                isValid = false;
+                return;
+            }
+            correctAnswerIndex = parseInt(checkedRadio.value);
+        }
+        // For 'ordering', the order in 'options' IS the correct order.
+
+        questions.push({
+            type: qType,
+            questionText: qText,
+            options: options,
+            correctAnswerIndex: qType === 'choice' ? correctAnswerIndex : undefined
+        });
+    });
+
+    if (!isValid) return null;
+    if (questions.length === 0) {
+        showToast("Añada al menos una pregunta.", "error");
+        return null;
+    }
+
+    return {
+        type: typeSelect ? typeSelect.value : 'manual',
+        scenario: scenarioInput.value.trim(),
+        questions: questions
+    };
+}
+
 async function assignDrill() {
     const user = getCurrentUser();
-    if (!user || !generatedDrillData || selectedUserIds.length === 0) {
-        showToast("Seleccione usuarios y genere un simulacro.", "error");
+    
+    // Update data from the editor inputs before assigning
+    const finalDrillData = scrapeDrillDataFromEditor();
+    
+    if (!user || !finalDrillData || selectedUserIds.length === 0) {
+        if (selectedUserIds.length === 0) showToast("Seleccione al menos un usuario.", "error");
         return;
     }
 
@@ -65,13 +141,13 @@ async function assignDrill() {
                 action: 'assign_drill',
                 supervisorUsername: user.username,
                 targetUserIds: selectedUserIds,
-                drillType: generatedDrillData.type,
-                drillData: generatedDrillData
+                drillType: finalDrillData.type,
+                drillData: finalDrillData
             })
         });
         if (!response.ok) throw new Error('Failed to assign');
         showToast("Simulacro asignado correctamente.", "success");
-        generatedDrillData = null;
+        generatedDrillData = null; // Reset
         selectedUserIds = [];
         renderContent();
     } catch (e) {
@@ -92,11 +168,27 @@ async function generateDrillPreview(type: string) {
         });
         if (!response.ok) throw new Error('Failed to generate');
         generatedDrillData = await response.json();
-        renderAssignTab(); // Re-render to show preview
+        renderAssignTab(); // Re-render to show editor populated
     } catch (e) {
         showToast("Error generando simulacro", "error");
         container.innerHTML = `<p class="error">Error al generar.</p>`;
     }
+}
+
+function createManualDrill() {
+    generatedDrillData = {
+        type: 'manual',
+        scenario: 'Escriba aquí el escenario del simulacro...',
+        questions: [
+            {
+                type: 'choice',
+                questionText: 'Pregunta 1...',
+                options: ['Opción A', 'Opción B'],
+                correctAnswerIndex: 0
+            }
+        ]
+    };
+    renderAssignTab();
 }
 
 function exportToCSV() {
@@ -203,18 +295,30 @@ function renderAssignTab() {
         </label>
     `).join('');
 
-    let previewHtml = '<p class="drill-placeholder">Genere un simulacro para previsualizarlo.</p>';
+    let editorHtml = '<div class="drill-placeholder" style="padding: 2rem;">Genere un simulacro o cree uno manual para editarlo.</div>';
+    
     if (generatedDrillData) {
-        previewHtml = `
-            <div style="background:var(--bg-main); padding:1rem; border:1px solid var(--border-color); border-radius:8px; margin-bottom:1rem;">
-                <h4>${generatedDrillData.type === 'dsc' ? 'Alerta DSC' : 'Radiotelefonía'}</h4>
-                <p style="font-family:var(--font-mono); font-size:0.9rem;">${generatedDrillData.scenario}</p>
-                <div style="margin-top:1rem;">
-                    <strong>Preguntas:</strong>
-                    <ul style="padding-left:1.5rem; margin-top:0.5rem;">
-                        ${generatedDrillData.questions.map((q:any) => `<li>${q.questionText}</li>`).join('')}
-                    </ul>
+        editorHtml = `
+            <div id="drill-editor" style="background:var(--bg-main); padding:1.5rem; border:1px solid var(--border-color); border-radius:8px; margin-bottom:1rem;">
+                <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
+                    <label style="font-weight: bold; font-size: 0.9rem;">Tipo General:</label>
+                    <select id="editor-drill-type" class="modern-input" style="width: auto; padding: 0.3rem;">
+                        <option value="dsc" ${generatedDrillData.type === 'dsc' ? 'selected' : ''}>Alerta DSC</option>
+                        <option value="radiotelephony" ${generatedDrillData.type === 'radiotelephony' ? 'selected' : ''}>Radiotelefonía</option>
+                        <option value="manual" ${generatedDrillData.type === 'manual' ? 'selected' : ''}>Manual / Otro</option>
+                    </select>
                 </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">Escenario:</label>
+                    <textarea id="editor-scenario" class="styled-textarea" style="min-height: 100px;">${generatedDrillData.scenario}</textarea>
+                </div>
+
+                <div id="editor-questions-container">
+                    ${generatedDrillData.questions.map((q: any, idx: number) => renderQuestionBlock(q, idx)).join('')}
+                </div>
+
+                <button id="add-question-btn" class="secondary-btn" style="width: 100%; margin-top: 1rem; border-style: dashed;">+ Añadir Pregunta</button>
             </div>
             <button id="confirm-assign-btn" class="primary-btn">Confirmar y Enviar a Seleccionados</button>
         `;
@@ -222,7 +326,7 @@ function renderAssignTab() {
 
     return `
         <div style="display:grid; grid-template-columns: 300px 1fr; gap:2rem;">
-            <div style="border:1px solid var(--border-color); border-radius:8px; height:500px; display:flex; flex-direction:column;">
+            <div style="border:1px solid var(--border-color); border-radius:8px; height:600px; display:flex; flex-direction:column;">
                 <div style="padding:1rem; border-bottom:1px solid var(--border-color); font-weight:bold; background:var(--bg-card);">Seleccionar Usuarios</div>
                 <div style="overflow-y:auto; flex-grow:1; background:var(--bg-main);">
                     ${userListHtml}
@@ -230,15 +334,75 @@ function renderAssignTab() {
             </div>
             <div>
                 <div style="margin-bottom:2rem;">
-                    <h3 class="reference-table-subtitle" style="margin-top:0;">Generar Nuevo Simulacro</h3>
-                    <div style="display:flex; gap:1rem;">
-                        <button class="secondary-btn gen-drill-btn" data-type="dsc">Generar DSC</button>
-                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony">Generar Voz</button>
+                    <h3 class="reference-table-subtitle" style="margin-top:0;">Origen del Simulacro</h3>
+                    <div style="display:flex; gap:1rem; flex-wrap: wrap;">
+                        <button class="secondary-btn gen-drill-btn" data-type="dsc">Generar DSC (IA)</button>
+                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony">Generar Voz (IA)</button>
+                        <button id="create-manual-btn" class="secondary-btn" style="border-color: var(--accent-color); color: var(--accent-color-dark);">Crear Manualmente</button>
                     </div>
                 </div>
                 <div id="drill-preview-area">
-                    ${previewHtml}
+                    ${editorHtml}
                 </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderQuestionBlock(q: any, idx: number) {
+    // q.type can be 'choice' (default) or 'ordering'
+    const type = q.type || 'choice'; 
+    const isOrdering = type === 'ordering';
+    
+    let optionsHtml = '';
+    
+    // Ensure we have at least 2 options slots if empty
+    const options = q.options && q.options.length > 0 ? q.options : ['', ''];
+
+    options.forEach((opt: string, optIdx: number) => {
+        const isCorrect = q.correctAnswerIndex === optIdx;
+        
+        // For Ordering: No radio button. The order IS the answer.
+        // For Choice: Radio button to mark correct.
+        
+        const selectorHtml = isOrdering 
+            ? `<span style="font-weight:bold; color:var(--text-secondary); padding:0 0.5rem;">${optIdx + 1}</span>`
+            : `<input type="radio" name="radio-grp-qblock-${idx}" value="${optIdx}" ${isCorrect ? 'checked' : ''} title="Marcar como correcta">`;
+
+        optionsHtml += `
+            <div class="q-option-row" style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+                ${selectorHtml}
+                <input type="text" class="modern-input q-option-input" value="${opt}" placeholder="Opción ${optIdx + 1}">
+                <button class="tertiary-btn remove-opt-btn" style="padding:0.2rem 0.5rem;">✕</button>
+            </div>
+        `;
+    });
+
+    // Helper text
+    const helperText = isOrdering 
+        ? "Introduzca las opciones en el <strong>ORDEN CORRECTO</strong>. Se barajarán automáticamente al usuario." 
+        : "Marque la casilla redonda de la respuesta correcta.";
+
+    return `
+        <div class="editor-question-block" id="qblock-${idx}" style="background:var(--bg-card); padding:1rem; border:1px solid var(--border-color); border-radius:6px; margin-bottom:1rem; position:relative;">
+            <button class="tertiary-btn remove-q-btn" style="position:absolute; top:0.5rem; right:0.5rem; padding:0.2rem 0.5rem; font-size:0.8rem;">Eliminar Pregunta</button>
+            
+            <div style="margin-bottom: 0.5rem; display:flex; justify-content:space-between; align-items:center; padding-right: 80px;">
+                <label style="font-weight:bold; font-size:0.9rem;">Pregunta ${idx + 1}</label>
+                <select class="modern-input q-type-select" style="width: auto; padding: 0.2rem; font-size: 0.8rem;">
+                    <option value="choice" ${!isOrdering ? 'selected' : ''}>Tipo Test (Selección)</option>
+                    <option value="ordering" ${isOrdering ? 'selected' : ''}>Ordenar Secuencia</option>
+                </select>
+            </div>
+            
+            <input type="text" class="modern-input q-text-input" value="${q.questionText}" placeholder="Texto de la pregunta" style="margin-bottom:1rem; font-weight:500;">
+            
+            <div style="background: var(--bg-main); padding: 0.5rem; border-radius: 4px;">
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.5rem;">${helperText}</p>
+                <div class="q-options-container">
+                    ${optionsHtml}
+                </div>
+                <button class="secondary-btn add-opt-btn" style="width:100%; padding:0.3rem; margin-top:0.5rem; font-size:0.8rem;">+ Añadir Opción</button>
             </div>
         </div>
     `;
@@ -261,6 +425,112 @@ function renderContent() {
     container.innerHTML = html;
 }
 
+// --- DYNAMIC EDITOR EVENTS ---
+function attachEditorEvents(container: HTMLElement) {
+    
+    // Add Question
+    container.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.id === 'add-question-btn') {
+            const container = document.getElementById('editor-questions-container');
+            if (!container) return;
+            const idx = container.children.length;
+            const emptyQ = { type: 'choice', questionText: '', options: ['', ''], correctAnswerIndex: 0 };
+            container.insertAdjacentHTML('beforeend', renderQuestionBlock(emptyQ, idx));
+        }
+        
+        // Remove Question
+        if (target.classList.contains('remove-q-btn')) {
+            target.closest('.editor-question-block')?.remove();
+        }
+
+        // Add Option
+        if (target.classList.contains('add-opt-btn')) {
+            const block = target.closest('.editor-question-block');
+            const optsContainer = block?.querySelector('.q-options-container');
+            if (!block || !optsContainer) return;
+            
+            const currentOpts = optsContainer.querySelectorAll('.q-option-row').length;
+            if (currentOpts >= 4) {
+                showToast("Máximo 4 opciones por pregunta.", "info");
+                return;
+            }
+            
+            const isOrdering = (block.querySelector('.q-type-select') as HTMLSelectElement).value === 'ordering';
+            const idx = block.id.replace('qblock-', '');
+            const newOptIdx = currentOpts;
+            
+            const selectorHtml = isOrdering 
+            ? `<span style="font-weight:bold; color:var(--text-secondary); padding:0 0.5rem;">${newOptIdx + 1}</span>`
+            : `<input type="radio" name="radio-grp-qblock-${idx}" value="${newOptIdx}" title="Marcar como correcta">`;
+
+            const html = `
+                <div class="q-option-row" style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+                    ${selectorHtml}
+                    <input type="text" class="modern-input q-option-input" placeholder="Opción ${newOptIdx + 1}">
+                    <button class="tertiary-btn remove-opt-btn" style="padding:0.2rem 0.5rem;">✕</button>
+                </div>
+            `;
+            optsContainer.insertAdjacentHTML('beforeend', html);
+        }
+
+        // Remove Option
+        if (target.classList.contains('remove-opt-btn')) {
+            const row = target.closest('.q-option-row');
+            const container = target.closest('.q-options-container');
+            if (row && container) {
+                // Prevent having less than 2 options
+                if (container.querySelectorAll('.q-option-row').length <= 2) {
+                    showToast("Mínimo 2 opciones.", "info");
+                    return;
+                }
+                row.remove();
+                // Re-index remaining options (important for ordering numbers and radio values)
+                const block = container.closest('.editor-question-block');
+                if (block) refreshOptionsIndices(block as HTMLElement);
+            }
+        }
+    });
+
+    // Change Question Type
+    container.addEventListener('change', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('q-type-select')) {
+            const block = target.closest('.editor-question-block') as HTMLElement;
+            if (block) refreshOptionsIndices(block);
+        }
+    });
+}
+
+function refreshOptionsIndices(block: HTMLElement) {
+    const isOrdering = (block.querySelector('.q-type-select') as HTMLSelectElement).value === 'ordering';
+    const rows = block.querySelectorAll('.q-option-row');
+    const idx = block.id.replace('qblock-', '');
+    
+    // Update helper text
+    const p = block.querySelector('p');
+    if (p) {
+        p.innerHTML = isOrdering 
+            ? "Introduzca las opciones en el <strong>ORDEN CORRECTO</strong>. Se barajarán automáticamente al usuario." 
+            : "Marque la casilla redonda de la respuesta correcta.";
+    }
+
+    rows.forEach((row, i) => {
+        // Remove first child (selector) and re-insert correct one
+        row.firstElementChild?.remove();
+        
+        const selectorHtml = isOrdering 
+            ? `<span style="font-weight:bold; color:var(--text-secondary); padding:0 0.5rem;">${i + 1}</span>`
+            : `<input type="radio" name="radio-grp-qblock-${idx}" value="${i}" ${i === 0 ? 'checked' : ''} title="Marcar como correcta">`;
+        
+        row.insertAdjacentHTML('afterbegin', selectorHtml);
+        
+        // Update placeholder
+        const input = row.querySelector('.q-option-input') as HTMLInputElement;
+        if (input) input.placeholder = `Opción ${i + 1}`;
+    });
+}
+
 export function renderSupervisorPage(container: HTMLElement) {
     container.innerHTML = `
         <div class="content-card">
@@ -274,6 +544,7 @@ export function renderSupervisorPage(container: HTMLElement) {
     `;
 
     fetchUsersStats();
+    attachEditorEvents(container);
 
     container.addEventListener('click', e => {
         const target = e.target as HTMLElement;
@@ -294,6 +565,10 @@ export function renderSupervisorPage(container: HTMLElement) {
         if (target.classList.contains('gen-drill-btn')) {
             const type = target.getAttribute('data-type');
             if(type) generateDrillPreview(type);
+        }
+
+        if (target.id === 'create-manual-btn') {
+            createManualDrill();
         }
 
         if (target.id === 'confirm-assign-btn') assignDrill();

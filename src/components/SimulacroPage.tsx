@@ -61,7 +61,7 @@ function renderAssignedList() {
     container.innerHTML = assignedDrills.map(drill => `
         <div class="drill-card-assigned" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <div style="font-weight: 600; color: var(--text-primary);">${drill.drill_type === 'dsc' ? 'Alerta DSC' : 'Radiotelefonía'}</div>
+                <div style="font-weight: 600; color: var(--text-primary);">${drill.drill_type === 'dsc' ? 'Alerta DSC' : (drill.drill_type === 'manual' ? 'Simulacro Manual' : 'Radiotelefonía')}</div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary);">Asignado por: ${drill.supervisor_name} • ${new Date(drill.created_at).toLocaleDateString()}</div>
             </div>
             <button class="primary-btn-small start-assigned-btn" data-id="${drill.id}">Realizar</button>
@@ -150,6 +150,19 @@ export function renderSimulacro(container: HTMLElement) {
             const scenarioText = document.querySelector('.drill-scenario')?.textContent;
             if (scenarioText) speakText(scenarioText);
         }
+
+        // Handle Ordering Drills (Move Up/Down)
+        if (target.classList.contains('order-btn')) {
+            const item = target.closest('.order-item');
+            const list = item?.parentElement;
+            if (item && list) {
+                if (target.dataset.dir === 'up' && item.previousElementSibling) {
+                    list.insertBefore(item, item.previousElementSibling);
+                } else if (target.dataset.dir === 'down' && item.nextElementSibling) {
+                    list.insertBefore(item.nextElementSibling, item);
+                }
+            }
+        }
     });
 }
 
@@ -158,7 +171,7 @@ function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedI
     let html = `
         <div class="drill-scenario">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
-                <span>${drillData.scenario}</span>
+                <span style="white-space: pre-wrap;">${drillData.scenario}</span>
                 ${isVoiceDrill ? `<button id="btn-speak-scenario" class="secondary-btn" style="padding:0.4rem 0.8rem; font-size:0.85rem;" title="Escuchar"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z"/><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.483 5.483 0 0 1 11.025 8a5.483 5.483 0 0 1-1.61 3.89l.706.706z"/><path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 8.99 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z"/></svg></button>` : ''}
             </div>
         </div>
@@ -166,9 +179,29 @@ function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedI
     `;
     
     drillData.questions.forEach((q: any, index: number) => {
-        html += `
-            <div class="question-block" id="question-${index}" data-correct-index="${q.correctAnswerIndex}">
-                <p class="question-text">${index + 1}. ${q.questionText}</p>
+        const isOrdering = q.type === 'ordering';
+        
+        let optionsContent = '';
+        
+        if (isOrdering) {
+            // Shuffle options for ordering questions
+            const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+            optionsContent = `
+                <div class="ordering-list" id="sortable-${index}" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    ${shuffledOptions.map((opt: string) => `
+                        <div class="order-item" style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px;">
+                            <span class="opt-text">${opt}</span>
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                <button class="order-btn" data-dir="up" style="border:none; background:none; cursor:pointer; color:var(--text-secondary); line-height:1;">▲</button>
+                                <button class="order-btn" data-dir="down" style="border:none; background:none; cursor:pointer; color:var(--text-secondary); line-height:1;">▼</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            // Standard Multiple Choice
+            optionsContent = `
                 <div class="answer-options">
                     ${q.options.map((opt: string, optIndex: number) => `
                         <label class="answer-option" for="q${index}-opt${optIndex}">
@@ -177,6 +210,13 @@ function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedI
                         </label>
                     `).join('')}
                 </div>
+            `;
+        }
+
+        html += `
+            <div class="question-block" id="question-${index}" data-type="${isOrdering ? 'ordering' : 'choice'}" data-correct-index="${q.correctAnswerIndex}">
+                <p class="question-text">${index + 1}. ${q.questionText}</p>
+                ${optionsContent}
             </div>
         `;
     });

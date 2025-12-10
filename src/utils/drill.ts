@@ -8,6 +8,7 @@ type DrillStats = {
     totalQuestions: number;
     dsc: { taken: number; correct: number; questions: number; };
     radiotelephony: { taken: number; correct: number; questions: number; };
+    manual: { taken: number; correct: number; questions: number; }; // Added Manual Stats
     history: {
         timestamp: string;
         type: string;
@@ -31,6 +32,7 @@ async function loadDrillStats() {
             totalDrills: 0, totalCorrect: 0, totalQuestions: 0,
             dsc: { taken: 0, correct: 0, questions: 0 },
             radiotelephony: { taken: 0, correct: 0, questions: 0 },
+            manual: { taken: 0, correct: 0, questions: 0 },
             history: []
         };
 
@@ -70,10 +72,12 @@ export async function updateDrillStats(score: number, totalQuestions: number, dr
     drillStats.totalCorrect += score;
     drillStats.totalQuestions += totalQuestions;
 
-    if (!drillStats[drillType as keyof DrillStats]) {
-      (drillStats as any)[drillType] = { taken: 0, correct: 0, questions: 0 };
+    const safeType = drillType === 'dsc' || drillType === 'radiotelephony' ? drillType : 'manual';
+
+    if (!drillStats[safeType as keyof DrillStats]) {
+      (drillStats as any)[safeType] = { taken: 0, correct: 0, questions: 0 };
     }
-    const statsForType = (drillStats as any)[drillType];
+    const statsForType = (drillStats as any)[safeType];
     statsForType.taken++;
     statsForType.correct += score;
     statsForType.questions += totalQuestions;
@@ -104,25 +108,56 @@ export function checkDrillAnswers(data: any, container: HTMLDivElement): number 
     data.questions.forEach((q: any, index: number) => {
         const questionBlock = container.querySelector(`#question-${index}`) as HTMLElement;
         if (!questionBlock) return;
-        const correctAnswerIndex = parseInt(q.correctAnswerIndex, 10);
-        const selectedOption = container.querySelector<HTMLInputElement>(`input[name="question-${index}"]:checked`);
-        
-        questionBlock.querySelectorAll('.answer-option input').forEach(input => input.setAttribute('disabled', 'true'));
-        
-        const correctLabel = questionBlock.querySelector<HTMLLabelElement>(`label[for="q${index}-opt${correctAnswerIndex}"]`);
-        if (correctLabel) correctLabel.classList.add('correct');
 
-        if (selectedOption) {
-            const selectedAnswerIndex = parseInt(selectedOption.value, 10);
-            if (selectedAnswerIndex === correctAnswerIndex) {
+        const isOrdering = q.type === 'ordering';
+
+        if (isOrdering) {
+            // Logic for Ordering Questions
+            const userOrderElements = questionBlock.querySelectorAll('.opt-text');
+            const userOrder: string[] = [];
+            userOrderElements.forEach(el => userOrder.push(el.textContent || ''));
+            
+            // Compare user order with correct order (q.options)
+            const isCorrect = JSON.stringify(userOrder) === JSON.stringify(q.options);
+            
+            if (isCorrect) {
                 score++;
+                questionBlock.style.border = '2px solid var(--success-color)';
             } else {
-                const selectedLabel = questionBlock.querySelector<HTMLLabelElement>(`label[for="q${index}-opt${selectedAnswerIndex}"]`);
-                if (selectedLabel) selectedLabel.classList.add('incorrect');
+                questionBlock.style.border = '2px solid var(--danger-color)';
+                // Show Correct Order Feedback
+                const feedbackEl = document.createElement('div');
+                feedbackEl.className = 'answer-feedback';
+                feedbackEl.innerHTML = `<p style="color:var(--danger-color); font-weight:bold;">Orden Incorrecto.</p><p><strong>Orden Correcto:</strong></p><ol style="margin-left:1.5rem;">${q.options.map((o:string) => `<li>${o}</li>`).join('')}</ol>`;
+                questionBlock.appendChild(feedbackEl);
+            }
+            
+            // Disable buttons
+            questionBlock.querySelectorAll('button').forEach(b => (b as HTMLButtonElement).disabled = true);
+
+        } else {
+            // Logic for Choice Questions (Test)
+            const correctAnswerIndex = parseInt(q.correctAnswerIndex, 10);
+            const selectedOption = container.querySelector<HTMLInputElement>(`input[name="question-${index}"]:checked`);
+            
+            questionBlock.querySelectorAll('.answer-option input').forEach(input => input.setAttribute('disabled', 'true'));
+            
+            const correctLabel = questionBlock.querySelector<HTMLLabelElement>(`label[for="q${index}-opt${correctAnswerIndex}"]`);
+            if (correctLabel) correctLabel.classList.add('correct');
+
+            if (selectedOption) {
+                const selectedAnswerIndex = parseInt(selectedOption.value, 10);
+                if (selectedAnswerIndex === correctAnswerIndex) {
+                    score++;
+                } else {
+                    const selectedLabel = questionBlock.querySelector<HTMLLabelElement>(`label[for="q${index}-opt${selectedAnswerIndex}"]`);
+                    if (selectedLabel) selectedLabel.classList.add('incorrect');
+                }
             }
         }
 
-        if (q.feedback) {
+        // Generic Feedback (Explicacion) from IA if available
+        if (q.feedback && !questionBlock.querySelector('.answer-feedback')) {
             const feedbackEl = document.createElement('div');
             feedbackEl.className = 'answer-feedback';
             feedbackEl.innerHTML = `<p><strong>Explicación:</strong> ${q.feedback}</p>`;
@@ -142,10 +177,7 @@ export function checkDrillAnswers(data: any, container: HTMLDivElement): number 
     }
     
     // Only update personal stats if it is NOT an assigned drill (caller handles assigned logic)
-    // We assume if this function is called, it's a standard flow unless caller intervenes.
-    // However, to keep it simple, we ALWAYS update stats here for "Personal" drills.
-    // Assigned drills logic in SimulacroPage calls this but won't trigger updateDrillStats if separate.
-    // FIX: We will update stats here. Assigned drills should essentially count towards practice too.
+    // Actually, updateDrillStats is safe to call, logic separates assigned submission in component.
     updateDrillStats(score, data.questions.length, data.type);
     
     return score;
@@ -158,7 +190,7 @@ export async function renderDrillDashboard() {
 
     if (!drillStats) await loadDrillStats();
     
-    const stats = drillStats || { totalDrills: 0, totalCorrect: 0, totalQuestions: 0, dsc: { taken: 0 }, radiotelephony: { taken: 0 } };
+    const stats = drillStats || { totalDrills: 0, totalCorrect: 0, totalQuestions: 0, dsc: { taken: 0 }, radiotelephony: { taken: 0 }, manual: { taken: 0 } };
     const avgScore = stats.totalQuestions > 0 ? (stats.totalCorrect / stats.totalQuestions) * 100 : 0;
 
     container.innerHTML = `
@@ -170,11 +202,15 @@ export async function renderDrillDashboard() {
             </div>
             <div class="stat-item">
                 <span>- DSC:</span>
-                <span>${stats.dsc.taken}</span>
+                <span>${stats.dsc?.taken || 0}</span>
             </div>
             <div class="stat-item">
                 <span>- Radiotelefonía:</span>
-                <span>${stats.radiotelephony.taken}</span>
+                <span>${stats.radiotelephony?.taken || 0}</span>
+            </div>
+            <div class="stat-item">
+                <span>- Manual/Otros:</span>
+                <span>${stats.manual?.taken || 0}</span>
             </div>
             <div class="stat-item">
                 <span>Puntuación Media:</span>
