@@ -95,7 +95,8 @@ async function initializeWarnings() {
     warningsContent.innerHTML = skeletonHtml;
 
     try {
-        const response = await fetch('/api/meteoalarm');
+        // Consolidated endpoint: /api/aemet?type=meteoalarm
+        const response = await fetch('/api/aemet?type=meteoalarm');
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.details || 'No se pudieron cargar los avisos.');

@@ -4,12 +4,9 @@ import { sql } from '@vercel/postgres';
 
 async function verifyAdmin(username: string): Promise<boolean> {
     if (!username) return false;
-    // In a real-world scenario, you might check a session token or a more robust role system.
-    // For this app, we verify against a known admin username.
     const { rows } = await sql`SELECT is_admin FROM users WHERE username = ${username.toUpperCase()};`;
     return rows.length > 0 && rows[0].is_admin === true;
 }
-
 
 export default async function handler(
     request: VercelRequest,
@@ -18,12 +15,32 @@ export default async function handler(
     try {
         if (request.method === 'GET') {
             const adminUsername = request.query.adminUsername as string;
+            const type = request.query.type as string; // 'requests' (default) or 'audit'
+
             if (!(await verifyAdmin(adminUsername))) {
                 return response.status(403).json({ error: 'Acceso denegado.' });
             }
             
-            const { rows } = await sql`SELECT id, username, email FROM users WHERE status = 'PENDING' ORDER BY id ASC;`;
-            return response.status(200).json(rows);
+            if (type === 'audit') {
+                // --- AUDIT LOGIC ---
+                const { rows } = await sql`
+                    SELECT 
+                        al.id, 
+                        al.action, 
+                        al.details, 
+                        al.timestamp, 
+                        u.username 
+                    FROM access_logs al
+                    JOIN users u ON al.user_id = u.id
+                    ORDER BY al.timestamp DESC
+                    LIMIT 200; 
+                `;
+                return response.status(200).json(rows);
+            } else {
+                // --- PENDING REQUESTS LOGIC ---
+                const { rows } = await sql`SELECT id, username, email FROM users WHERE status = 'PENDING' ORDER BY id ASC;`;
+                return response.status(200).json(rows);
+            }
         }
 
         if (request.method === 'POST') {

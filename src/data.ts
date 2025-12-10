@@ -42,7 +42,11 @@ export const APP_PAGE_ICONS = [
     // INFO: Info circle
     `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
     // ADMIN: Shield
-    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+    // SUPERVISOR: User Check
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>`,
+    // PROFILE: User (Hidden from main nav usually)
+    `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
 ];
 
 export const APP_PAGES: Page[] = [
@@ -57,6 +61,8 @@ export const APP_PAGES: Page[] = [
     { name: 'SIMULACRO' },
     { name: 'INFO' },
     { name: 'ADMIN' },
+    { name: 'SUPERVISOR' },
+    { name: 'PERFIL' }
 ];
 
 export const STATIONS_VHF = [
@@ -66,6 +72,7 @@ export const STATIONS_VHF = [
 export const STATIONS_MF = ["Finisterre MF", "Coruña MF", "Machichaco MF"];
 export const ALL_STATIONS = [...STATIONS_VHF, ...STATIONS_MF, 'Navtex'];
 
+/* ... (Keep existing REGISTRO_OCEANO_DATA, PHONE_DIRECTORY_DATA, QUICK_REFERENCE_DATA, VHF_FREQUENCIES_DATA, etc.) ... */
 export const REGISTRO_OCEANO_DATA: Category[] = [
     {
         category: 'Programados',

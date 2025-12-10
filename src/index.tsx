@@ -18,11 +18,14 @@ import { renderMeteos } from './components/MeteosPage';
 import { renderRadioavisos } from './components/RadioavisosPage';
 import { renderAdminPage } from './components/AdminPage';
 import { renderFfaaPage } from './components/FfaaPage';
+import { renderSupervisorPage } from './components/SupervisorPage';
+import { renderProfilePage } from './components/ProfilePage';
 
 const pageRenderStatus: { [key: number]: boolean } = {};
 let isTransitioning = false;
 const animationDuration = 400;
 
+// Page Mapping
 const pageRenderers = [
     renderDashboard,
     renderSosgen,
@@ -35,7 +38,83 @@ const pageRenderers = [
     renderSimulacro,
     renderInfo,
     renderAdminPage,
+    renderSupervisorPage, // 11
+    renderProfilePage     // 12
 ];
+
+// --- SESSION TIMEOUT LOGIC ---
+const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 Hours
+let sessionTimeoutId: number;
+
+function resetSessionTimer() {
+    clearTimeout(sessionTimeoutId);
+    if (getCurrentUser()) {
+        sessionTimeoutId = window.setTimeout(() => {
+            alert("Su sesión ha caducado por inactividad.");
+            handleLogout();
+        }, SESSION_TIMEOUT_MS);
+    }
+}
+
+function initSessionManagement() {
+    ['mousemove', 'keydown', 'click', 'scroll'].forEach(event => {
+        document.addEventListener(event, resetSessionTimer);
+    });
+    resetSessionTimer();
+}
+
+// --- NOTIFICATION POLLING ---
+async function pollNotifications(username: string) {
+    // 1. Check Messages
+    try {
+        const msgRes = await fetch('/api/messages', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'get_messages', username })
+        });
+        if(msgRes.ok) {
+            const msgs = await msgRes.json();
+            const hasUnread = msgs.some((m: any) => m.receiver_name === username && !m.is_read);
+            updateNotificationBadge(hasUnread, 'profile');
+        }
+    } catch(e) {}
+
+    // 2. Check Assigned Drills
+    try {
+        const drillRes = await fetch(`/api/user-data?username=${username}&type=assigned_drills`);
+        if(drillRes.ok) {
+            const drills = await drillRes.json();
+            const hasPending = drills.length > 0;
+            updateNotificationBadge(hasPending, 'simulacro'); // Assuming drill page is index 8
+        }
+    } catch(e) {}
+}
+
+function updateNotificationBadge(show: boolean, target: 'profile' | 'simulacro') {
+    if (target === 'profile') {
+        const userDisplay = document.querySelector('.nav-user-display');
+        if (userDisplay) {
+            if (show && !userDisplay.querySelector('.notification-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'notification-badge';
+                userDisplay.appendChild(badge);
+            } else if (!show) {
+                userDisplay.querySelector('.notification-badge')?.remove();
+            }
+        }
+    } 
+    // Add more logic here if we want badges on other nav items like Simulacro
+}
+
+let pollingInterval: number;
+
+function startPolling(user: User) {
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollNotifications(user.username); // Initial check
+    pollingInterval = window.setInterval(() => pollNotifications(user.username), 60000); // Every minute
+}
+
+// --- APP RENDER ---
 
 function switchToPage(pageIndex: number, subTabId?: string) {
     if (isTransitioning) return;
@@ -55,7 +134,8 @@ function switchToPage(pageIndex: number, subTabId?: string) {
     }
 
     incomingPanel.classList.add('active');
-    if (!pageRenderStatus[pageIndex]) {
+    // Always re-render Profile and Supervisor to get fresh data
+    if (!pageRenderStatus[pageIndex] || pageIndex === 11 || pageIndex === 12) {
         pageRenderers[pageIndex](incomingPanel);
         pageRenderStatus[pageIndex] = true;
     }
@@ -79,6 +159,9 @@ function renderMainApp(user: User) {
     const container = document.getElementById('app');
     if (!container) return;
     
+    // Check permission for Supervisor Page (Index 11)
+    const showSupervisor = user.isAdmin || user.isSupervisor;
+
     container.innerHTML = `
         <nav>
             <div class="nav-top"></div>
@@ -89,7 +172,11 @@ function renderMainApp(user: User) {
                 </div>
                 <div class="nav-links-container">
                     ${APP_PAGES.map((page, index) => {
-                        if (page.name === 'HOME' || (page.name === 'ADMIN' && !user.isAdmin)) return '';
+                        if (page.name === 'HOME') return '';
+                        if (page.name === 'PERFIL') return ''; // Hidden from main nav
+                        if (page.name === 'ADMIN' && !user.isAdmin) return '';
+                        if (page.name === 'SUPERVISOR' && !showSupervisor) return '';
+                        
                         return `
                         <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
                             ${APP_PAGE_ICONS[index]}
@@ -105,7 +192,7 @@ function renderMainApp(user: User) {
                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg>
                     </div>
                     <div class="user-session-controls">
-                        <span class="nav-user-display" title="Usuario conectado">${user.username}</span>
+                        <span class="nav-user-display" title="Ir al Perfil" id="profile-link">${user.username}</span>
                         <button class="logout-btn" id="logout-btn" title="Cerrar sesión de ${user.username}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>
                             <span>Salir</span>
@@ -116,6 +203,7 @@ function renderMainApp(user: User) {
         </nav>
         <main>${APP_PAGES.map((page, index) => {
             if (page.name === 'ADMIN' && !user.isAdmin) return '';
+            if (page.name === 'SUPERVISOR' && !showSupervisor) return '';
             return `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`;
         }).join('')}</main>
     `;
@@ -130,6 +218,8 @@ function renderMainApp(user: User) {
 
     addMainAppEventListeners();
     showTipOfTheDay();
+    initSessionManagement();
+    startPolling(user);
 }
 
 function addMainAppEventListeners() {
@@ -141,9 +231,11 @@ function addMainAppEventListeners() {
         const navLink = target.closest('.nav-link');
         const brandLink = target.closest('.nav-brand');
         const logoutBtn = target.closest('#logout-btn');
+        const profileLink = target.closest('#profile-link');
 
         if (brandLink) switchToPage(0);
         if (navLink) switchToPage(parseInt(navLink.getAttribute('data-page-index')!, 10));
+        if (profileLink) switchToPage(12); // Profile is index 12
         if (logoutBtn) handleLogout();
     });
 
@@ -172,8 +264,19 @@ function handleLogin(user: User) {
 }
 
 function handleLogout() {
+    const user = getCurrentUser();
+    if (user) {
+        fetch('/api/auth', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'logout', userId: user.id })
+        }).catch(() => {});
+    }
     sessionStorage.removeItem('sosgen_user');
     clearCurrentUser();
+    clearInterval(pollingInterval);
+    clearTimeout(sessionTimeoutId);
+    
     // Reset page status to force re-render on next login
     Object.keys(pageRenderStatus).forEach(key => delete pageRenderStatus[Number(key)]);
     const container = document.getElementById('app');
