@@ -19,14 +19,14 @@ import { renderRadioavisos } from './components/RadioavisosPage';
 import { renderAdminPage } from './components/AdminPage';
 import { renderFfaaPage } from './components/FfaaPage';
 import { renderSupervisorPage } from './components/SupervisorPage';
-import { renderProfilePage, stopChatPolling } from './components/ProfilePage';
+import { renderProfilePage, renderMessagesPage, stopChatPolling } from './components/ProfilePage';
 
 const pageRenderStatus: { [key: number]: boolean } = {};
 let isTransitioning = false;
 const animationDuration = 400;
 
 // Page Mapping must match APP_PAGES in data.ts
-// 0: HOME, 1: RELAY, 2: OCEANO, 3: PROTOCOLO, 4: NX, 5: WX, 6: FFAA, 7: SEÑALES, 8: SIMULACRO, 9: INFO, 10: ADMIN, 11: SUPERVISOR, 12: PROFILE (Hidden)
+// 0: HOME, 1: RELAY, 2: OCEANO, 3: PROTOCOLO, 4: NX, 5: WX, 6: FFAA, 7: SEÑALES, 8: SIMULACRO, 9: INFO, 10: ADMIN, 11: SUPERVISOR, 12: PROFILE, 13: MENSAJES
 const pageRenderers = [
     renderDashboard,
     renderSosgen,
@@ -40,7 +40,8 @@ const pageRenderers = [
     renderInfo,
     renderAdminPage,
     renderSupervisorPage,
-    renderProfilePage
+    renderProfilePage,
+    renderMessagesPage
 ];
 
 // --- SESSION & NOTIFICATION LOGIC ---
@@ -101,7 +102,16 @@ function updateNotificationBadges(unreadMessages: boolean, pendingDrills: boolea
         if (existingBadge) existingBadge.remove();
     }
 
-    // 2. Drill Tab Badge
+    // 2. Sidebar Messages Button Badge
+    const msgBtn = document.getElementById('sidebar-messages-btn');
+    const msgBadge = msgBtn?.querySelector('.notification-badge');
+    if (unreadMessages) {
+        if (!msgBadge && msgBtn) msgBtn.innerHTML += `<span class="notification-badge" style="top: 10px; right: 10px;"></span>`;
+    } else {
+        if (msgBadge) msgBadge.remove();
+    }
+
+    // 3. Drill Tab Badge
     const drillTab = document.querySelector('.nav-link[title="SIMULACRO"]');
     const drillBadge = drillTab?.querySelector('.notification-badge');
     if (pendingDrills) {
@@ -129,8 +139,9 @@ function switchToPage(pageIndex: number, subTabId?: string) {
         return;
     }
 
-    // CLEANUP: If we are leaving the Profile page (Index 12), stop the high-frequency polling
-    if (outgoingPanel && outgoingPanel.id === 'page-12') {
+    // CLEANUP: If we are leaving the Messages page (Index 13), stop the high-frequency polling
+    // Note: Profile is now 12 and doesn't poll. Messages is 13 and polls.
+    if (outgoingPanel && outgoingPanel.id === 'page-13') {
         stopChatPolling();
     }
 
@@ -145,8 +156,10 @@ function switchToPage(pageIndex: number, subTabId?: string) {
     }
 
     incomingPanel.classList.add('active');
-    // Always render dynamic pages to ensure data freshness
-    if (pageIndex === 10 || pageIndex === 11 || pageIndex === 12 || !pageRenderStatus[pageIndex]) {
+    
+    // Always re-render dynamic pages to ensure data freshness
+    // 10: Admin, 11: Supervisor, 12: Profile, 13: Messages
+    if (pageIndex >= 10 || !pageRenderStatus[pageIndex]) {
         pageRenderers[pageIndex](incomingPanel);
         pageRenderStatus[pageIndex] = true;
     }
@@ -174,6 +187,7 @@ function renderMainApp(user: User) {
     const adminPageIndex = 10;
     const supervisorPageIndex = 11;
     const profilePageIndex = 12; 
+    const messagesPageIndex = 13;
 
     // --- SIDEBAR HTML ---
     // Inject Admin and Supervisor buttons here if role permits
@@ -202,6 +216,10 @@ function renderMainApp(user: User) {
             <div class="sidebar-content">
                 ${adminBtn}
                 ${supervisorBtn}
+                <button class="sidebar-menu-item sidebar-nav-btn" id="sidebar-messages-btn" data-page-index="${messagesPageIndex}" style="position: relative;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <span>Mensajes</span>
+                </button>
                 <button class="sidebar-menu-item sidebar-nav-btn" data-page-index="${profilePageIndex}">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>
                     <span>Mi Perfil</span>
@@ -237,8 +255,10 @@ function renderMainApp(user: User) {
                 <div class="nav-links-container">
                     ${APP_PAGES.map((page, index) => {
                         if (page.name === 'HOME') return '';
-                        if (page.name === 'ADMIN') return ''; // Removed from top nav
-                        if (page.name === 'SUPERVISOR') return ''; // Removed from top nav
+                        if (page.name === 'ADMIN') return '';
+                        if (page.name === 'SUPERVISOR') return '';
+                        if (page.name === 'PROFILE') return '';
+                        if (page.name === 'MENSAJES') return '';
                         
                         return `
                         <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
@@ -258,10 +278,9 @@ function renderMainApp(user: User) {
         </nav>
         <main>
             ${APP_PAGES.map((page, index) => {
-                // We still render the panels, they are just triggered from sidebar now
+                // We still render all panels to allow JS switching
                 return `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`;
             }).join('')}
-            <div class="page-panel" id="page-${profilePageIndex}"></div>
         </main>
     `;
 
@@ -306,7 +325,7 @@ function addMainAppEventListeners() {
 
     overlay?.addEventListener('click', toggleSidebar);
 
-    // Generic Sidebar Navigation Handler (Profile, Admin, Supervisor)
+    // Generic Sidebar Navigation Handler (Profile, Admin, Supervisor, Messages)
     sidebar?.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
         const navBtn = target.closest<HTMLElement>('.sidebar-nav-btn');

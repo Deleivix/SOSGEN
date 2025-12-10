@@ -263,25 +263,31 @@ function renderNewChatModal() {
     });
 }
 
-function renderProfileInfo() {
-    const container = document.getElementById('profile-info-container');
+// --- PROFILE PAGE RENDERER ---
+export function renderProfilePage(container: HTMLElement) {
     const user = getCurrentUser();
-    if (!container || !user) return;
+    if (!user) return;
 
     container.innerHTML = `
-        <div class="profile-info-card">
-            <div class="profile-avatar">${user.username.charAt(0).toUpperCase()}</div>
-            <div class="profile-username">${user.username}</div>
-            <div class="profile-roles">
-                ${user.isAdmin ? '<span class="category-badge" style="background-color: var(--accent-color);">Admin</span>' : ''}
-                ${user.isSupervisor ? '<span class="category-badge" style="background-color: var(--info-color);">Supervisor</span>' : ''}
-                <span class="category-badge" style="background-color: var(--text-secondary);">Usuario</span>
+        <div class="content-card">
+            <h2 class="content-card-title">Mi Perfil</h2>
+            <div class="profile-standalone-container">
+                <div class="profile-info-card" style="border:none; padding:0;">
+                    <div class="profile-avatar">${user.username.charAt(0).toUpperCase()}</div>
+                    <div class="profile-username">${user.username}</div>
+                    <div class="profile-roles">
+                        ${user.isAdmin ? '<span class="category-badge" style="background-color: var(--accent-color);">Admin</span>' : ''}
+                        ${user.isSupervisor ? '<span class="category-badge" style="background-color: var(--info-color);">Supervisor</span>' : ''}
+                        <span class="category-badge" style="background-color: var(--text-secondary);">Usuario</span>
+                    </div>
+                </div>
             </div>
         </div>
     `;
 }
 
-export function renderProfilePage(container: HTMLElement) {
+// --- MESSAGES PAGE RENDERER ---
+export function renderMessagesPage(container: HTMLElement) {
     const user = getCurrentUser();
     if (!user) return;
 
@@ -289,14 +295,12 @@ export function renderProfilePage(container: HTMLElement) {
     stopChatPolling();
 
     container.innerHTML = `
-        <div class="profile-grid">
-            <div class="profile-sidebar" id="profile-info-container">
-                <!-- Profile Info Loaded Here -->
-            </div>
+        <div class="content-card chat-page-wrapper">
+            <h2 class="content-card-title">Mensajería Interna</h2>
             <div class="chat-container">
                 <div class="chat-sidebar">
                     <div style="padding:1rem; border-bottom:1px solid var(--border-color); font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
-                        <span>Mensajes</span>
+                        <span>Chats</span>
                         <button id="new-chat-btn" class="primary-btn-small" style="padding: 0.2rem 0.6rem; font-size:1.1rem; line-height:1;" title="Nuevo Mensaje">+</button>
                     </div>
                     <div id="chat-user-list" class="chat-user-list"></div>
@@ -317,11 +321,10 @@ export function renderProfilePage(container: HTMLElement) {
         </div>
     `;
 
-    renderProfileInfo();
-    
     // Initial fetch
     Promise.all([fetchUsers(), fetchMessages()]).then(() => {
         renderChatList();
+        if(selectedChatUser) renderChatMessages(); // Restore selected user view if exists
     });
 
     // Start Polling for messages
