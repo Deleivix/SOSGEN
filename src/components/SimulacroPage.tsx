@@ -1,7 +1,7 @@
 
 import { getCurrentUser } from "../utils/auth";
 import { checkDrillAnswers, renderDrillCalendar, renderDrillDashboard } from "../utils/drill";
-import { showToast } from "../utils/helpers";
+import { showToast, speakText, stopSpeech } from "../utils/helpers";
 
 type AssignedDrill = {
     id: number;
@@ -106,6 +106,9 @@ export function renderSimulacro(container: HTMLElement) {
     renderDrillCalendar();
     fetchAssignedDrills();
 
+    // Ensure speech stops if user navigates away or switches tabs rapidly
+    stopSpeech();
+
     container.addEventListener('click', e => {
         const target = e.target as HTMLElement;
         const tabBtn = target.closest('button[data-tab]');
@@ -140,11 +143,28 @@ export function renderSimulacro(container: HTMLElement) {
                 renderDrillContent(drill.drill_data, contentEl, id); // Pass ID to indicate assigned mode
             }
         }
+        
+        // Handle TTS
+        const speakBtn = target.closest('#btn-speak-scenario');
+        if (speakBtn) {
+            const scenarioText = document.querySelector('.drill-scenario')?.textContent;
+            if (scenarioText) speakText(scenarioText);
+        }
     });
 }
 
 function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedId?: number) {
-    let html = `<div class="drill-scenario">${drillData.scenario}</div><div class="drill-questions">`;
+    const isVoiceDrill = drillData.type === 'radiotelephony';
+    let html = `
+        <div class="drill-scenario">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+                <span>${drillData.scenario}</span>
+                ${isVoiceDrill ? `<button id="btn-speak-scenario" class="secondary-btn" style="padding:0.4rem 0.8rem; font-size:0.85rem;" title="Escuchar"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z"/><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.483 5.483 0 0 1 11.025 8a5.483 5.483 0 0 1-1.61 3.89l.706.706z"/><path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 8.99 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z"/></svg></button>` : ''}
+            </div>
+        </div>
+        <div class="drill-questions">
+    `;
+    
     drillData.questions.forEach((q: any, index: number) => {
         html += `
             <div class="question-block" id="question-${index}" data-correct-index="${q.correctAnswerIndex}">
@@ -166,6 +186,7 @@ function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedI
 
     const checkBtn = contentEl.querySelector('#drill-check-btn');
     checkBtn?.addEventListener('click', () => {
+        stopSpeech(); // Stop any pending audio
         // Special check function that returns score
         const score = checkDrillAnswers(drillData, contentEl);
         

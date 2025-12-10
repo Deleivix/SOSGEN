@@ -1,3 +1,4 @@
+
 import { DAILY_TIPS } from "../data";
 
 // --- EVENT HANDLERS & LOGIC ---
@@ -20,6 +21,26 @@ export async function handleCopy(textToCopy: string) {
     } catch (err) {
         console.error('Error al copiar: ', err);
         showToast('Error al copiar', 'error');
+    }
+}
+
+// --- TEXT TO SPEECH (TTS) ---
+export function speakText(text: string, lang: 'es-ES' | 'en-GB' = 'es-ES') {
+    if (!window.speechSynthesis) {
+        console.warn("Speech Synthesis not supported");
+        return;
+    }
+    window.speechSynthesis.cancel(); // Stop previous
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = 0.9; // Slightly slower for maritime clarity
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+export function stopSpeech() {
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
     }
 }
 

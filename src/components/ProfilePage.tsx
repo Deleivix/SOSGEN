@@ -26,6 +26,13 @@ let availableUsers: { id: number, username: string }[] = [];
 let selectedChatUser: ChatUser | null = null;
 let pollingInterval: number | null = null;
 
+export function stopChatPolling() {
+    if (pollingInterval) {
+        window.clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+}
+
 async function fetchMessages() {
     const user = getCurrentUser();
     if (!user) return;
@@ -112,12 +119,7 @@ function getChatUsers(): ChatUser[] {
     
     const usersMap = new Map<number, ChatUser>();
     
-    // Add all available users
-    availableUsers.forEach(u => {
-        usersMap.set(u.id, { id: u.id, username: u.username, unreadCount: 0 });
-    });
-
-    // Process messages to update stats
+    // We only initially show users we have history with OR if selected manually
     messages.forEach(m => {
         const otherId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
         const otherName = m.sender_id === user.id ? m.receiver_name : m.sender_name;
@@ -135,6 +137,11 @@ function getChatUsers(): ChatUser[] {
         }
     });
 
+    // If we selected a user from the "New Chat" modal but haven't exchanged messages yet, force add them
+    if (selectedChatUser && !usersMap.has(selectedChatUser.id)) {
+        usersMap.set(selectedChatUser.id, selectedChatUser);
+    }
+
     // Sort by last message time
     return Array.from(usersMap.values()).sort((a, b) => {
         const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
@@ -149,11 +156,16 @@ function renderChatList() {
     
     const users = getChatUsers();
     
+    if (users.length === 0) {
+        listContainer.innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--text-secondary); text-align:center;">No hay conversaciones.<br>Pulsa + para empezar.</div>';
+        return;
+    }
+
     listContainer.innerHTML = users.map(u => `
         <div class="chat-user-item ${selectedChatUser?.id === u.id ? 'active' : ''} ${u.unreadCount > 0 ? 'has-unread' : ''}" data-user-id="${u.id}">
             <div style="flex-grow:1;">
                 <div style="font-weight:600; font-size:0.95rem;">${u.username}</div>
-                <div style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${u.lastMessage || 'Iniciar conversación'}</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${u.lastMessage || 'Nueva conversación'}</div>
             </div>
             ${u.unreadCount > 0 ? `<div style="background:var(--danger-color); color:white; border-radius:50%; width:20px; height:20px; display:flex; justify-content:center; align-items:center; font-size:0.7rem;">${u.unreadCount}</div>` : ''}
         </div>
@@ -192,6 +204,65 @@ function renderChatMessages() {
     }
 }
 
+function renderNewChatModal() {
+    const modalId = 'new-chat-modal';
+    if (document.getElementById(modalId)) return;
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.id = modalId;
+
+    const userListHtml = availableUsers.length > 0 
+        ? availableUsers.map(u => `
+            <div class="chat-user-item new-chat-option" data-user-id="${u.id}" data-username="${u.username}" style="border:none; padding: 0.8rem;">
+                <span>${u.username}</span>
+            </div>
+          `).join('')
+        : '<p style="padding:1rem; color:var(--text-secondary);">No hay otros usuarios disponibles.</p>';
+
+    modalOverlay.innerHTML = `
+        <div class="modal-content" style="max-width: 400px; text-align: left; padding:0; overflow:hidden;">
+            <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.1rem;">Nueva Conversación</h3>
+                <button class="secondary-btn modal-close-btn" style="padding: 0.3rem 0.6rem;">✕</button>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                ${userListHtml}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalOverlay);
+
+    modalOverlay.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target === modalOverlay || target.classList.contains('modal-close-btn')) {
+            modalOverlay.remove();
+        }
+        
+        const option = target.closest('.new-chat-option') as HTMLElement;
+        if (option) {
+            const id = parseInt(option.dataset.userId!);
+            const username = option.dataset.username!;
+            selectedChatUser = { id, username, unreadCount: 0 };
+            
+            // Render UI updates
+            renderChatList();
+            renderChatMessages();
+            
+            const header = document.getElementById('chat-header');
+            const input = document.getElementById('chat-input') as HTMLInputElement;
+            const btn = document.getElementById('send-msg-btn') as HTMLButtonElement;
+            
+            if(header) header.textContent = selectedChatUser.username;
+            if(input) { input.disabled = false; input.focus(); }
+            if(btn) btn.disabled = false;
+
+            modalOverlay.remove();
+        }
+    });
+}
+
 function renderProfileInfo() {
     const container = document.getElementById('profile-info-container');
     const user = getCurrentUser();
@@ -214,6 +285,9 @@ export function renderProfilePage(container: HTMLElement) {
     const user = getCurrentUser();
     if (!user) return;
 
+    // Reset polling if it was running from a previous mount
+    stopChatPolling();
+
     container.innerHTML = `
         <div class="profile-grid">
             <div class="profile-sidebar" id="profile-info-container">
@@ -221,7 +295,10 @@ export function renderProfilePage(container: HTMLElement) {
             </div>
             <div class="chat-container">
                 <div class="chat-sidebar">
-                    <div style="padding:1rem; border-bottom:1px solid var(--border-color); font-weight:bold;">Mensajes</div>
+                    <div style="padding:1rem; border-bottom:1px solid var(--border-color); font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Mensajes</span>
+                        <button id="new-chat-btn" class="primary-btn-small" style="padding: 0.2rem 0.6rem; font-size:1.1rem; line-height:1;" title="Nuevo Mensaje">+</button>
+                    </div>
                     <div id="chat-user-list" class="chat-user-list"></div>
                 </div>
                 <div class="chat-main">
@@ -247,16 +324,21 @@ export function renderProfilePage(container: HTMLElement) {
         renderChatList();
     });
 
-    // Polling for messages
-    if (pollingInterval) clearInterval(pollingInterval);
+    // Start Polling for messages
     pollingInterval = window.setInterval(fetchMessages, 5000); // 5s poll
 
     // Event Listeners
     container.addEventListener('click', e => {
         const target = e.target as HTMLElement;
-        const userItem = target.closest('.chat-user-item');
         
-        if (userItem) {
+        // Start New Chat
+        if (target.closest('#new-chat-btn')) {
+            renderNewChatModal();
+        }
+
+        // Select existing chat
+        const userItem = target.closest('.chat-user-item');
+        if (userItem && !target.closest('#new-chat-btn')) { // Avoid conflict if button inside list
             const userId = parseInt(userItem.getAttribute('data-user-id')!);
             const userObj = getChatUsers().find(u => u.id === userId);
             if (userObj) {

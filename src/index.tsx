@@ -19,7 +19,7 @@ import { renderRadioavisos } from './components/RadioavisosPage';
 import { renderAdminPage } from './components/AdminPage';
 import { renderFfaaPage } from './components/FfaaPage';
 import { renderSupervisorPage } from './components/SupervisorPage';
-import { renderProfilePage } from './components/ProfilePage';
+import { renderProfilePage, stopChatPolling } from './components/ProfilePage';
 
 const pageRenderStatus: { [key: number]: boolean } = {};
 let isTransitioning = false;
@@ -127,6 +127,11 @@ function switchToPage(pageIndex: number, subTabId?: string) {
             subTabButton?.click();
         }
         return;
+    }
+
+    // CLEANUP: If we are leaving the Profile page (Index 12), stop the high-frequency polling
+    if (outgoingPanel && outgoingPanel.id === 'page-12') {
+        stopChatPolling();
     }
 
     isTransitioning = true;
@@ -282,6 +287,8 @@ function handleLogin(user: User) {
 function handleLogout() {
     sessionStorage.removeItem('sosgen_user');
     clearCurrentUser();
+    // Stop all polling
+    stopChatPolling();
     if (sessionTimeoutId) clearTimeout(sessionTimeoutId);
     if (notificationIntervalId) clearInterval(notificationIntervalId);
     
