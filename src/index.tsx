@@ -3,7 +3,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import { APP_PAGE_ICONS, APP_PAGES, SOSGEN_LOGO_SVG } from './data';
+import { APP_PAGE_ICONS, APP_PAGES, SOSGEN_LOGO_SVG, GESTION_ICON } from './data';
 import { showTipOfTheDay, showToast } from './utils/helpers';
 import { setCurrentUser, getCurrentUser, clearCurrentUser, User } from './utils/auth';
 import { renderLoginPage } from './components/LoginPage';
@@ -136,7 +136,14 @@ function switchToPage(pageIndex: number, subTabId?: string) {
 
     isTransitioning = true;
     document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
+    // Activate nav link. Note: For dropdown items, we don't strictly activate the main dropdown toggle unless we add extra logic, 
+    // but we can activate the link if it corresponds to a direct button.
     document.querySelector(`.nav-link[data-page-index="${pageIndex}"]`)?.classList.add('active');
+
+    // Also highlight the dropdown parent if a child is active (optional, simplified here)
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-page-index') === String(pageIndex));
+    });
 
     if (outgoingPanel) {
         outgoingPanel.classList.add('is-exiting');
@@ -165,12 +172,75 @@ function switchToPage(pageIndex: number, subTabId?: string) {
 
 (window as any).switchToPage = switchToPage;
 
+function renderNavLink(index: number) {
+    const page = APP_PAGES[index];
+    return `
+        <div class="nav-item-container">
+            <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
+                ${APP_PAGE_ICONS[index]}
+                <span class="nav-link-text">${page.name}</span>
+            </button>
+        </div>
+    `;
+}
+
 function renderMainApp(user: User) {
     const container = document.getElementById('app');
     if (!container) return;
     
-    // Define the profile page index (last in the list, hidden from standard nav)
     const profilePageIndex = 12; 
+
+    // Navigation Structure
+    const navigationHtml = `
+        ${renderNavLink(1)} <!-- RELAY -->
+        ${renderNavLink(2)} <!-- OCEANO -->
+        ${renderNavLink(3)} <!-- PROTOCOLO -->
+        ${renderNavLink(4)} <!-- NX -->
+        
+        <!-- METEOS Dropdown -->
+        <div class="nav-item-container">
+            <button class="nav-link dropdown-toggle" title="METEOS">
+                ${APP_PAGE_ICONS[5]} <!-- Cloud Icon -->
+                <span class="nav-link-text">METEOS</span>
+                <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>
+            </button>
+            <div class="dropdown-menu">
+                <button class="dropdown-item" data-page-index="5">
+                    ${APP_PAGE_ICONS[5]} <span>WX (Boletines)</span>
+                </button>
+                <button class="dropdown-item" data-page-index="6">
+                    ${APP_PAGE_ICONS[6]} <span>FFAA (Avisos)</span>
+                </button>
+            </div>
+        </div>
+
+        ${renderNavLink(7)} <!-- SEÑALES -->
+        ${renderNavLink(8)} <!-- SIMULACRO -->
+        ${renderNavLink(9)} <!-- INFO -->
+
+        <!-- GESTION Dropdown (Admin/Supervisor Only) -->
+        ${(user.isAdmin || user.isSupervisor) ? `
+            <div class="nav-item-container">
+                <button class="nav-link dropdown-toggle" title="GESTIÓN">
+                    ${GESTION_ICON}
+                    <span class="nav-link-text">GESTIÓN</span>
+                    <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>
+                </button>
+                <div class="dropdown-menu">
+                    ${user.isAdmin ? `
+                        <button class="dropdown-item" data-page-index="10">
+                            ${APP_PAGE_ICONS[10]} <span>ADMIN</span>
+                        </button>
+                    ` : ''}
+                    ${(user.isAdmin || user.isSupervisor) ? `
+                        <button class="dropdown-item" data-page-index="11">
+                            ${APP_PAGE_ICONS[11]} <span>SUPERVISOR</span>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        ` : ''}
+    `;
 
     container.innerHTML = `
         <nav>
@@ -181,17 +251,7 @@ function renderMainApp(user: User) {
                     <span>SOSGEN</span>
                 </div>
                 <div class="nav-links-container">
-                    ${APP_PAGES.map((page, index) => {
-                        if (page.name === 'HOME') return '';
-                        if (page.name === 'ADMIN' && !user.isAdmin) return '';
-                        if (page.name === 'SUPERVISOR' && !(user.isSupervisor || user.isAdmin)) return '';
-                        
-                        return `
-                        <button class="nav-link ${index === 0 ? 'active' : ''}" data-page-index="${index}" title="${page.name}">
-                            ${APP_PAGE_ICONS[index]}
-                            <span class="nav-link-text">${page.name}</span>
-                        </button>
-                    `}).join('')}
+                    ${navigationHtml}
                 </div>
                 <div class="nav-right-controls">
                     <div class="theme-switcher">
@@ -212,7 +272,6 @@ function renderMainApp(user: User) {
         </nav>
         <main>
             ${APP_PAGES.map((page, index) => {
-                // Should render page panels for all pages, including hidden ones logic check handled in routing
                 if (page.name === 'ADMIN' && !user.isAdmin) return '';
                 if (page.name === 'SUPERVISOR' && !(user.isSupervisor || user.isAdmin)) return '';
                 return `<div class="page-panel ${index === 0 ? 'active' : ''}" id="page-${index}"></div>`;
@@ -246,14 +305,21 @@ function addMainAppEventListeners() {
     container.addEventListener('click', (event) => {
         resetSessionTimeout(); // User activity resets timeout
         const target = event.target as HTMLElement;
-        const navLink = target.closest('.nav-link');
         const brandLink = target.closest('.nav-brand');
         const logoutBtn = target.closest('#logout-btn');
-        const userDisplay = target.closest('.nav-user-display');
+        
+        // Handle Nav Link or Dropdown Item
+        const navItem = target.closest('[data-page-index]');
 
         if (brandLink) switchToPage(0);
-        if (navLink) switchToPage(parseInt(navLink.getAttribute('data-page-index')!, 10));
-        if (userDisplay) switchToPage(parseInt(userDisplay.getAttribute('data-page-index')!, 10));
+        
+        if (navItem) {
+            const pageIndex = parseInt(navItem.getAttribute('data-page-index')!, 10);
+            if (!isNaN(pageIndex)) {
+                switchToPage(pageIndex);
+            }
+        }
+        
         if (logoutBtn) handleLogout();
     });
 
