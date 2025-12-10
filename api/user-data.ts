@@ -98,6 +98,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
         }
 
         return response.status(405).json({ error: 'Method Not Allowed' });
+        
 
     } catch (error) {
         console.error('User Data API Error:', error);
