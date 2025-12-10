@@ -45,7 +45,7 @@ async function fetchMessages() {
         if (response.ok) {
             messages = await response.json();
             renderChatList();
-            if (selectedChatUser) renderChatMessages();
+            if (selectedChatUser) renderChatMessages(false); // Do not force scroll on poll update
         }
     } catch (e) { console.error(e); }
 }
@@ -81,7 +81,8 @@ async function sendMessage(content: string) {
             })
         });
         if (response.ok) {
-            await fetchMessages(); // Refresh immediately
+            await fetchMessages(); 
+            renderChatMessages(true); // Force scroll on send
         }
     } catch (e) { showToast("Error al enviar mensaje", "error"); }
 }
@@ -163,21 +164,25 @@ function renderChatList() {
 
     listContainer.innerHTML = users.map(u => `
         <div class="chat-user-item ${selectedChatUser?.id === u.id ? 'active' : ''} ${u.unreadCount > 0 ? 'has-unread' : ''}" data-user-id="${u.id}">
-            <div style="flex-grow:1;">
-                <div style="font-weight:600; font-size:0.95rem;">${u.username}</div>
-                <div style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${u.lastMessage || 'Nueva conversación'}</div>
+            <div style="background:var(--accent-color); color:white; border-radius:50%; width:40px; height:40px; display:flex; justify-content:center; align-items:center; font-weight:bold; font-size:1.1rem; flex-shrink:0;">${u.username.charAt(0).toUpperCase()}</div>
+            <div style="flex-grow:1; min-width:0;">
+                <div class="chat-user-name" style="font-size:0.95rem;">${u.username}</div>
+                <div style="font-size:0.85rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${u.lastMessage || 'Nueva conversación'}</div>
             </div>
-            ${u.unreadCount > 0 ? `<div style="background:var(--danger-color); color:white; border-radius:50%; width:20px; height:20px; display:flex; justify-content:center; align-items:center; font-size:0.7rem;">${u.unreadCount}</div>` : ''}
+            ${u.unreadCount > 0 ? `<div style="background:var(--danger-color); color:white; border-radius:50%; width:20px; height:20px; display:flex; justify-content:center; align-items:center; font-size:0.75rem;">${u.unreadCount}</div>` : ''}
         </div>
     `).join('');
 }
 
-function renderChatMessages() {
+function renderChatMessages(forceScrollBottom: boolean = false) {
     const container = document.getElementById('chat-messages-area');
     if (!container || !selectedChatUser) return;
     
     const user = getCurrentUser();
     if (!user) return;
+
+    // Check if user was already at bottom before updating (to auto-scroll on new message)
+    const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
 
     const chatMessages = messages.filter(m => 
         (m.sender_id === user.id && m.receiver_id === selectedChatUser!.id) ||
@@ -194,13 +199,18 @@ function renderChatMessages() {
             const isMe = m.sender_id === user.id;
             return `
                 <div class="chat-message ${isMe ? 'sent' : 'received'}">
-                    <div>${m.content}</div>
+                    <div style="white-space: pre-wrap;">${m.content}</div>
                     <span class="chat-message-time">${new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
             `;
         }).join('');
-        // Scroll to bottom
-        container.scrollTop = container.scrollHeight;
+        
+        // Scroll to bottom logic
+        if (forceScrollBottom || isAtBottom) {
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 50);
+        }
     }
 }
 
@@ -215,6 +225,7 @@ function renderNewChatModal() {
     const userListHtml = availableUsers.length > 0 
         ? availableUsers.map(u => `
             <div class="chat-user-item new-chat-option" data-user-id="${u.id}" data-username="${u.username}" style="border:none; padding: 0.8rem;">
+                <div style="background:var(--text-secondary); color:white; border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; font-weight:bold;">${u.username.charAt(0).toUpperCase()}</div>
                 <span>${u.username}</span>
             </div>
           `).join('')
@@ -244,23 +255,37 @@ function renderNewChatModal() {
         if (option) {
             const id = parseInt(option.dataset.userId!);
             const username = option.dataset.username!;
-            selectedChatUser = { id, username, unreadCount: 0 };
-            
-            // Render UI updates
-            renderChatList();
-            renderChatMessages();
-            
-            const header = document.getElementById('chat-header');
-            const input = document.getElementById('chat-input') as HTMLInputElement;
-            const btn = document.getElementById('send-msg-btn') as HTMLButtonElement;
-            
-            if(header) header.textContent = selectedChatUser.username;
-            if(input) { input.disabled = false; input.focus(); }
-            if(btn) btn.disabled = false;
-
+            openChatWithUser({ id, username, unreadCount: 0 });
             modalOverlay.remove();
         }
     });
+}
+
+function openChatWithUser(chatUser: ChatUser) {
+    selectedChatUser = chatUser;
+    
+    // UI Updates
+    renderChatList();
+    renderChatMessages(true);
+    
+    const headerTitle = document.getElementById('chat-header-title');
+    const input = document.getElementById('chat-input') as HTMLInputElement;
+    const btn = document.getElementById('send-msg-btn') as HTMLButtonElement;
+    const chatContainer = document.querySelector('.chat-container');
+    
+    if(headerTitle) headerTitle.textContent = selectedChatUser.username;
+    if(input) { input.disabled = false; input.focus(); }
+    if(btn) btn.disabled = false;
+    
+    // Add class for Mobile transition
+    if(chatContainer) chatContainer.classList.add('chat-open');
+}
+
+function closeChat() {
+    selectedChatUser = null;
+    renderChatList(); // Clear active state
+    const chatContainer = document.querySelector('.chat-container');
+    if(chatContainer) chatContainer.classList.remove('chat-open');
 }
 
 // --- PROFILE PAGE RENDERER ---
@@ -300,21 +325,28 @@ export function renderMessagesPage(container: HTMLElement) {
             <div class="chat-container">
                 <div class="chat-sidebar">
                     <div style="padding:1rem; border-bottom:1px solid var(--border-color); font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
-                        <span>Chats</span>
+                        <span>Conversaciones</span>
                         <button id="new-chat-btn" class="primary-btn-small" style="padding: 0.2rem 0.6rem; font-size:1.1rem; line-height:1;" title="Nuevo Mensaje">+</button>
                     </div>
                     <div id="chat-user-list" class="chat-user-list"></div>
                 </div>
                 <div class="chat-main">
-                    <div class="chat-header" id="chat-header">Selecciona un usuario</div>
+                    <div class="chat-header">
+                        <button class="chat-back-btn" id="chat-back-btn" title="Volver a la lista">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/></svg>
+                        </button>
+                        <span id="chat-header-title">Selecciona un usuario</span>
+                    </div>
                     <div class="chat-messages-area" id="chat-messages-area">
                         <div style="display:flex; justify-content:center; align-items:center; height:100%; color:var(--text-secondary);">
-                            <p>Selecciona una conversación a la izquierda</p>
+                            <p>Selecciona una conversación</p>
                         </div>
                     </div>
                     <div class="chat-input-area">
                         <input type="text" id="chat-input" class="chat-input" placeholder="Escribe un mensaje..." disabled>
-                        <button id="send-msg-btn" class="primary-btn-small" style="border-radius:20px; padding: 0.6rem 1.2rem;" disabled>Enviar</button>
+                        <button id="send-msg-btn" class="primary-btn-small" style="border-radius:20px; padding: 0.6rem 1.2rem;" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/></svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -324,7 +356,7 @@ export function renderMessagesPage(container: HTMLElement) {
     // Initial fetch
     Promise.all([fetchUsers(), fetchMessages()]).then(() => {
         renderChatList();
-        if(selectedChatUser) renderChatMessages(); // Restore selected user view if exists
+        if(selectedChatUser) openChatWithUser(selectedChatUser); 
     });
 
     // Start Polling for messages
@@ -339,27 +371,22 @@ export function renderMessagesPage(container: HTMLElement) {
             renderNewChatModal();
         }
 
+        // Back Button
+        if (target.closest('#chat-back-btn')) {
+            closeChat();
+        }
+
         // Select existing chat
         const userItem = target.closest('.chat-user-item');
-        if (userItem && !target.closest('#new-chat-btn')) { // Avoid conflict if button inside list
+        if (userItem && !target.closest('#new-chat-btn')) { 
             const userId = parseInt(userItem.getAttribute('data-user-id')!);
             const userObj = getChatUsers().find(u => u.id === userId);
             if (userObj) {
-                selectedChatUser = userObj;
-                renderChatList(); // Update active state
-                renderChatMessages();
-                
-                const header = document.getElementById('chat-header');
-                const input = document.getElementById('chat-input') as HTMLInputElement;
-                const btn = document.getElementById('send-msg-btn') as HTMLButtonElement;
-                
-                if(header) header.textContent = selectedChatUser.username;
-                if(input) { input.disabled = false; input.focus(); }
-                if(btn) btn.disabled = false;
+                openChatWithUser(userObj);
             }
         }
 
-        if (target.id === 'send-msg-btn') {
+        if (target.closest('#send-msg-btn')) {
             const input = document.getElementById('chat-input') as HTMLInputElement;
             if (input && input.value.trim()) {
                 sendMessage(input.value.trim());
