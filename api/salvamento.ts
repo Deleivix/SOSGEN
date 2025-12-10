@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 }
 
-async function handleGetList(req: VercelRequest, res: VercelResponse) {
+async function handleGetList(_req: VercelRequest, res: VercelResponse) {
     const now = Date.now();
     if (cache.data && (now - cache.timestamp < CACHE_DURATION_MS)) {
         return res.status(200).json(cache.data);

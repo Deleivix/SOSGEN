@@ -12,7 +12,7 @@ type SosgenHistoryEntry = {
 };
 
 // --- HELPER TO GET USER ID ---
-const getUserId = async (username: string): Promise<number | null> {
+const getUserId = async (username: string): Promise<number | null> => {
     if (!username) return null;
     const { rows } = await sql`SELECT id FROM users WHERE username = ${username.toUpperCase()};`;
     return rows.length > 0 ? rows[0].id : null;
