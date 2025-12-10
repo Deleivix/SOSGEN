@@ -24,6 +24,14 @@ export default async function handler(
             );
         `;
 
+        // MIGRATION: Ensure columns exist if table was created previously
+        try {
+            await sql`ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS action VARCHAR(50)`;
+            await sql`ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS details TEXT`;
+        } catch (e) {
+            console.warn("Migration check for access_logs failed (columns likely exist):", e);
+        }
+
         if (request.method === 'GET') {
             const adminUsername = request.query.adminUsername as string;
             const type = request.query.type as string; // 'requests' (default) or 'audit'

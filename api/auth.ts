@@ -102,6 +102,12 @@ export default async function handler(
                 timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
         `;
+        
+        // 5b. Migration for Access Logs (Fix missing columns in existing DBs)
+        try {
+            await sql`ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS action VARCHAR(50)`;
+            await sql`ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS details TEXT`;
+        } catch (e) { /* ignore if fails, likely exists or type mismatch */ }
 
     } catch (error) {
         console.error('Database connection or table creation error:', error);
@@ -182,8 +188,12 @@ export default async function handler(
                  return response.status(401).json({ error: 'Usuario, email o contraseña no válidos.' });
             }
 
-            // Log access
-            await sql`INSERT INTO access_logs (user_id, action, details) VALUES (${user.id}, 'LOGIN', 'Inicio de sesión exitoso')`;
+            // Log access (ensure action column is filled)
+            try {
+                await sql`INSERT INTO access_logs (user_id, action, details) VALUES (${user.id}, 'LOGIN', 'Inicio de sesión exitoso')`;
+            } catch (logError) {
+                console.error("Error logging login:", logError);
+            }
             
             // Update last activity
             await sql`UPDATE users SET last_activity = NOW() WHERE id = ${user.id}`;
@@ -201,7 +211,9 @@ export default async function handler(
         } else if (action === 'logout') {
              const { userId } = request.body;
              if (userId) {
-                 await sql`INSERT INTO access_logs (user_id, action, details) VALUES (${userId}, 'LOGOUT', 'Cierre de sesión')`;
+                 try {
+                    await sql`INSERT INTO access_logs (user_id, action, details) VALUES (${userId}, 'LOGOUT', 'Cierre de sesión')`;
+                 } catch (e) { console.error("Error logging logout", e); }
              }
              return response.status(200).json({ success: true });
         } else {

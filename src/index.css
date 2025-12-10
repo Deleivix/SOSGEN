@@ -80,8 +80,15 @@ body {
     color: var(--text-primary);
     font-size: 16px;
     height: 100vh;
+    overflow: hidden; /* Prevent body scroll, handle inside main */
+}
+
+/* Layout Fix: Ensure #app fills the body and flexes */
+#app {
     display: flex;
     flex-direction: column;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
 }
 
@@ -154,97 +161,6 @@ nav {
 .nav-link.active { background-color: var(--secondary-color); color: var(--primary-color); }
 .nav-icon { width: 16px; height: 16px; } /* Smaller icons */
 
-/* Dropdown Styles */
-.nav-item-container {
-    position: relative;
-    height: 100%;
-    display: flex;
-    align-items: center;
-}
-
-.dropdown-menu {
-    display: none;
-    position: absolute;
-    top: 100%; /* Desktop: down */
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 4px 12px var(--shadow-color);
-    min-width: 200px;
-    flex-direction: column;
-    z-index: 1001;
-    overflow: hidden;
-    padding: 0.5rem 0;
-}
-
-/* Open state handles visibility now instead of just hover */
-.nav-item-container.open .dropdown-menu {
-    display: flex;
-}
-
-/* Also support hover for desktop if desired, but JS click is cleaner for hybrid */
-@media (min-width: 769px) {
-    .nav-item-container:hover .dropdown-menu {
-        display: flex;
-    }
-}
-
-.dropdown-item {
-    padding: 0.75rem 1rem;
-    background: none;
-    border: none;
-    text-align: left;
-    color: var(--text-primary);
-    cursor: pointer;
-    font-family: var(--font-sans);
-    font-size: 0.85rem;
-    transition: background-color 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    white-space: nowrap;
-}
-
-.dropdown-item:hover {
-    background-color: var(--bg-main);
-    color: var(--accent-color);
-}
-
-.dropdown-item.active {
-    background-color: var(--bg-panel);
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-.dropdown-item .nav-icon {
-    width: 16px;
-    height: 16px;
-    color: var(--text-secondary);
-}
-
-.dropdown-item:hover .nav-icon {
-    color: var(--accent-color);
-}
-
-.dropdown-toggle {
-    gap: 0.2rem;
-}
-
-.dropdown-arrow {
-    width: 10px;
-    height: 10px;
-    opacity: 0.7;
-    transition: transform 0.2s;
-}
-
-.nav-item-container.open .dropdown-arrow,
-.nav-item-container:hover .dropdown-arrow {
-    transform: rotate(180deg);
-}
-
 .nav-right-controls { display: flex; align-items: center; gap: 0.8rem; margin-left: auto; }
 
 /* Theme Switcher */
@@ -273,16 +189,17 @@ nav {
 
 /* --- MAIN CONTENT --- */
 main {
-    flex-grow: 1;
-    overflow: hidden;
+    flex-grow: 1; /* This pushes main to fill remaining space */
+    overflow: hidden; /* Hide overflow to allow panels to scroll internally */
     position: relative;
     background-color: var(--bg-main);
+    width: 100%;
 }
 
 .page-panel {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     padding: 1.5rem 2rem;
-    overflow-y: auto;
+    overflow-y: auto; /* Enable internal scrolling */
     opacity: 0; pointer-events: none; transform: translateY(10px);
     transition: opacity 0.3s ease, transform 0.3s ease;
     display: flex; flex-direction: column; gap: 1.5rem;
