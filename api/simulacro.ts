@@ -26,21 +26,26 @@ export default async function handler(
         if (modelType === 'dsc') {
             return {
                 prompt: `
-                Eres un instructor GMDSS experto. Genera un caso práctico de ALERTA DSC para operador de CCR española.
+                Eres un instructor GMDSS experto. Genera un caso práctico completo de ALERTA DSC para un operador de un Centro de Coordinación de Salvamento (CCR) en España.
                 
-                **Reglas:**
-                1. Selecciona aleatoriamente uno de los 6 casos del protocolo (Válida/No Válida, Con/Sin Posición, En/Fuera Zona SAR).
-                2. Crea un escenario realista pero breve.
-                3. Usa un nombre de buque ÚNICO (ej. "MAR DE ONS", "GLORIA B").
-                4. Usa una estación de esta lista: ${EeccList}.
-                5. Genera 2 preguntas de opción múltiple (3 opciones) sobre el protocolo exacto a seguir (ACK/NO ACK, Retransmisión, etc.).
+                **IMPORTANTE - Campo 'scenario':**
+                - NO pongas un título breve.
+                - Genera una NARRATIVA DETALLADA (2-3 frases) que describa la situación exacta.
+                - Ejemplo: "El CCR Finisterre recibe una alerta DSC en VHF Canal 70 del pesquero 'MAR DE FONDO' (MMSI 224098765). La alerta indica 'Fire/Explosion' e incluye coordenadas 43-20N 009-15W. El buque se encuentra a 20 millas de la costa."
+                - La narrativa debe proporcionar el contexto necesario (tipo de llamada, posición, zona) para responder las preguntas.
+
+                **Reglas del ejercicio:**
+                1. Selecciona aleatoriamente una situación técnica (Válida/No Válida, Con/Sin Posición, En/Fuera Zona SAR).
+                2. Usa un nombre de buque ficticio pero realista.
+                3. Usa una estación costera de esta lista: ${EeccList}.
+                4. Genera 2 o 3 preguntas técnicas sobre el procedimiento exacto que el operador debe realizar ante esta alerta específica (ACK, Relay, Silencio, etc.).
                 
                 Formato JSON estricto.`,
                 schema: {
                     type: Type.OBJECT,
                     properties: {
                         type: { type: Type.STRING },
-                        scenario: { type: Type.STRING },
+                        scenario: { type: Type.STRING, description: "Detailed narrative of the distress situation context." },
                         questions: {
                             type: Type.ARRAY,
                             items: {
@@ -60,23 +65,28 @@ export default async function handler(
         } else {
             return {
                 prompt: `
-                Eres un instructor GMDSS. Genera un simulacro de SOCORRO POR VOZ (Radiotelefonía).
+                Eres un instructor GMDSS. Genera un simulacro detallado de SOCORRO POR VOZ (Radiotelefonía).
                 
+                **IMPORTANTE - Campo 'scenario':**
+                - NO pongas un título breve como "Incendio".
+                - Genera una NARRATIVA DETALLADA que describa la llamada entrante tal como la percibe el operador.
+                - Ejemplo: "A las 10:00 UTC, escuchas en Canal 16: 'MAYDAY, MAYDAY, MAYDAY. Aquí pesquero NUEVO HORIZONTE. Tenemos una vía de agua incontenible. Posición 5 millas al Norte de Cabo Prior. 4 personas a bordo.'."
+                - El escenario debe contener los datos (o la falta explícita de ellos) necesarios para evaluar la respuesta del alumno.
+
                 **Reglas:**
-                1. Escenario aleatorio (Incendio, Vía de agua, Hombre al agua).
-                2. Nombre de buque ÚNICO y estación de: ${EeccList}.
-                3. Genera el mensaje inicial de socorro (MAYDAY) que recibe el operador.
-                4. Genera preguntas secuenciales: 
-                   - 1º: Acuse de recibo correcto ("RECEIVED MAYDAY").
-                   - 2º: Obtener datos faltantes (Posición, POB, Peligro).
-                   - 3º: Acción final (MAYDAY RELAY).
+                1. Situación de emergencia aleatoria (Incendio, Vía de agua, Abandono, Hombre al agua).
+                2. Usa una estación costera de: ${EeccList}.
+                3. Genera preguntas secuenciales lógicas basadas en el escenario descrito:
+                   - Pregunta 1: Sobre la forma correcta de acusar recibo (fraseología).
+                   - Pregunta 2: Sobre la información crítica que falta (si falta algo) o la siguiente acción a tomar.
+                   - Pregunta 3: Sobre gestión posterior (Relay, Silencio, etc.).
                 
                 Formato JSON estricto.`,
                 schema: {
                     type: Type.OBJECT,
                     properties: {
                         type: { type: Type.STRING },
-                        scenario: { type: Type.STRING },
+                        scenario: { type: Type.STRING, description: "Detailed narrative of the incoming distress call." },
                         fullDetails: { type: Type.STRING },
                         questions: {
                             type: Type.ARRAY,
