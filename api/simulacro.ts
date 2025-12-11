@@ -28,24 +28,28 @@ export default async function handler(
                 prompt: `
                 Eres un instructor GMDSS experto. Genera un caso práctico completo de ALERTA DSC para un operador de un Centro de Coordinación de Salvamento (CCR) en España.
                 
-                **IMPORTANTE - Campo 'scenario':**
-                - NO pongas un título breve.
-                - Genera una NARRATIVA DETALLADA (2-3 frases) que describa la situación exacta.
-                - Ejemplo: "El CCR Finisterre recibe una alerta DSC en VHF Canal 70 del pesquero 'MAR DE FONDO' (MMSI 224098765). La alerta indica 'Fire/Explosion' e incluye coordenadas 43-20N 009-15W. El buque se encuentra a 20 millas de la costa."
-                - La narrativa debe proporcionar el contexto necesario (tipo de llamada, posición, zona) para responder las preguntas.
+                **Estructura de respuesta obligatoria:**
+                1. 'title': Un título corto para identificación interna (ej: "Incendio en pesquero").
+                2. 'scenario': **ESTE CAMPO ES CRÍTICO.** Debe ser una NARRATIVA DETALLADA (3-4 frases completas).
+                   - Describe exactamente qué ve el operador en la pantalla DSC o qué sucede en el centro.
+                   - DEBE INCLUIR explícitamente: Nombre del CCR que recibe, Canal (VHF 70 / MF 2187.5), MMSI del buque, Naturaleza del peligro (Nature of Distress), Coordenadas (o indicar "Posición: No incluida").
+                   - NO escribas un resumen. Escribe la escena.
+                   - Ejemplo CORRECTO: "El operador de consola en CCR Finisterre observa una alerta DSC entrante en VHF Canal 70. El MMSI emisor es 224098765 (Pesquero 'MAR'). La naturaleza del peligro indica 'Fire/Explosion'. La alerta incluye coordenadas 43-20N 009-15W. No hay comunicación de voz subsiguiente."
+                   - Ejemplo INCORRECTO: "Incendio a bordo".
 
                 **Reglas del ejercicio:**
                 1. Selecciona aleatoriamente una situación técnica (Válida/No Válida, Con/Sin Posición, En/Fuera Zona SAR).
                 2. Usa un nombre de buque ficticio pero realista.
                 3. Usa una estación costera de esta lista: ${EeccList}.
-                4. Genera 2 o 3 preguntas técnicas sobre el procedimiento exacto que el operador debe realizar ante esta alerta específica (ACK, Relay, Silencio, etc.).
+                4. Genera 2 o 3 preguntas técnicas sobre el procedimiento exacto que el operador debe realizar ante esta alerta específica.
                 
                 Formato JSON estricto.`,
                 schema: {
                     type: Type.OBJECT,
                     properties: {
                         type: { type: Type.STRING },
-                        scenario: { type: Type.STRING, description: "Detailed narrative of the distress situation context." },
+                        title: { type: Type.STRING },
+                        scenario: { type: Type.STRING, description: "Detailed narrative description of the DSC alert reception context." },
                         questions: {
                             type: Type.ARRAY,
                             items: {
@@ -59,7 +63,7 @@ export default async function handler(
                             }
                         }
                     },
-                    required: ["type", "scenario", "questions"]
+                    required: ["type", "title", "scenario", "questions"]
                 }
             };
         } else {
@@ -67,26 +71,24 @@ export default async function handler(
                 prompt: `
                 Eres un instructor GMDSS. Genera un simulacro detallado de SOCORRO POR VOZ (Radiotelefonía).
                 
-                **IMPORTANTE - Campo 'scenario':**
-                - NO pongas un título breve como "Incendio".
-                - Genera una NARRATIVA DETALLADA que describa la llamada entrante tal como la percibe el operador.
-                - Ejemplo: "A las 10:00 UTC, escuchas en Canal 16: 'MAYDAY, MAYDAY, MAYDAY. Aquí pesquero NUEVO HORIZONTE. Tenemos una vía de agua incontenible. Posición 5 millas al Norte de Cabo Prior. 4 personas a bordo.'."
-                - El escenario debe contener los datos (o la falta explícita de ellos) necesarios para evaluar la respuesta del alumno.
+                **Estructura de respuesta obligatoria:**
+                1. 'title': Título corto (ej: "Vía de agua").
+                2. 'scenario': **NARRATIVA DETALLADA.** Transcribe la llamada de socorro o describe la recepción con todo detalle.
+                   - Ejemplo CORRECTO: "Siendo las 10:00 UTC, escuchas en Canal 16 VHF: 'MAYDAY, MAYDAY, MAYDAY. Aquí pesquero NUEVO HORIZONTE. Tenemos una vía de agua incontenible en sala de máquinas. Posición 5 millas al Norte de Cabo Prior. 4 personas a bordo. Solicitamos asistencia inmediata. Cambio'."
+                   - El escenario debe proporcionar TODA la información necesaria (quién, dónde, qué, cuánto) para que el alumno pueda decidir si falta algo o cómo actuar.
 
                 **Reglas:**
                 1. Situación de emergencia aleatoria (Incendio, Vía de agua, Abandono, Hombre al agua).
                 2. Usa una estación costera de: ${EeccList}.
-                3. Genera preguntas secuenciales lógicas basadas en el escenario descrito:
-                   - Pregunta 1: Sobre la forma correcta de acusar recibo (fraseología).
-                   - Pregunta 2: Sobre la información crítica que falta (si falta algo) o la siguiente acción a tomar.
-                   - Pregunta 3: Sobre gestión posterior (Relay, Silencio, etc.).
+                3. Genera preguntas secuenciales lógicas basadas en el escenario descrito.
                 
                 Formato JSON estricto.`,
                 schema: {
                     type: Type.OBJECT,
                     properties: {
                         type: { type: Type.STRING },
-                        scenario: { type: Type.STRING, description: "Detailed narrative of the incoming distress call." },
+                        title: { type: Type.STRING },
+                        scenario: { type: Type.STRING, description: "Detailed narrative or transcript of the distress call." },
                         fullDetails: { type: Type.STRING },
                         questions: {
                             type: Type.ARRAY,
@@ -102,7 +104,7 @@ export default async function handler(
                             }
                         }
                     },
-                    required: ["type", "scenario", "fullDetails", "questions"]
+                    required: ["type", "title", "scenario", "fullDetails", "questions"]
                 }
             };
         }
