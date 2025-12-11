@@ -1,5 +1,6 @@
 
 :root {
+  /* --- COLORES GENERALES --- */
   --accent-color: #8BC34A;
   --accent-color-dark: #7aa841;
   --danger-color: #D32F2F;
@@ -20,8 +21,7 @@
   --importante-color-dark: #CE93D8; /* Lighter Purple for dark theme */
   --success-color: #2E7D32;
 
-
-  /* Light Theme */
+  /* --- VARIABLES TEMA CLARO (DEFINICIONES) --- */
   --bg-main-light: #F7F9FA;
   --bg-card-light: #FFFFFF;
   --bg-nav-top-light: #343A40;
@@ -35,8 +35,8 @@
   --table-header-bg-light: #F1F3F5;
   --bg-banner-light: linear-gradient(135deg, #495057, #343A40);
   --bg-panel-light: #F8F9FA;
-
-  /* Dark Theme */
+  
+  /* --- VARIABLES TEMA OSCURO (DEFINICIONES) --- */
   --bg-main-dark: #121212;
   --bg-card-dark: #1E1E1E;
   --bg-nav-top-dark: #181818;
@@ -48,10 +48,41 @@
   --border-color-dark: #333333;
   --shadow-color-dark: rgba(0,0,0,0.2);
   --table-header-bg-dark: #2A2A2A;
-  --buoy-stroke: var(--buoy-stroke-dark);
-  --buoy-water: var(--buoy-water-dark);
-  --bg-banner: var(--bg-banner-dark);
-  --bg-panel: var(--bg-panel-dark);
+  --bg-banner-dark: linear-gradient(135deg, #282828, #1a1a1a);
+  --bg-panel-dark: #252525;
+
+  /* --- FUENTES --- */
+  --font-sans: 'Roboto', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', monospace;
+  
+  /* --- COLORES DE BOYAS Y MARCAS (GLOBAL) --- */
+  --buoy-red: #D32F2F;
+  --buoy-green: #2E7D32;
+  --buoy-yellow: #FDD835;
+  --buoy-black: #212529;
+  --buoy-white: #F8F9FA;
+  --buoy-blue: #1E88E5;
+  --buoy-stroke-light: #333;
+  --buoy-stroke-dark: #ccc;
+  --buoy-water-light: #60A5FA;
+  --buoy-water-dark: #3B82F6;
+
+  /* --- ASIGNACIÓN TEMA POR DEFECTO (CLARO) --- */
+  --bg-main: var(--bg-main-light);
+  --bg-card: var(--bg-card-light);
+  --bg-nav-top: var(--bg-nav-top-light);
+  --bg-nav-bottom-start: var(--bg-nav-bottom-start-light);
+  --bg-nav-bottom-end: var(--bg-nav-bottom-end-light);
+  --text-primary: var(--text-primary-light);
+  --text-secondary: var(--text-secondary-light);
+  --text-inverted: var(--text-inverted-light);
+  --border-color: var(--border-color-light);
+  --shadow-color: var(--shadow-color-light);
+  --table-header-bg: var(--table-header-bg-light);
+  --buoy-stroke: var(--buoy-stroke-light);
+  --buoy-water: var(--buoy-water-light);
+  --bg-banner: var(--bg-banner-light);
+  --bg-panel: var(--bg-panel-light);
 }
 
 body.dark-theme {
@@ -239,7 +270,8 @@ nav {
   gap: 1.25rem;
   flex-shrink: 1;
   min-width: 0;
-  overflow: visible; /* Fixed clipping issue */
+  /* Fix: allow notifications to pop out */
+  overflow: visible; 
 }
 .nav-icon {
     width: 20px;
@@ -288,7 +320,8 @@ nav {
     border-radius: 20px;
     cursor: pointer;
     transition: all 0.2s;
-    position: relative; /* Fixed notification badge positioning */
+    /* Fix: needed for absolute badge positioning */
+    position: relative; 
 }
 .sidebar-trigger-btn:hover {
     background-color: rgba(255,255,255,0.1);
@@ -477,7 +510,7 @@ nav {
     color: white;
 }
 
-/* Notification Badge */
+/* Notification Badge - Fixed positioning */
 .notification-badge {
     position: absolute;
     top: -2px;
@@ -487,7 +520,7 @@ nav {
     background-color: var(--danger-color);
     border-radius: 50%;
     z-index: 100;
-    box-shadow: 0 0 0 2px var(--bg-nav-bottom-end); /* Better contrast border */
+    box-shadow: 0 0 0 2px var(--bg-nav-bottom-end); 
 }
 
 /* --- Component: Generic Content --- */
