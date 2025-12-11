@@ -71,6 +71,7 @@ export default async function handler(
                             'score', ad.score, 
                             'max_score', ad.max_score,
                             'created_at', ad.created_at,
+                            'completed_at', ad.completed_at,
                             'drill_type', ad.drill_type
                         )) 
                         FROM assigned_drills ad 

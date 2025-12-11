@@ -35,7 +35,7 @@ let currentTab: 'dashboard' | 'assign' = 'dashboard';
 // --- DASHBOARD STATE ---
 let dashboardFilter = "";
 let dashboardSort: { key: string, dir: 'asc' | 'desc' } = { key: 'last_activity', dir: 'desc' };
-let timeRange: '1M' | '1Y' | 'ALL' = 'ALL'; // New State for Time Range
+let timeRange: '1M' | '1Y' | 'ALL' = 'ALL'; 
 
 // --- DATA AGGREGATION HELPERS ---
 
@@ -60,7 +60,6 @@ function isDateInRange(dateStr: string): boolean {
 function getLast6MonthsLabels() {
     const months = [];
     const date = new Date();
-    // Go to first day of current month to avoid edge cases like 31st vs months with 30 days
     date.setDate(1); 
     
     for (let i = 5; i >= 0; i--) {
@@ -82,7 +81,7 @@ function getMonthlyAssignmentStats() {
     usersStats.forEach(u => {
         if (!u.assigned_history) return;
         u.assigned_history.forEach(h => {
-            // Count Assigned
+            // Count Assigned (based on created_at)
             const createdDate = new Date(h.created_at);
             const createdKey = `${createdDate.getFullYear()}-${createdDate.getMonth()}`;
             
@@ -91,7 +90,7 @@ function getMonthlyAssignmentStats() {
                 stats[assignIdx].assigned++;
             }
 
-            // Count Completed
+            // Count Completed (based on completed_at)
             if (h.status === 'COMPLETED' && h.completed_at) {
                 const completedDate = new Date(h.completed_at);
                 const completedKey = `${completedDate.getFullYear()}-${completedDate.getMonth()}`;
@@ -111,7 +110,7 @@ function getPerformanceTrend() {
     const stats = months.map(m => ({ label: m.label, key: m.key, totalScore: 0, totalMax: 0 }));
 
     usersStats.forEach(u => {
-        // ONLY AUDITED DRILLS (Assigned History)
+        // STRICTLY ONLY AUDITED DRILLS (Assigned History)
         if (u.assigned_history) {
             u.assigned_history.forEach(h => {
                 if (h.status === 'COMPLETED' && h.completed_at) {
@@ -161,7 +160,7 @@ function renderLineChartSVG(data: { label: string, value: number }[]) {
     const dots = data.map((d, i) => {
         const x = padding + i * xStep;
         const y = height - padding - (d.value / maxVal) * (height - padding * 2);
-        // Only show dot if value > 0 to avoid clutter on empty months, or show all for continuity
+        // Always show dots for continuity in this context
         return `
             <circle cx="${x}" cy="${y}" r="4" fill="var(--accent-color)" stroke="var(--bg-card)" stroke-width="2" />
             <text x="${x}" y="${y - 10}" font-size="10" text-anchor="middle" fill="var(--text-primary)" font-weight="bold">${d.value}%</text>
@@ -255,6 +254,7 @@ async function fetchUsersStats() {
 }
 
 function scrapeDrillDataFromEditor() {
+    // ... (No changes to scrape logic)
     const editor = document.getElementById('drill-editor');
     if (!editor) return null;
 
@@ -391,12 +391,9 @@ function createManualDrill() {
 
 function exportToCSV() {
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Usuario,Email,Ultima Actividad,Total Simulacros Personales,Media Personal,Simulacros Asignados,Media Asignados\n";
+    csvContent += "Usuario,Email,Ultima Actividad,Simulacros Asignados,Simulacros Completados,Nota Media Auditada\n";
 
     usersStats.forEach(u => {
-        const pStats = u.personal_stats || {};
-        const pAvg = pStats.totalQuestions ? ((pStats.totalCorrect || 0) / pStats.totalQuestions * 100).toFixed(1) : "0";
-        
         const assigned = u.assigned_history || [];
         const completedAssigned = assigned.filter(a => a.status === 'COMPLETED');
         let assignedAvg = "0";
@@ -410,9 +407,8 @@ function exportToCSV() {
             u.username,
             u.email,
             u.last_activity ? new Date(u.last_activity).toLocaleString() : '-',
-            pStats.totalDrills || 0,
-            pAvg + '%',
             assigned.length,
+            completedAssigned.length,
             assignedAvg + '%'
         ].join(",");
         csvContent += row + "\n";
@@ -421,7 +417,7 @@ function exportToCSV() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "reporte_simulacros.csv");
+    link.setAttribute("download", "reporte_auditoria.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -435,27 +431,16 @@ function getFilteredUserStats(u: UserStat) {
     let totalAssigned = 0;
     let totalCompleted = 0;
 
-    // 1. Personal Stats (Approximation: We don't have granular dates in `personal_stats` aggregate, 
-    // but we have `personal_stats.history`. Use history for range calc if available)
-    if (u.personal_stats?.history) {
-        const filteredHistory = u.personal_stats.history.filter(h => isDateInRange(h.timestamp));
-        filteredHistory.forEach(h => {
-            totalScore += h.score;
-            totalMax += h.total;
-        });
-    }
-
-    // 2. Assigned Stats
+    // 1. Assigned Stats (The only source of truth for the supervisor now)
     if (u.assigned_history) {
-        // Filter assigned based on creation (for assigned count) or completion (for score)
+        // Filter assigned based on creation (for assigned count)
         const rangeAssigned = u.assigned_history.filter(h => isDateInRange(h.created_at));
         totalAssigned = rangeAssigned.length;
         
+        // Filter completed based on completion date (for score)
         const rangeCompleted = u.assigned_history.filter(h => h.status === 'COMPLETED' && h.completed_at && isDateInRange(h.completed_at));
         totalCompleted = rangeCompleted.length;
         
-        // Note: For "KPI Personal" in the table, the prompt implies "Rendimiento Global". 
-        // Previously it was pure personal. Let's mix both for a "Global Score" respecting the range.
         rangeCompleted.forEach(h => {
             totalScore += h.score;
             totalMax += h.max_score;
@@ -516,7 +501,7 @@ function renderUserDetailModal(user: UserStat) {
             <div class="user-detail-stats">
                 <div class="user-detail-stat-item">
                     <div class="user-detail-stat-val" style="color:var(--accent-color-dark);">${stats.hasData ? stats.kpi.toFixed(0) + '%' : '-'}</div>
-                    <div class="user-detail-stat-lbl">Rendimiento Medio</div>
+                    <div class="user-detail-stat-lbl">Rendimiento Auditado</div>
                 </div>
                 <div class="user-detail-stat-item">
                     <div class="user-detail-stat-val">${stats.totalCompleted}</div>
@@ -573,14 +558,14 @@ function renderAnalyticsSection() {
         <div class="supervisor-charts-row">
             <div class="chart-card">
                 <div class="chart-title" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>Evolución del Rendimiento (Auditados)</span>
+                    <span>Rendimiento (Solo Auditados)</span>
                     <span style="font-size:0.7rem; font-weight:normal; color:var(--accent-color);">Media Mensual</span>
                 </div>
                 <div class="donut-chart-container" style="width:100%; height:150px;">
                     ${renderLineChartSVG(trendStats)}
                 </div>
                 <div style="margin-top:1rem; font-size:0.8rem; color:var(--text-secondary); text-align:center;">
-                    Últimos 6 meses (Solo Simulacros Auditados)
+                    Últimos 6 meses
                 </div>
             </div>
 
@@ -637,8 +622,8 @@ function renderDashboardTab() {
         return 0;
     });
 
-    const totalDrills = usersStats.reduce((acc, u) => acc + (u.personal_stats?.totalDrills || 0), 0);
     const totalAssigned = usersStats.reduce((acc, u) => acc + (u.assigned_history?.length || 0), 0);
+    const totalCompleted = usersStats.reduce((acc, u) => acc + (u.assigned_history?.filter(h => h.status === 'COMPLETED').length || 0), 0);
     
     const sortIcon = (key: string) => {
         if (dashboardSort.key !== key) return '<span style="opacity:0.3; margin-left:5px;">↕</span>';
@@ -654,8 +639,8 @@ function renderDashboardTab() {
                 <div class="supervisor-stat-label">Usuarios Activos</div>
             </div>
             <div class="supervisor-stat-card">
-                <div class="supervisor-stat-value">${totalDrills}</div>
-                <div class="supervisor-stat-label">Simulacros Personales</div>
+                <div class="supervisor-stat-value">${totalCompleted}</div>
+                <div class="supervisor-stat-label">Simulacros Completados</div>
             </div>
             <div class="supervisor-stat-card">
                 <div class="supervisor-stat-value">${totalAssigned}</div>
@@ -684,7 +669,7 @@ function renderDashboardTab() {
                         <th style="cursor:pointer;" data-sort="username">Usuario ${sortIcon('username')}</th>
                         <th style="cursor:pointer;" data-sort="email">Email ${sortIcon('email')}</th>
                         <th style="cursor:pointer;" data-sort="last_activity">Última Actividad ${sortIcon('last_activity')}</th>
-                        <th style="cursor:pointer; text-align:center;" data-sort="kpi">KPI Personal (${timeRange}) ${sortIcon('kpi')}</th>
+                        <th style="cursor:pointer; text-align:center;" data-sort="kpi">KPI Auditado (${timeRange}) ${sortIcon('kpi')}</th>
                         <th style="cursor:pointer; text-align:center;" data-sort="assigned">Asignados (Comp/Tot) ${sortIcon('assigned')}</th>
                     </tr>
                 </thead>
@@ -719,6 +704,7 @@ function renderDashboardTab() {
 }
 
 function renderAssignTab() {
+    // ... (No logic changes here, just keeping existing render function)
     const userListHtml = usersStats.map(u => `
         <label class="user-table-row" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border-bottom:1px solid var(--border-color);">
             <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''}>
@@ -775,6 +761,8 @@ function renderAssignTab() {
     `;
 }
 
+// ... rest of the file (renderQuestionBlock, renderContent, event listeners) remains the same ...
+// Re-exporting these to ensure the file is complete
 function renderQuestionBlock(q: any, idx: number) {
     const type = q.type || 'choice'; 
     const isOrdering = type === 'ordering';
@@ -933,7 +921,6 @@ export function renderSupervisorPage(container: HTMLElement) {
             }
         }
         
-        // Time Range Selector Logic
         const rangeBtn = target.closest('button[data-range]');
         if (rangeBtn) {
             timeRange = rangeBtn.getAttribute('data-range') as '1M' | '1Y' | 'ALL';
