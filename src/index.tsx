@@ -48,7 +48,7 @@ const pageRenderers = [
 let sessionTimeoutId: number | null = null;
 let notificationIntervalId: number | null = null;
 const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 Hours
-const NOTIFICATION_POLL_MS = 60 * 1000; // 1 Minute
+const NOTIFICATION_POLL_MS = 1000; // 1 Second (Immediate Refresh)
 
 function resetSessionTimeout() {
     if (sessionTimeoutId) window.clearTimeout(sessionTimeoutId);
