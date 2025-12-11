@@ -584,7 +584,7 @@ main {
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
-/* --- SUPERVISOR SPECIFIC STYLES (NEW) --- */
+/* --- SUPERVISOR SPECIFIC STYLES --- */
 .supervisor-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
 .supervisor-stat-card { background: var(--bg-main); padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); }
 .supervisor-stat-value { font-size: 2rem; font-weight: 700; color: var(--accent-color-dark); margin-bottom: 0.5rem; }
