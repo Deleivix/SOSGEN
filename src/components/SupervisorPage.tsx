@@ -35,17 +35,40 @@ let currentTab: 'dashboard' | 'assign' = 'dashboard';
 // --- DASHBOARD STATE ---
 let dashboardFilter = "";
 let dashboardSort: { key: string, dir: 'asc' | 'desc' } = { key: 'last_activity', dir: 'desc' };
+let timeRange: '1M' | '1Y' | 'ALL' = 'ALL'; // New State for Time Range
 
 // --- DATA AGGREGATION HELPERS ---
+
+function isDateInRange(dateStr: string): boolean {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    const now = new Date();
+    
+    if (timeRange === '1M') {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(now.getMonth() - 1);
+        return date >= oneMonthAgo;
+    }
+    if (timeRange === '1Y') {
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(now.getFullYear() - 1);
+        return date >= oneYearAgo;
+    }
+    return true; // ALL
+}
 
 function getLast6MonthsLabels() {
     const months = [];
     const date = new Date();
+    // Go to first day of current month to avoid edge cases like 31st vs months with 30 days
+    date.setDate(1); 
+    
     for (let i = 5; i >= 0; i--) {
-        const d = new Date(date.getFullYear(), date.getMonth() - i, 1);
+        const d = new Date(date);
+        d.setMonth(date.getMonth() - i);
         months.push({
             label: d.toLocaleString('es-ES', { month: 'short' }).toUpperCase(),
-            key: `${d.getFullYear()}-${d.getMonth()}`, // Unique key for grouping
+            key: `${d.getFullYear()}-${d.getMonth()}`, // Key format: YYYY-M (0-11)
             obj: d
         });
     }
@@ -54,27 +77,28 @@ function getLast6MonthsLabels() {
 
 function getMonthlyAssignmentStats() {
     const months = getLast6MonthsLabels();
-    const stats = months.map(m => ({ label: m.label, assigned: 0, completed: 0 }));
+    const stats = months.map(m => ({ label: m.label, key: m.key, assigned: 0, completed: 0 }));
 
     usersStats.forEach(u => {
         if (!u.assigned_history) return;
         u.assigned_history.forEach(h => {
+            // Count Assigned
             const createdDate = new Date(h.created_at);
             const createdKey = `${createdDate.getFullYear()}-${createdDate.getMonth()}`;
             
-            // Count Assigned based on creation date
-            const mIndex = months.findIndex(m => m.key === createdKey);
-            if (mIndex > -1) {
-                stats[mIndex].assigned++;
+            const assignIdx = stats.findIndex(m => m.key === createdKey);
+            if (assignIdx > -1) {
+                stats[assignIdx].assigned++;
             }
 
-            // Count Completed based on completion date (or created if completed same month logic, but better specific)
+            // Count Completed
             if (h.status === 'COMPLETED' && h.completed_at) {
                 const completedDate = new Date(h.completed_at);
                 const completedKey = `${completedDate.getFullYear()}-${completedDate.getMonth()}`;
-                const cIndex = months.findIndex(m => m.key === completedKey);
-                if (cIndex > -1) {
-                    stats[cIndex].completed++;
+                
+                const completeIdx = stats.findIndex(m => m.key === completedKey);
+                if (completeIdx > -1) {
+                    stats[completeIdx].completed++;
                 }
             }
         });
@@ -84,28 +108,16 @@ function getMonthlyAssignmentStats() {
 
 function getPerformanceTrend() {
     const months = getLast6MonthsLabels();
-    const stats = months.map(m => ({ label: m.label, totalScore: 0, totalMax: 0, average: 0 }));
+    const stats = months.map(m => ({ label: m.label, key: m.key, totalScore: 0, totalMax: 0 }));
 
     usersStats.forEach(u => {
-        // 1. Personal History
-        if (u.personal_stats?.history) {
-            u.personal_stats.history.forEach(h => {
-                const date = new Date(h.timestamp);
-                const key = `${date.getFullYear()}-${date.getMonth()}`;
-                const idx = months.findIndex(m => m.key === key);
-                if (idx > -1) {
-                    stats[idx].totalScore += h.score;
-                    stats[idx].totalMax += h.total;
-                }
-            });
-        }
-        // 2. Assigned History (Completed)
+        // ONLY AUDITED DRILLS (Assigned History)
         if (u.assigned_history) {
             u.assigned_history.forEach(h => {
                 if (h.status === 'COMPLETED' && h.completed_at) {
                     const date = new Date(h.completed_at);
                     const key = `${date.getFullYear()}-${date.getMonth()}`;
-                    const idx = months.findIndex(m => m.key === key);
+                    const idx = stats.findIndex(m => m.key === key);
                     if (idx > -1) {
                         stats[idx].totalScore += h.score;
                         stats[idx].totalMax += h.max_score;
@@ -149,6 +161,7 @@ function renderLineChartSVG(data: { label: string, value: number }[]) {
     const dots = data.map((d, i) => {
         const x = padding + i * xStep;
         const y = height - padding - (d.value / maxVal) * (height - padding * 2);
+        // Only show dot if value > 0 to avoid clutter on empty months, or show all for continuity
         return `
             <circle cx="${x}" cy="${y}" r="4" fill="var(--accent-color)" stroke="var(--bg-card)" stroke-width="2" />
             <text x="${x}" y="${y - 10}" font-size="10" text-anchor="middle" fill="var(--text-primary)" font-weight="bold">${d.value}%</text>
@@ -177,13 +190,15 @@ function renderGroupedBarChartSVG(data: { label: string, assigned: number, compl
     const height = 150;
     const padding = 20;
     
-    const maxVal = Math.max(...data.map(d => Math.max(d.assigned, d.completed, 5))); // Min scale 5
+    // Calculate max value for scaling, ensure at least 5 for empty charts
+    const maxVal = Math.max(...data.map(d => Math.max(d.assigned, d.completed)), 5);
     
     const xStep = (width - padding * 2) / data.length;
-    const barWidth = (xStep * 0.6) / 2;
+    const barWidth = (xStep * 0.35); // Bar width relative to step
+    const gap = 2; // Small gap between grouped bars
 
     const bars = data.map((d, i) => {
-        const xCenter = padding + i * xStep + xStep / 2;
+        const xStart = padding + i * xStep + (xStep - (barWidth * 2 + gap)) / 2;
         
         const hAssigned = (d.assigned / maxVal) * (height - padding * 2);
         const yAssigned = height - padding - hAssigned;
@@ -191,15 +206,19 @@ function renderGroupedBarChartSVG(data: { label: string, assigned: number, compl
         const hCompleted = (d.completed / maxVal) * (height - padding * 2);
         const yCompleted = height - padding - hCompleted;
 
+        const xAssigned = xStart;
+        const xCompleted = xStart + barWidth + gap;
+        const xLabel = xStart + barWidth + gap / 2;
+
         return `
             <!-- Assigned Bar (Blue/Info) -->
-            <rect x="${xCenter - barWidth}" y="${yAssigned}" width="${barWidth}" height="${hAssigned}" fill="var(--info-color)" rx="2" />
+            ${d.assigned > 0 ? `<rect x="${xAssigned}" y="${yAssigned}" width="${barWidth}" height="${hAssigned}" fill="var(--info-color)" rx="2" />` : ''}
             
             <!-- Completed Bar (Green/Accent) -->
-            <rect x="${xCenter}" y="${yCompleted}" width="${barWidth}" height="${hCompleted}" fill="var(--accent-color)" rx="2" />
+            ${d.completed > 0 ? `<rect x="${xCompleted}" y="${yCompleted}" width="${barWidth}" height="${hCompleted}" fill="var(--accent-color)" rx="2" />` : ''}
             
             <!-- Label -->
-            <text x="${xCenter}" y="${height - 5}" font-size="10" text-anchor="middle" fill="var(--text-secondary)">${d.label}</text>
+            <text x="${xLabel}" y="${height - 5}" font-size="10" text-anchor="middle" fill="var(--text-secondary)">${d.label}</text>
         `;
     }).join('');
 
@@ -408,15 +427,43 @@ function exportToCSV() {
     document.body.removeChild(link);
 }
 
-// --- HELPERS FOR DASHBOARD ---
+// --- HELPERS FOR DASHBOARD TABLE & MODAL ---
 
-function getKPI(u: UserStat): number {
-    if (!u.personal_stats?.totalQuestions) return 0;
-    return (u.personal_stats.totalCorrect! / u.personal_stats.totalQuestions!) * 100;
-}
+function getFilteredUserStats(u: UserStat) {
+    let totalScore = 0;
+    let totalMax = 0;
+    let totalAssigned = 0;
+    let totalCompleted = 0;
 
-function getCompletedAssignedCount(u: UserStat): number {
-    return (u.assigned_history || []).filter(a => a.status === 'COMPLETED').length;
+    // 1. Personal Stats (Approximation: We don't have granular dates in `personal_stats` aggregate, 
+    // but we have `personal_stats.history`. Use history for range calc if available)
+    if (u.personal_stats?.history) {
+        const filteredHistory = u.personal_stats.history.filter(h => isDateInRange(h.timestamp));
+        filteredHistory.forEach(h => {
+            totalScore += h.score;
+            totalMax += h.total;
+        });
+    }
+
+    // 2. Assigned Stats
+    if (u.assigned_history) {
+        // Filter assigned based on creation (for assigned count) or completion (for score)
+        const rangeAssigned = u.assigned_history.filter(h => isDateInRange(h.created_at));
+        totalAssigned = rangeAssigned.length;
+        
+        const rangeCompleted = u.assigned_history.filter(h => h.status === 'COMPLETED' && h.completed_at && isDateInRange(h.completed_at));
+        totalCompleted = rangeCompleted.length;
+        
+        // Note: For "KPI Personal" in the table, the prompt implies "Rendimiento Global". 
+        // Previously it was pure personal. Let's mix both for a "Global Score" respecting the range.
+        rangeCompleted.forEach(h => {
+            totalScore += h.score;
+            totalMax += h.max_score;
+        });
+    }
+
+    const kpi = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
+    return { kpi, hasData: totalMax > 0, totalAssigned, totalCompleted };
 }
 
 function renderUserDetailModal(user: UserStat) {
@@ -427,17 +474,16 @@ function renderUserDetailModal(user: UserStat) {
     modalOverlay.className = 'modal-overlay';
     modalOverlay.id = modalId;
 
-    const ps = user.personal_stats || {};
-    const dscStats = ps.dsc || { correct: 0, questions: 0 };
-    const voiceStats = ps.radiotelephony || { correct: 0, questions: 0 };
-    
-    const dscScore = dscStats.questions > 0 ? ((dscStats.correct / dscStats.questions) * 100).toFixed(0) : '-';
-    const voiceScore = voiceStats.questions > 0 ? ((voiceStats.correct / voiceStats.questions) * 100).toFixed(0) : '-';
-    const totalScore = ps.totalQuestions ? ((ps.totalCorrect! / ps.totalQuestions!) * 100).toFixed(0) : '-';
+    // Recalculate stats based on GLOBAL timeRange
+    const stats = getFilteredUserStats(user);
+    const rangeText = timeRange === '1M' ? 'Último Mes' : (timeRange === '1Y' ? 'Último Año' : 'Todo el Historial');
 
+    // Filter history list for the modal
     const history = user.assigned_history || [];
-    const historyHtml = history.length > 0 
-        ? history.slice(0, 5).map(h => { 
+    const filteredHistory = history.filter(h => isDateInRange(h.created_at)); // Show assigned in range
+    
+    const historyHtml = filteredHistory.length > 0 
+        ? filteredHistory.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5).map(h => { 
             const isCompleted = h.status === 'COMPLETED';
             const statusColor = isCompleted ? 'var(--success-color)' : 'var(--warning-color)';
             const scoreDisplay = isCompleted ? `${h.score}/${h.max_score}` : '-';
@@ -451,7 +497,7 @@ function renderUserDetailModal(user: UserStat) {
                 </tr>
             `;
         }).join('')
-        : '<tr><td colspan="4" style="text-align:center; padding:1rem; color:var(--text-secondary);">Sin simulacros asignados recientes.</td></tr>';
+        : '<tr><td colspan="4" style="text-align:center; padding:1rem; color:var(--text-secondary);">Sin simulacros asignados en este periodo.</td></tr>';
 
     modalOverlay.innerHTML = `
         <div class="modal-content" style="max-width: 600px; text-align: left; padding: 2rem;">
@@ -463,22 +509,26 @@ function renderUserDetailModal(user: UserStat) {
                 <button class="secondary-btn modal-close-btn" style="padding:0.4rem 0.8rem;">✕</button>
             </div>
 
+            <div style="background:var(--bg-main); padding:0.5rem 1rem; border-radius:4px; margin-bottom:1rem; font-size:0.85rem; color:var(--accent-color-dark); font-weight:bold; text-align:center;">
+                Mostrando datos: ${rangeText}
+            </div>
+
             <div class="user-detail-stats">
                 <div class="user-detail-stat-item">
-                    <div class="user-detail-stat-val" style="color:var(--accent-color-dark);">${totalScore}%</div>
-                    <div class="user-detail-stat-lbl">Media Global</div>
+                    <div class="user-detail-stat-val" style="color:var(--accent-color-dark);">${stats.hasData ? stats.kpi.toFixed(0) + '%' : '-'}</div>
+                    <div class="user-detail-stat-lbl">Rendimiento Medio</div>
                 </div>
                 <div class="user-detail-stat-item">
-                    <div class="user-detail-stat-val">${dscScore}%</div>
-                    <div class="user-detail-stat-lbl">Técnica DSC</div>
+                    <div class="user-detail-stat-val">${stats.totalCompleted}</div>
+                    <div class="user-detail-stat-lbl">Completados</div>
                 </div>
                 <div class="user-detail-stat-item">
-                    <div class="user-detail-stat-val">${voiceScore}%</div>
-                    <div class="user-detail-stat-lbl">Voz / Fonía</div>
+                    <div class="user-detail-stat-val">${stats.totalAssigned}</div>
+                    <div class="user-detail-stat-lbl">Asignados</div>
                 </div>
             </div>
 
-            <h3 class="reference-table-subtitle" style="margin-top:0;">Últimas Asignaciones</h3>
+            <h3 class="reference-table-subtitle" style="margin-top:0;">Asignaciones Recientes (${rangeText})</h3>
             <div class="table-wrapper" style="margin-bottom:2rem;">
                 <table class="reference-table">
                     <thead>
@@ -523,14 +573,14 @@ function renderAnalyticsSection() {
         <div class="supervisor-charts-row">
             <div class="chart-card">
                 <div class="chart-title" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>Evolución del Rendimiento (Global)</span>
+                    <span>Evolución del Rendimiento (Auditados)</span>
                     <span style="font-size:0.7rem; font-weight:normal; color:var(--accent-color);">Media Mensual</span>
                 </div>
                 <div class="donut-chart-container" style="width:100%; height:150px;">
                     ${renderLineChartSVG(trendStats)}
                 </div>
                 <div style="margin-top:1rem; font-size:0.8rem; color:var(--text-secondary); text-align:center;">
-                    Últimos 6 meses (Simulacros Personales + Auditados)
+                    Últimos 6 meses (Solo Simulacros Auditados)
                 </div>
             </div>
 
@@ -568,8 +618,14 @@ function renderDashboardTab() {
     filteredUsers.sort((a, b) => {
         let valA: any, valB: any;
         switch(dashboardSort.key) {
-            case 'kpi': valA = getKPI(a); valB = getKPI(b); break;
-            case 'assigned': valA = getCompletedAssignedCount(a); valB = getCompletedAssignedCount(b); break;
+            case 'kpi': 
+                valA = getFilteredUserStats(a).kpi; 
+                valB = getFilteredUserStats(b).kpi; 
+                break;
+            case 'assigned': 
+                valA = getFilteredUserStats(a).totalCompleted; 
+                valB = getFilteredUserStats(b).totalCompleted; 
+                break;
             case 'last_activity':
                 valA = a.last_activity ? new Date(a.last_activity).getTime() : 0;
                 valB = b.last_activity ? new Date(b.last_activity).getTime() : 0;
@@ -607,8 +663,15 @@ function renderDashboardTab() {
             </div>
         </div>
 
-        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-            <input type="text" id="dashboard-search" class="filter-input" placeholder="Filtrar por nombre o email..." value="${dashboardFilter}" style="width: 300px; margin-bottom: 0;">
+        <div style="margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center;">
+            <div style="display:flex; align-items:center; gap: 1rem;">
+                <input type="text" id="dashboard-search" class="filter-input" placeholder="Filtrar por nombre o email..." value="${dashboardFilter}" style="width: 250px; margin-bottom: 0;">
+                <div class="buoy-selector-group" id="time-range-selector">
+                    <button class="buoy-selector-btn ${timeRange === '1M' ? 'active' : ''}" data-range="1M" style="padding:0.4rem 0.8rem; font-size:0.8rem;">1 Mes</button>
+                    <button class="buoy-selector-btn ${timeRange === '1Y' ? 'active' : ''}" data-range="1Y" style="padding:0.4rem 0.8rem; font-size:0.8rem;">1 Año</button>
+                    <button class="buoy-selector-btn ${timeRange === 'ALL' ? 'active' : ''}" data-range="ALL" style="padding:0.4rem 0.8rem; font-size:0.8rem;">Todo</button>
+                </div>
+            </div>
             <div style="font-size: 0.85rem; color: var(--text-secondary);">
                 ${filteredUsers.length} resultados
             </div>
@@ -621,33 +684,28 @@ function renderDashboardTab() {
                         <th style="cursor:pointer;" data-sort="username">Usuario ${sortIcon('username')}</th>
                         <th style="cursor:pointer;" data-sort="email">Email ${sortIcon('email')}</th>
                         <th style="cursor:pointer;" data-sort="last_activity">Última Actividad ${sortIcon('last_activity')}</th>
-                        <th style="cursor:pointer; text-align:center;" data-sort="kpi">KPI Personal ${sortIcon('kpi')}</th>
+                        <th style="cursor:pointer; text-align:center;" data-sort="kpi">KPI Personal (${timeRange}) ${sortIcon('kpi')}</th>
                         <th style="cursor:pointer; text-align:center;" data-sort="assigned">Asignados (Comp/Tot) ${sortIcon('assigned')}</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${filteredUsers.map(u => {
-                        const pAvg = getKPI(u);
-                        const hasData = !!u.personal_stats?.totalQuestions;
-                        let kpiColor = 'var(--text-secondary)';
-                        if (hasData) {
-                            if (pAvg >= 70) kpiColor = 'var(--accent-color)';
-                            else if (pAvg >= 50) kpiColor = 'var(--warning-color)';
-                            else kpiColor = 'var(--danger-color)';
-                        }
+                        const stats = getFilteredUserStats(u);
+                        const kpiColor = stats.hasData 
+                            ? (stats.kpi >= 70 ? 'var(--accent-color)' : (stats.kpi >= 50 ? 'var(--warning-color)' : 'var(--danger-color)'))
+                            : 'var(--text-secondary)';
+                        
                         const lastActDate = u.last_activity ? new Date(u.last_activity) : null;
                         const daysInactive = lastActDate ? Math.floor((Date.now() - lastActDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
                         const inactiveWarning = daysInactive > 15 ? `<span title="Inactivo > 15 días" style="color:var(--danger-color); font-weight:bold; margin-left:0.5rem;">⚠</span>` : '';
-                        const assigned = u.assigned_history || [];
-                        const completed = assigned.filter(a => a.status === 'COMPLETED').length;
                         
                         return `
                             <tr class="user-row-interactive" data-user-id="${u.id}" style="cursor: pointer;">
                                 <td>${u.username}</td>
                                 <td>${u.email}</td>
                                 <td>${u.last_activity ? new Date(u.last_activity).toLocaleDateString() : '-'}${inactiveWarning}</td>
-                                <td style="text-align:center;">${hasData ? `<span style="font-weight:700; color:${kpiColor};">${pAvg.toFixed(0)}%</span>` : '-'}</td>
-                                <td style="text-align:center;">${completed} / ${assigned.length}</td>
+                                <td style="text-align:center;">${stats.hasData ? `<span style="font-weight:700; color:${kpiColor};">${stats.kpi.toFixed(0)}%</span>` : '-'}</td>
+                                <td style="text-align:center;">${stats.totalCompleted} / ${stats.totalAssigned}</td>
                             </tr>
                         `;
                     }).join('')}
@@ -874,6 +932,14 @@ export function renderSupervisorPage(container: HTMLElement) {
                 renderContent();
             }
         }
+        
+        // Time Range Selector Logic
+        const rangeBtn = target.closest('button[data-range]');
+        if (rangeBtn) {
+            timeRange = rangeBtn.getAttribute('data-range') as '1M' | '1Y' | 'ALL';
+            renderContent();
+        }
+
         const userRow = target.closest('.user-row-interactive');
         if (userRow) {
             const uid = parseInt(userRow.getAttribute('data-user-id')!);
