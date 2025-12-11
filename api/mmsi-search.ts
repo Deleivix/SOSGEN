@@ -27,9 +27,8 @@ export default async function handler(
     Format: {"vesselInfo": {...}}
     `;
 
-    // NOTE: 'gemini-2.5-flash-lite-latest' might not support Google Search tool in all regions/versions yet.
-    // If it fails due to tool support, the try-catch will handle it, but we prioritize Flash.
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite-latest'];
+    // Fixed: Use valid Lite model name
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05'];
     let genAIResponse;
     let lastError;
 

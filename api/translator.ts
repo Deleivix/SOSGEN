@@ -37,7 +37,8 @@ export default async function handler(
       prompt = `Translate the following nautical text between Spanish/English (detect source). Output only translation: "${textToTranslate}"`;
     }
 
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite-latest'];
+    // Fixed: Use valid Lite model name
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05'];
     let genAIResponse;
     let lastError;
 

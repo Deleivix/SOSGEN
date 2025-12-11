@@ -17,7 +17,8 @@ export default async function handler(
     const EeccList = `'La Guardia Radio', 'Vigo Radio', 'Finisterre Radio', 'Coruña Radio', 'Ortegal Radio', 'Navia Radio', 'Cabo Peñas Radio', 'Santander Radio', 'Bilbao Radio', 'Pasajes Radio', 'Melilla Radio', 'Cabo de Gata Radio', 'Cartagena Radio', 'Cabo de la Nao Radio', 'Castellón Radio', 'Ibiza Radio', 'Menorca Radio', 'Palma Radio', 'Tarragona Radio', 'Barcelona Radio', 'Begur Radio', 'Cadaqués Radio', 'Huelva Radio', 'Cádiz Radio', 'Tarifa Radio', 'Málaga Radio', 'Motril Radio', 'La Palma Radio', 'Hierro Radio', 'Gomera Radio', 'Tenerife Radio', 'Las Palmas Radio', 'Fuerteventura Radio', 'Yaiza Radio', 'Arrecife Radio', 'La Restinga Radio', 'Garafía Radio'`;
 
     // Strategy: Try Primary Model -> Fallback to Lite Model on Quota Error
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite-latest'];
+    // Fixed: Use valid Lite model name
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05'];
     let genAIResponse;
     let lastError;
 

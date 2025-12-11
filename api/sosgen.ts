@@ -41,7 +41,8 @@ export default async function handler(
     
     Devuelve JSON.`;
 
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite-latest'];
+    // Fixed: Use valid Lite model name
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05'];
     let genAIResponse;
     let lastError;
 
