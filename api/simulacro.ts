@@ -16,8 +16,8 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     const EeccList = `'La Guardia Radio', 'Vigo Radio', 'Finisterre Radio', 'Coruña Radio', 'Ortegal Radio', 'Navia Radio', 'Cabo Peñas Radio', 'Santander Radio', 'Bilbao Radio', 'Pasajes Radio', 'Melilla Radio', 'Cabo de Gata Radio', 'Cartagena Radio', 'Cabo de la Nao Radio', 'Castellón Radio', 'Ibiza Radio', 'Menorca Radio', 'Palma Radio', 'Tarragona Radio', 'Barcelona Radio', 'Begur Radio', 'Cadaqués Radio', 'Huelva Radio', 'Cádiz Radio', 'Tarifa Radio', 'Málaga Radio', 'Motril Radio', 'La Palma Radio', 'Hierro Radio', 'Gomera Radio', 'Tenerife Radio', 'Las Palmas Radio', 'Fuerteventura Radio', 'Yaiza Radio', 'Arrecife Radio', 'La Restinga Radio', 'Garafía Radio'`;
 
-    // Strategy: Primary -> Lite -> Legacy Flash (1.5) for maximum availability
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05', 'gemini-1.5-flash'];
+    // Corrected Strategy: Use valid model names defined in SDK guidelines
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-flash-lite-latest'];
     let genAIResponse;
     let lastError;
 

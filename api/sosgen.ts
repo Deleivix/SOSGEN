@@ -41,8 +41,8 @@ export default async function handler(
     
     Devuelve JSON.`;
 
-    // Strategy: Primary -> Lite -> Legacy Flash (1.5) for maximum availability
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05', 'gemini-1.5-flash'];
+    // Corrected Strategy: Use valid model names defined in SDK guidelines
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-flash-lite-latest'];
     let genAIResponse;
     let lastError;
 
