@@ -254,7 +254,6 @@ async function fetchUsersStats() {
 }
 
 function scrapeDrillDataFromEditor() {
-    // ... (No changes to scrape logic)
     const editor = document.getElementById('drill-editor');
     if (!editor) return null;
 
@@ -369,7 +368,15 @@ async function generateDrillPreview(type: string) {
         renderContent();
     } catch (e) {
         showToast("Error generando simulacro", "error");
-        container.innerHTML = `<p class="error">Error al generar.</p>`;
+        // Show clearer error and fallback button
+        container.innerHTML = `
+            <div style="text-align:center; padding: 2rem; background: var(--bg-main); border-radius: 8px; border: 1px solid var(--border-color);">
+                <p class="error" style="font-size:1rem; margin-bottom:1rem; color:var(--danger-color);">⚠️ Servicio de IA temporalmente no disponible (Cuota Excedida).</p>
+                <p style="color:var(--text-secondary); margin-bottom:1.5rem;">Puede crear el simulacro manualmente.</p>
+                <button id="create-manual-btn-fallback" class="primary-btn">Crear Simulacro Manualmente</button>
+            </div>
+        `;
+        document.getElementById('create-manual-btn-fallback')?.addEventListener('click', createManualDrill);
     }
 }
 
@@ -431,13 +438,10 @@ function getFilteredUserStats(u: UserStat) {
     let totalAssigned = 0;
     let totalCompleted = 0;
 
-    // 1. Assigned Stats (The only source of truth for the supervisor now)
     if (u.assigned_history) {
-        // Filter assigned based on creation (for assigned count)
         const rangeAssigned = u.assigned_history.filter(h => isDateInRange(h.created_at));
         totalAssigned = rangeAssigned.length;
         
-        // Filter completed based on completion date (for score)
         const rangeCompleted = u.assigned_history.filter(h => h.status === 'COMPLETED' && h.completed_at && isDateInRange(h.completed_at));
         totalCompleted = rangeCompleted.length;
         
@@ -459,13 +463,11 @@ function renderUserDetailModal(user: UserStat) {
     modalOverlay.className = 'modal-overlay';
     modalOverlay.id = modalId;
 
-    // Recalculate stats based on GLOBAL timeRange
     const stats = getFilteredUserStats(user);
     const rangeText = timeRange === '1M' ? 'Último Mes' : (timeRange === '1Y' ? 'Último Año' : 'Todo el Historial');
 
-    // Filter history list for the modal
     const history = user.assigned_history || [];
-    const filteredHistory = history.filter(h => isDateInRange(h.created_at)); // Show assigned in range
+    const filteredHistory = history.filter(h => isDateInRange(h.created_at));
     
     const historyHtml = filteredHistory.length > 0 
         ? filteredHistory.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5).map(h => { 
@@ -706,13 +708,13 @@ function renderDashboardTab() {
 function renderAssignTab() {
     const userListHtml = usersStats.map(u => `
         <label class="user-table-row" style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-bottom:1px solid var(--border-color); cursor:pointer; transition: background-color 0.2s;">
-            <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''} style="cursor:pointer;">
+            <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''} style="cursor:pointer; width:1.2rem; height:1.2rem; accent-color:var(--accent-color);">
             <div style="display:flex; align-items:center; gap:0.75rem;">
-                <div style="width: 32px; height: 32px; background-color: var(--accent-color); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.9rem;">
+                <div style="width: 36px; height: 36px; background-color: var(--accent-color); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1rem;">
                     ${u.username.charAt(0).toUpperCase()}
                 </div>
                 <div style="display:flex; flex-direction:column;">
-                    <span style="font-weight:500; color:var(--text-primary);">${u.username}</span>
+                    <span style="font-weight:500; color:var(--text-primary); font-size:0.95rem;">${u.username}</span>
                     <span style="font-size:0.8rem; color:var(--text-secondary);">${u.email}</span>
                 </div>
             </div>
@@ -728,6 +730,7 @@ function renderAssignTab() {
     if (generatedDrillData) {
         editorHtml = `
             <div id="drill-editor" style="background:var(--bg-card); padding:2rem; border:1px solid var(--border-color); border-radius:12px; margin-bottom:1.5rem; box-shadow: 0 4px 12px var(--shadow-color);">
+                <h3 class="reference-table-subtitle" style="margin-top:0;">Editor de Simulacro</h3>
                 <div style="margin-bottom: 1.5rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap:wrap;">
                     <div style="flex:1;">
                         <label class="modern-label">Tipo General</label>
@@ -749,20 +752,24 @@ function renderAssignTab() {
                 <button id="add-question-btn" class="secondary-btn" style="width: 100%; margin-top: 1.5rem; border-style: dashed; padding: 1rem;">+ Añadir Nueva Pregunta</button>
             </div>
             <div style="text-align: right;">
-                <button id="confirm-assign-btn" class="primary-btn" style="width: auto; padding: 0.8rem 2rem;">Confirmar y Enviar</button>
+                <button id="confirm-assign-btn" class="primary-btn" style="width: auto; padding: 0.8rem 2rem;">Confirmar y Enviar a ${selectedUserIds.length} Usuario(s)</button>
             </div>
         `;
     }
 
     const allSelected = usersStats.length > 0 && selectedUserIds.length === usersStats.length;
+    const selectedCount = selectedUserIds.length;
 
     return `
         <div style="display:grid; grid-template-columns: 320px 1fr; gap:2rem; height: calc(100vh - 200px); min-height: 600px;">
             <div style="border:1px solid var(--border-color); border-radius:12px; display:flex; flex-direction:column; background:var(--bg-card); overflow:hidden;">
-                <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; background:var(--bg-main);">
-                    <span style="font-weight:bold; color:var(--text-primary);">Usuarios (${usersStats.length})</span>
-                    <button id="select-all-users-btn" class="secondary-btn" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
-                        ${allSelected ? 'Deseleccionar' : 'Seleccionar Todos'}
+                <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); background:var(--bg-main);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <span style="font-weight:bold; color:var(--text-primary);">Usuarios</span>
+                        <span style="font-size:0.8rem; color:var(--accent-color-dark); font-weight:bold;">${selectedCount} seleccionados</span>
+                    </div>
+                    <button id="select-all-users-btn" class="secondary-btn" style="width:100%; padding: 0.4rem; font-size: 0.85rem;">
+                        ${allSelected ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
                     </button>
                 </div>
                 <div style="overflow-y:auto; flex-grow:1; background:var(--bg-card);">
@@ -772,18 +779,21 @@ function renderAssignTab() {
             <div style="overflow-y: auto; padding-right: 0.5rem;">
                 <div style="margin-bottom:2rem; background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
                     <h3 class="reference-table-subtitle" style="margin-top:0;">Origen del Simulacro</h3>
-                    <div style="display:flex; gap:1rem; flex-wrap: wrap;">
-                        <button class="secondary-btn gen-drill-btn" data-type="dsc" style="flex:1;">
-                            <span style="display:block; font-weight:bold;">Generar DSC (IA)</span>
-                            <span style="font-size:0.8rem; opacity:0.8;">Escenarios aleatorios</span>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
+                        <button class="secondary-btn gen-drill-btn" data-type="dsc" style="height:auto; padding:1.5rem; flex-direction:column; gap:0.5rem; border:1px solid var(--border-color);">
+                            <div style="font-size:1.5rem;">📡</div>
+                            <span style="font-weight:bold;">Generar DSC (IA)</span>
+                            <span style="font-size:0.8rem; opacity:0.7;">Escenarios aleatorios</span>
                         </button>
-                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony" style="flex:1;">
-                            <span style="display:block; font-weight:bold;">Generar Voz (IA)</span>
-                            <span style="font-size:0.8rem; opacity:0.8;">Interacción hablada</span>
+                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony" style="height:auto; padding:1.5rem; flex-direction:column; gap:0.5rem; border:1px solid var(--border-color);">
+                            <div style="font-size:1.5rem;">🎙️</div>
+                            <span style="font-weight:bold;">Generar Voz (IA)</span>
+                            <span style="font-size:0.8rem; opacity:0.7;">Interacción hablada</span>
                         </button>
-                        <button id="create-manual-btn" class="secondary-btn" style="flex:1; border-color: var(--accent-color); color: var(--accent-color-dark);">
-                            <span style="display:block; font-weight:bold;">Crear Manualmente</span>
-                            <span style="font-size:0.8rem; opacity:0.8;">Desde cero</span>
+                        <button id="create-manual-btn" class="secondary-btn" style="height:auto; padding:1.5rem; flex-direction:column; gap:0.5rem; border:1px dashed var(--accent-color); color: var(--accent-color-dark);">
+                            <div style="font-size:1.5rem;">📝</div>
+                            <span style="font-weight:bold;">Crear Manualmente</span>
+                            <span style="font-size:0.8rem; opacity:0.7;">Desde cero</span>
                         </button>
                     </div>
                 </div>
@@ -997,7 +1007,7 @@ export function renderSupervisorPage(container: HTMLElement) {
             const allSelectedBtn = document.getElementById('select-all-users-btn');
             if(allSelectedBtn) {
                 const allSelected = usersStats.length > 0 && selectedUserIds.length === usersStats.length;
-                allSelectedBtn.textContent = allSelected ? 'Deseleccionar' : 'Seleccionar Todos';
+                allSelectedBtn.textContent = allSelected ? 'Deseleccionar Todos' : 'Seleccionar Todos';
             }
         }
     });
