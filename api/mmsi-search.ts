@@ -27,8 +27,8 @@ export default async function handler(
     Format: {"vesselInfo": {...}}
     `;
 
-    // Fixed: Use valid Lite model name
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05'];
+    // Strategy: Primary -> Lite -> Legacy Flash (1.5) for maximum availability
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash-lite-preview-02-05', 'gemini-1.5-flash'];
     let genAIResponse;
     let lastError;
 
@@ -36,7 +36,7 @@ export default async function handler(
         try {
             // Only add tools config if model supports it (Assuming Lite supports it or we accept graceful fail)
             const config: any = { temperature: 0.1 };
-            // We attempt to use search on both. If Lite rejects it, it will be caught.
+            // We attempt to use search on all. If a specific model rejects it, it will be caught.
             if (true) { 
                 config.tools = [{googleSearch: {}}];
             }
