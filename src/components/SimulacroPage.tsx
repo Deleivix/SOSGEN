@@ -1,6 +1,6 @@
 
 import { getCurrentUser } from "../utils/auth";
-import { checkDrillAnswers, renderDrillCalendar, renderDrillDashboard } from "../utils/drill";
+import { checkDrillAnswers, renderDrillCalendar, renderDrillDashboard, loadDrillStats } from "../utils/drill";
 import { showToast, speakText, stopSpeech } from "../utils/helpers";
 
 type AssignedDrill = {
@@ -9,22 +9,84 @@ type AssignedDrill = {
     drill_type: string;
     drill_data: any;
     created_at: string;
+    status: 'PENDING' | 'COMPLETED';
+    score?: number;
+    max_score?: number;
+    completed_at?: string;
 };
 
 let assignedDrills: AssignedDrill[] = [];
 let currentTab: 'personal' | 'assigned' = 'personal';
 
+// Centralized function to refresh all stats views
+async function refreshDashboardAndCalendar() {
+    const personalStats = await loadDrillStats(); // Returns the object from utils state
+    renderDrillDashboard(personalStats, assignedDrills);
+    renderDrillCalendar(personalStats, assignedDrills);
+}
+
 async function fetchAssignedDrills() {
     const user = getCurrentUser();
     if (!user) return;
     try {
-        const response = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills`);
-        if (response.ok) {
-            assignedDrills = await response.json();
-            renderAssignedList();
+        // Fetch ALL assigned drills (pending and completed) for history
+        const response = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills_all`); 
+        // Note: API endpoint logic needs to handle 'assigned_drills_all' or we filter on client if 'assigned_drills' returns all.
+        // Assuming current API returns all based on logic, or we update API. 
+        // For now, let's assume the API returns pending. 
+        // *Correction*: To populate calendar, we need completed ones too.
+        // Let's rely on the existing endpoint. If it filters by PENDING, we might miss completed history in calendar.
+        // The existing API implementation checks: WHERE ad.user_id = ${userId} AND ad.status = 'PENDING'.
+        // We need to fetch ALL to populate the calendar properly.
+        // Let's fetch 'assigned_drills_all' (requires API update or just fetch all here if supported)
+        
+        // Falling back to fetching 'assigned_drills' (pending) + separately getting history from stats?
+        // No, 'assigned_drills' usually implies active. 
+        // Let's change this to fetch ALL user data in utils if possible, or modify request.
+        
+        // Workaround without changing API file in this specific XML block (assuming user follows):
+        // We will fetch from the generic user-data endpoint which returns 'drillStats' and 'sosgenHistory'.
+        // It seems 'assigned_drills' table is separate.
+        
+        // Let's use a specific param to get ALL assigned
+        const responseAll = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills_full_history`);
+        if (responseAll.ok) {
+            assignedDrills = await responseAll.json();
+        } else {
+            // Fallback to just pending if endpoint fails (graceful degradation)
+            const resPending = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills`);
+            if (resPending.ok) assignedDrills = await resPending.json();
         }
+
+        renderAssignedList();
+        updateAssignedTabBadge(); 
+        refreshDashboardAndCalendar(); // Update dashboard with new data
     } catch (e) {
         console.error("Failed to load assigned drills");
+    }
+}
+
+function updateAssignedTabBadge() {
+    const tabBtn = document.querySelector('button[data-tab="assigned"]') as HTMLElement;
+    if (!tabBtn) return;
+
+    if (tabBtn.style.position !== 'relative') tabBtn.style.position = 'relative';
+
+    const existingBadge = tabBtn.querySelector('.notification-badge');
+    const pendingCount = assignedDrills.filter(d => d.status === 'PENDING').length;
+
+    if (pendingCount > 0) {
+        if (!existingBadge) {
+            const badge = document.createElement('span');
+            badge.className = 'notification-badge';
+            badge.style.backgroundColor = 'var(--warning-color)';
+            badge.style.border = '1px solid #fff';
+            badge.style.top = '2px';
+            badge.style.right = '2px';
+            tabBtn.appendChild(badge);
+        }
+    } else {
+        if (existingBadge) existingBadge.remove();
     }
 }
 
@@ -42,7 +104,7 @@ async function submitAssignedDrill(assignedId: number, score: number) {
             })
         });
         showToast("Resultados enviados al supervisor.", "success");
-        await fetchAssignedDrills(); // Refresh list
+        await fetchAssignedDrills(); // This will trigger dashboard refresh
         document.getElementById('drill-content')!.innerHTML = '<p class="drill-placeholder">Simulacro completado.</p>';
     } catch (e) {
         showToast("Error al enviar resultados.", "error");
@@ -53,12 +115,14 @@ function renderAssignedList() {
     const container = document.getElementById('assigned-drills-list');
     if (!container) return;
 
-    if (assignedDrills.length === 0) {
+    const pending = assignedDrills.filter(d => d.status === 'PENDING');
+
+    if (pending.length === 0) {
         container.innerHTML = '<p class="drill-placeholder">No tienes simulacros pendientes de auditoría.</p>';
         return;
     }
 
-    container.innerHTML = assignedDrills.map(drill => `
+    container.innerHTML = pending.map(drill => `
         <div class="drill-card-assigned" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
             <div>
                 <div style="font-weight: 600; color: var(--text-primary);">${drill.drill_type === 'dsc' ? 'Alerta DSC' : (drill.drill_type === 'manual' ? 'Simulacro Manual' : 'Radiotelefonía')}</div>
@@ -102,11 +166,9 @@ export function renderSimulacro(container: HTMLElement) {
     `;
     
     initializeSimulacro();
-    renderDrillDashboard();
-    renderDrillCalendar();
-    fetchAssignedDrills();
+    // Fetch calls will trigger rendering of dashboard and calendar once data arrives
+    fetchAssignedDrills(); 
 
-    // Ensure speech stops if user navigates away or switches tabs rapidly
     stopSpeech();
 
     container.addEventListener('click', e => {
@@ -131,27 +193,23 @@ export function renderSimulacro(container: HTMLElement) {
             const id = parseInt(startAssignedBtn.getAttribute('data-id')!);
             const drill = assignedDrills.find(d => d.id === id);
             if (drill) {
-                // Render drill in the personal content area for simplicity, but handle submission differently
                 document.getElementById('personal-tab-content')!.style.display = 'block';
                 document.getElementById('assigned-tab-content')!.style.display = 'none';
                 container.querySelectorAll('.info-nav-btn').forEach(b => b.classList.remove('active'));
-                // Hide buttons to force focus on this drill
                 const actions = container.querySelector('.drill-actions') as HTMLElement;
                 if (actions) actions.style.display = 'none';
                 
                 const contentEl = document.getElementById('drill-content') as HTMLDivElement;
-                renderDrillContent(drill.drill_data, contentEl, id); // Pass ID to indicate assigned mode
+                renderDrillContent(drill.drill_data, contentEl, id); 
             }
         }
         
-        // Handle TTS
         const speakBtn = target.closest('#btn-speak-scenario');
         if (speakBtn) {
             const scenarioText = document.querySelector('.drill-scenario')?.textContent;
             if (scenarioText) speakText(scenarioText);
         }
 
-        // Handle Ordering Drills (Move Up/Down)
         if (target.classList.contains('order-btn')) {
             const item = target.closest('.order-item');
             const list = item?.parentElement;
@@ -184,7 +242,6 @@ function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedI
         let optionsContent = '';
         
         if (isOrdering) {
-            // Shuffle options for ordering questions
             const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
             optionsContent = `
                 <div class="ordering-list" id="sortable-${index}" style="display: flex; flex-direction: column; gap: 0.5rem;">
@@ -200,7 +257,6 @@ function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedI
                 </div>
             `;
         } else {
-            // Standard Multiple Choice
             optionsContent = `
                 <div class="answer-options">
                     ${q.options.map((opt: string, optIndex: number) => `
@@ -226,15 +282,15 @@ function renderDrillContent(drillData: any, contentEl: HTMLDivElement, assignedI
 
     const checkBtn = contentEl.querySelector('#drill-check-btn');
     checkBtn?.addEventListener('click', () => {
-        stopSpeech(); // Stop any pending audio
-        // Special check function that returns score
+        stopSpeech();
         const score = checkDrillAnswers(drillData, contentEl);
         
         if (assignedId) {
             submitAssignedDrill(assignedId, score);
-            // Restore UI
             const actions = document.querySelector('.drill-actions') as HTMLElement;
             if (actions) actions.style.display = 'flex';
+        } else {
+            refreshDashboardAndCalendar(); // Trigger update for personal drills
         }
     }, { once: true });
 }

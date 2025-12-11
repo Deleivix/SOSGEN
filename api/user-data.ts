@@ -59,12 +59,12 @@ export default async function handler(request: VercelRequest, response: VercelRe
     try {
         if (request.method === 'GET') {
             const username = request.query.username as string;
-            const type = request.query.type as string; // Optional: 'assigned_drills'
+            const type = request.query.type as string; // Optional
             
             const userId = await getUserId(username);
             if (!userId) return response.status(401).json({ error: 'Authentication required.' });
 
-            // Fetch Assigned Drills specifically
+            // Fetch Assigned Drills (PENDING only) - Standard for tabs
             if (type === 'assigned_drills') {
                 const { rows } = await sql`
                     SELECT ad.*, u.username as supervisor_name 
@@ -76,7 +76,19 @@ export default async function handler(request: VercelRequest, response: VercelRe
                 return response.status(200).json(rows);
             }
 
-            // Default: Fetch standard user data
+            // Fetch FULL HISTORY of Assigned Drills (Pending + Completed) for Calendar & Stats
+            if (type === 'assigned_drills_full_history') {
+                const { rows } = await sql`
+                    SELECT ad.*, u.username as supervisor_name 
+                    FROM assigned_drills ad
+                    JOIN users u ON ad.supervisor_id = u.id
+                    WHERE ad.user_id = ${userId}
+                    ORDER BY ad.created_at DESC;
+                `;
+                return response.status(200).json(rows);
+            }
+
+            // Default: Fetch standard user data (Personal history)
             const [historyResult, statsResult] = await Promise.all([
                 sql`SELECT entry_data FROM sosgen_history WHERE user_id = ${userId} ORDER BY timestamp DESC;`,
                 sql`SELECT stats_data FROM drill_stats WHERE user_id = ${userId};`
@@ -146,5 +158,3 @@ export default async function handler(request: VercelRequest, response: VercelRe
         return response.status(500).json({ error: 'Database operation failed', details: errorMessage });
     }
 }
-
-
