@@ -706,17 +706,18 @@ function renderDashboardTab() {
 }
 
 function renderAssignTab() {
+    // Improved User Row Rendering
     const userListHtml = usersStats.map(u => `
-        <label class="user-table-row" style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-bottom:1px solid var(--border-color); cursor:pointer; transition: background-color 0.2s;">
-            <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''} style="cursor:pointer; width:1.2rem; height:1.2rem; accent-color:var(--accent-color);">
-            <div style="display:flex; align-items:center; gap:0.75rem;">
-                <div style="width: 36px; height: 36px; background-color: var(--accent-color); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1rem;">
-                    ${u.username.charAt(0).toUpperCase()}
-                </div>
-                <div style="display:flex; flex-direction:column;">
-                    <span style="font-weight:500; color:var(--text-primary); font-size:0.95rem;">${u.username}</span>
-                    <span style="font-size:0.8rem; color:var(--text-secondary);">${u.email}</span>
-                </div>
+        <label class="user-table-row" style="display:flex; align-items:center; gap:1rem; padding:0.75rem 1rem; border-bottom:1px solid var(--border-color); cursor:pointer; transition: background-color 0.2s;">
+            <div style="flex-shrink: 0; display: flex; align-items: center;">
+                <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''} style="cursor:pointer; width:1.25rem; height:1.25rem; accent-color:var(--accent-color);">
+            </div>
+            <div style="width: 40px; height: 40px; background-color: var(--accent-color); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.1rem; flex-shrink: 0;">
+                ${u.username.charAt(0).toUpperCase()}
+            </div>
+            <div style="display:flex; flex-direction:column; min-width: 0; flex: 1;">
+                <span style="font-weight:600; color:var(--text-primary); font-size:0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.username}</span>
+                <span style="font-size:0.85rem; color:var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.email}</span>
             </div>
         </label>
     `).join('');
@@ -728,31 +729,45 @@ function renderAssignTab() {
         </div>`;
     
     if (generatedDrillData) {
+        // Improved Editor Aesthetics
         editorHtml = `
-            <div id="drill-editor" style="background:var(--bg-card); padding:2rem; border:1px solid var(--border-color); border-radius:12px; margin-bottom:1.5rem; box-shadow: 0 4px 12px var(--shadow-color);">
-                <h3 class="reference-table-subtitle" style="margin-top:0;">Editor de Simulacro</h3>
-                <div style="margin-bottom: 1.5rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap:wrap;">
-                    <div style="flex:1;">
-                        <label class="modern-label">Tipo General</label>
-                        <select id="editor-drill-type" class="modern-input">
-                            <option value="dsc" ${generatedDrillData.type === 'dsc' ? 'selected' : ''}>Alerta DSC</option>
-                            <option value="radiotelephony" ${generatedDrillData.type === 'radiotelephony' ? 'selected' : ''}>Radiotelefonía</option>
-                            <option value="manual" ${generatedDrillData.type === 'manual' ? 'selected' : ''}>Manual / Otro</option>
-                        </select>
+            <div id="drill-editor" style="display: flex; flex-direction: column; gap: 2rem;">
+                <!-- Header Card -->
+                <div style="background:var(--bg-card); padding:1.5rem 2rem; border:1px solid var(--border-color); border-radius:12px; box-shadow: 0 2px 8px var(--shadow-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 class="reference-table-subtitle" style="margin:0; border-bottom: none; padding-bottom: 0;">Configuración del Simulacro</h3>
+                        <div style="display:flex; align-items:center; gap: 0.5rem;">
+                            <label class="modern-label" style="margin:0;">Tipo:</label>
+                            <select id="editor-drill-type" class="modern-input" style="width: auto; padding: 0.3rem 2rem 0.3rem 0.5rem; font-size: 0.9rem;">
+                                <option value="dsc" ${generatedDrillData.type === 'dsc' ? 'selected' : ''}>Alerta DSC</option>
+                                <option value="radiotelephony" ${generatedDrillData.type === 'radiotelephony' ? 'selected' : ''}>Radiotelefonía</option>
+                                <option value="manual" ${generatedDrillData.type === 'manual' ? 'selected' : ''}>Manual / Otro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="modern-label" style="margin-bottom: 0.5rem;">Escenario</label>
+                        <textarea id="editor-scenario" class="styled-textarea" style="min-height: 100px; font-size: 1rem;">${generatedDrillData.scenario}</textarea>
                     </div>
                 </div>
-                <div style="margin-bottom: 2rem;">
-                    <label class="modern-label">Escenario</label>
-                    <textarea id="editor-scenario" class="styled-textarea" style="min-height: 120px;">${generatedDrillData.scenario}</textarea>
+
+                <!-- Questions List -->
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <label class="modern-label" style="margin:0; font-size: 1rem;">Preguntas (${generatedDrillData.questions.length})</label>
+                        <button id="add-question-btn" class="secondary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">+ Añadir Pregunta</button>
+                    </div>
+                    <div id="editor-questions-container" style="display:flex; flex-direction:column; gap:1.5rem;">
+                        ${generatedDrillData.questions.map((q: any, idx: number) => renderQuestionBlock(q, idx)).join('')}
+                    </div>
                 </div>
-                <label class="modern-label" style="margin-bottom:1rem;">Preguntas</label>
-                <div id="editor-questions-container" style="display:flex; flex-direction:column; gap:1.5rem;">
-                    ${generatedDrillData.questions.map((q: any, idx: number) => renderQuestionBlock(q, idx)).join('')}
+
+                <!-- Footer Actions -->
+                <div style="padding-top: 1.5rem; border-top: 1px solid var(--border-color); text-align: right;">
+                    <button id="confirm-assign-btn" class="primary-btn" style="width: auto; padding: 0.8rem 2rem; font-size: 1rem;">
+                        Confirmar y Enviar a ${selectedUserIds.length} Usuario(s)
+                    </button>
                 </div>
-                <button id="add-question-btn" class="secondary-btn" style="width: 100%; margin-top: 1.5rem; border-style: dashed; padding: 1rem;">+ Añadir Nueva Pregunta</button>
-            </div>
-            <div style="text-align: right;">
-                <button id="confirm-assign-btn" class="primary-btn" style="width: auto; padding: 0.8rem 2rem;">Confirmar y Enviar a ${selectedUserIds.length} Usuario(s)</button>
             </div>
         `;
     }
@@ -761,14 +776,14 @@ function renderAssignTab() {
     const selectedCount = selectedUserIds.length;
 
     return `
-        <div style="display:grid; grid-template-columns: 320px 1fr; gap:2rem; height: calc(100vh - 200px); min-height: 600px;">
-            <div style="border:1px solid var(--border-color); border-radius:12px; display:flex; flex-direction:column; background:var(--bg-card); overflow:hidden;">
-                <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); background:var(--bg-main);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+        <div style="display:grid; grid-template-columns: 320px 1fr; gap:2rem; height: calc(100vh - 180px); min-height: 600px;">
+            <div style="border:1px solid var(--border-color); border-radius:12px; display:flex; flex-direction:column; background:var(--bg-card); overflow:hidden; box-shadow: 0 2px 8px var(--shadow-color);">
+                <div style="padding:1rem; border-bottom:1px solid var(--border-color); background:var(--bg-main);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
                         <span style="font-weight:bold; color:var(--text-primary);">Usuarios</span>
                         <span style="font-size:0.8rem; color:var(--accent-color-dark); font-weight:bold;">${selectedCount} seleccionados</span>
                     </div>
-                    <button id="select-all-users-btn" class="secondary-btn" style="width:100%; padding: 0.4rem; font-size: 0.85rem;">
+                    <button id="select-all-users-btn" class="secondary-btn" style="width:100%; padding: 0.5rem; font-size: 0.9rem;">
                         ${allSelected ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
                     </button>
                 </div>
@@ -776,34 +791,33 @@ function renderAssignTab() {
                     ${userListHtml}
                 </div>
             </div>
-            <div style="overflow-y: auto; padding-right: 0.5rem;">
-                <div style="margin-bottom:2rem; background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
-                    <h3 class="reference-table-subtitle" style="margin-top:0;">Origen del Simulacro</h3>
+            <div style="overflow-y: auto; padding-right: 0.5rem; display: flex; flex-direction: column;">
+                <div style="margin-bottom:2rem; background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px var(--shadow-color);">
+                    <h3 class="reference-table-subtitle" style="margin-top:0; border-bottom:none; padding-bottom:0.5rem;">Origen del Simulacro</h3>
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
-                        <button class="secondary-btn gen-drill-btn" data-type="dsc" style="height:auto; padding:1.5rem; flex-direction:column; gap:0.5rem; border:1px solid var(--border-color);">
-                            <div style="font-size:1.5rem;">📡</div>
+                        <button class="secondary-btn gen-drill-btn" data-type="dsc" style="height:auto; padding:1.2rem; flex-direction:column; gap:0.5rem; border:1px solid var(--border-color); transition: all 0.2s;">
+                            <div style="font-size:1.8rem;">📡</div>
                             <span style="font-weight:bold;">Generar DSC (IA)</span>
                             <span style="font-size:0.8rem; opacity:0.7;">Escenarios aleatorios</span>
                         </button>
-                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony" style="height:auto; padding:1.5rem; flex-direction:column; gap:0.5rem; border:1px solid var(--border-color);">
-                            <div style="font-size:1.5rem;">🎙️</div>
+                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony" style="height:auto; padding:1.2rem; flex-direction:column; gap:0.5rem; border:1px solid var(--border-color); transition: all 0.2s;">
+                            <div style="font-size:1.8rem;">🎙️</div>
                             <span style="font-weight:bold;">Generar Voz (IA)</span>
                             <span style="font-size:0.8rem; opacity:0.7;">Interacción hablada</span>
                         </button>
-                        <button id="create-manual-btn" class="secondary-btn" style="height:auto; padding:1.5rem; flex-direction:column; gap:0.5rem; border:1px dashed var(--accent-color); color: var(--accent-color-dark);">
-                            <div style="font-size:1.5rem;">📝</div>
+                        <button id="create-manual-btn" class="secondary-btn" style="height:auto; padding:1.2rem; flex-direction:column; gap:0.5rem; border:1px dashed var(--accent-color); color: var(--accent-color-dark); transition: all 0.2s;">
+                            <div style="font-size:1.8rem;">📝</div>
                             <span style="font-weight:bold;">Crear Manualmente</span>
                             <span style="font-size:0.8rem; opacity:0.7;">Desde cero</span>
                         </button>
                     </div>
                 </div>
-                <div id="drill-preview-area">${editorHtml}</div>
+                <div id="drill-preview-area" style="flex-grow: 1;">${editorHtml}</div>
             </div>
         </div>
     `;
 }
 
-// ... rest of the file (renderQuestionBlock, renderContent, event listeners) remains the same ...
 // Re-exporting these to ensure the file is complete
 function renderQuestionBlock(q: any, idx: number) {
     const type = q.type || 'choice'; 
@@ -814,37 +828,40 @@ function renderQuestionBlock(q: any, idx: number) {
     options.forEach((opt: string, optIdx: number) => {
         const isCorrect = q.correctAnswerIndex === optIdx;
         const selectorHtml = isOrdering 
-            ? `<span style="font-weight:bold; color:var(--text-secondary); padding:0 0.5rem;">${optIdx + 1}</span>`
-            : `<input type="radio" name="radio-grp-qblock-${idx}" value="${optIdx}" ${isCorrect ? 'checked' : ''} title="Marcar como correcta">`;
+            ? `<div style="width: 24px; height: 24px; background: var(--bg-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: var(--text-secondary); font-size: 0.8rem; border: 1px solid var(--border-color);">${optIdx + 1}</div>`
+            : `<input type="radio" name="radio-grp-qblock-${idx}" value="${optIdx}" ${isCorrect ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-color); cursor: pointer;" title="Marcar como correcta">`;
 
         optionsHtml += `
-            <div class="q-option-row" style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+            <div class="q-option-row" style="display:flex; gap:0.75rem; align-items:center; margin-bottom:0.75rem;">
                 ${selectorHtml}
-                <input type="text" class="modern-input q-option-input" value="${opt}" placeholder="Opción ${optIdx + 1}">
-                <button class="tertiary-btn remove-opt-btn" style="padding:0.2rem 0.5rem;">✕</button>
+                <input type="text" class="modern-input q-option-input" value="${opt}" placeholder="Opción ${optIdx + 1}" style="flex:1;">
+                <button class="tertiary-btn remove-opt-btn" style="padding:0.4rem 0.6rem; border-color: transparent; color: var(--text-secondary);" title="Eliminar opción">✕</button>
             </div>
         `;
     });
 
     const helperText = isOrdering 
-        ? "Introduzca las opciones en el <strong>ORDEN CORRECTO</strong>. Se barajarán automáticamente al usuario." 
-        : "Marque la casilla redonda de la respuesta correcta.";
+        ? "Introduzca las opciones en el <strong>ORDEN CORRECTO</strong>. Se barajarán automáticamente." 
+        : "Marque la casilla de la respuesta correcta.";
 
     return `
-        <div class="editor-question-block" id="qblock-${idx}" style="background:var(--bg-main); padding:1.5rem; border:1px solid var(--border-color); border-radius:8px; margin-bottom:0; position:relative;">
-            <button class="tertiary-btn remove-q-btn" style="position:absolute; top:1rem; right:1rem; padding:0.3rem 0.6rem; font-size:0.8rem;">Eliminar</button>
-            <div style="margin-bottom: 1rem; display:flex; justify-content:space-between; align-items:center; padding-right: 80px;">
-                <label style="font-weight:bold; font-size:0.9rem;">Pregunta ${idx + 1}</label>
-                <select class="modern-input q-type-select" style="width: auto; padding: 0.2rem; font-size: 0.8rem;">
-                    <option value="choice" ${!isOrdering ? 'selected' : ''}>Tipo Test (Selección)</option>
+        <div class="editor-question-block" id="qblock-${idx}" style="background:var(--bg-card); padding:1.5rem; border:1px solid var(--border-color); border-radius:8px; position:relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <button class="tertiary-btn remove-q-btn" style="position:absolute; top:1rem; right:1rem; padding:0.3rem 0.6rem; font-size:0.8rem; border-color: var(--danger-color-bg); color: var(--danger-color);">Eliminar Pregunta</button>
+            <div style="margin-bottom: 1rem; display:flex; gap: 1rem; align-items:center; padding-right: 120px;">
+                <span style="font-weight:bold; font-size:1rem; color: var(--accent-color-dark);">Pregunta ${idx + 1}</span>
+                <select class="modern-input q-type-select" style="width: auto; padding: 0.2rem 2rem 0.2rem 0.5rem; font-size: 0.85rem;">
+                    <option value="choice" ${!isOrdering ? 'selected' : ''}>Tipo Test</option>
                     <option value="ordering" ${isOrdering ? 'selected' : ''}>Ordenar Secuencia</option>
                 </select>
             </div>
-            <input type="text" class="modern-input q-text-input" value="${q.questionText}" placeholder="Escriba la pregunta aquí..." style="margin-bottom:1.5rem; font-weight:500;">
-            <div style="background: var(--bg-card); padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color);">
-                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1rem;">${helperText}</p>
+            <input type="text" class="modern-input q-text-input" value="${q.questionText}" placeholder="Escriba el enunciado de la pregunta..." style="margin-bottom:1.5rem; font-weight:600; font-size: 1rem; padding: 0.75rem;">
+            <div style="padding-left: 0.5rem;">
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+                    ${helperText}
+                </p>
                 <div class="q-options-container">${optionsHtml}</div>
-                <button class="secondary-btn add-opt-btn" style="width:100%; padding:0.5rem; margin-top:1rem; font-size:0.8rem;">+ Añadir Opción</button>
+                <button class="secondary-btn add-opt-btn" style="margin-top:0.5rem; font-size:0.8rem; padding: 0.4rem 0.8rem; border-style: dashed;">+ Añadir Opción</button>
             </div>
         </div>
     `;
@@ -899,8 +916,17 @@ function attachEditorEvents(container: HTMLElement) {
             const isOrdering = (block.querySelector('.q-type-select') as HTMLSelectElement).value === 'ordering';
             const idx = block.id.replace('qblock-', '');
             const newOptIdx = currentOpts;
-            const selectorHtml = isOrdering ? `<span style="font-weight:bold; color:var(--text-secondary); padding:0 0.5rem;">${newOptIdx + 1}</span>` : `<input type="radio" name="radio-grp-qblock-${idx}" value="${newOptIdx}" title="Marcar como correcta">`;
-            const html = `<div class="q-option-row" style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">${selectorHtml}<input type="text" class="modern-input q-option-input" placeholder="Opción ${newOptIdx + 1}"><button class="tertiary-btn remove-opt-btn" style="padding:0.2rem 0.5rem;">✕</button></div>`;
+            
+            const selectorHtml = isOrdering 
+                ? `<div style="width: 24px; height: 24px; background: var(--bg-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: var(--text-secondary); font-size: 0.8rem; border: 1px solid var(--border-color);">${newOptIdx + 1}</div>`
+                : `<input type="radio" name="radio-grp-qblock-${idx}" value="${newOptIdx}" title="Marcar como correcta" style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-color); cursor: pointer;">`;
+            
+            const html = `
+                <div class="q-option-row" style="display:flex; gap:0.75rem; align-items:center; margin-bottom:0.75rem;">
+                    ${selectorHtml}
+                    <input type="text" class="modern-input q-option-input" placeholder="Opción ${newOptIdx + 1}" style="flex:1;">
+                    <button class="tertiary-btn remove-opt-btn" style="padding:0.4rem 0.6rem; border-color: transparent; color: var(--text-secondary);" title="Eliminar opción">✕</button>
+                </div>`;
             optsContainer.insertAdjacentHTML('beforeend', html);
         }
         if (target.classList.contains('remove-opt-btn')) {
@@ -928,10 +954,15 @@ function refreshOptionsIndices(block: HTMLElement) {
     const rows = block.querySelectorAll('.q-option-row');
     const idx = block.id.replace('qblock-', '');
     const p = block.querySelector('p');
-    if (p) p.innerHTML = isOrdering ? "Introduzca las opciones en el <strong>ORDEN CORRECTO</strong>. Se barajarán automáticamente al usuario." : "Marque la casilla redonda de la respuesta correcta.";
+    if (p) p.innerHTML = isOrdering 
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg> Introduzca las opciones en el <strong>ORDEN CORRECTO</strong>. Se barajarán automáticamente.` 
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg> Marque la casilla de la respuesta correcta.`;
+    
     rows.forEach((row, i) => {
         row.firstElementChild?.remove();
-        const selectorHtml = isOrdering ? `<span style="font-weight:bold; color:var(--text-secondary); padding:0 0.5rem;">${i + 1}</span>` : `<input type="radio" name="radio-grp-qblock-${idx}" value="${i}" ${i === 0 ? 'checked' : ''} title="Marcar como correcta">`;
+        const selectorHtml = isOrdering 
+            ? `<div style="width: 24px; height: 24px; background: var(--bg-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: var(--text-secondary); font-size: 0.8rem; border: 1px solid var(--border-color);">${i + 1}</div>`
+            : `<input type="radio" name="radio-grp-qblock-${idx}" value="${i}" ${i === 0 ? 'checked' : ''} title="Marcar como correcta" style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-color); cursor: pointer;">`;
         row.insertAdjacentHTML('afterbegin', selectorHtml);
         const input = row.querySelector('.q-option-input') as HTMLInputElement;
         if (input) input.placeholder = `Opción ${i + 1}`;
