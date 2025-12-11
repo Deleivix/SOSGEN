@@ -11,12 +11,16 @@ type UserStat = {
         totalDrills?: number;
         totalCorrect?: number;
         totalQuestions?: number;
+        dsc?: { taken: number; correct: number; questions: number; };
+        radiotelephony?: { taken: number; correct: number; questions: number; };
+        manual?: { taken: number; correct: number; questions: number; };
     };
     assigned_history: {
         status: string;
         score: number;
         max_score: number;
         created_at: string;
+        drill_type?: string;
     }[] | null;
 };
 
@@ -26,6 +30,10 @@ let selectedUserIds: number[] = [];
 let generatedDrillData: any = null;
 let isLoading = false;
 let currentTab: 'dashboard' | 'assign' | 'history' = 'dashboard';
+
+// --- DASHBOARD STATE ---
+let dashboardFilter = "";
+let dashboardSort: { key: string, dir: 'asc' | 'desc' } = { key: 'last_activity', dir: 'desc' };
 
 // --- API ACTIONS ---
 
@@ -231,13 +239,234 @@ function exportToCSV() {
     document.body.removeChild(link);
 }
 
+// --- HELPERS FOR DASHBOARD ---
+
+function getKPI(u: UserStat): number {
+    if (!u.personal_stats?.totalQuestions) return 0;
+    return (u.personal_stats.totalCorrect! / u.personal_stats.totalQuestions!) * 100;
+}
+
+function getCompletedAssignedCount(u: UserStat): number {
+    return (u.assigned_history || []).filter(a => a.status === 'COMPLETED').length;
+}
+
+function renderUserDetailModal(user: UserStat) {
+    const modalId = `user-detail-modal-${user.id}`;
+    if (document.getElementById(modalId)) return;
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.id = modalId;
+
+    // Calculate detailed stats
+    const ps = user.personal_stats || {};
+    const dscStats = ps.dsc || { correct: 0, questions: 0 };
+    const voiceStats = ps.radiotelephony || { correct: 0, questions: 0 };
+    
+    const dscScore = dscStats.questions > 0 ? ((dscStats.correct / dscStats.questions) * 100).toFixed(0) : '-';
+    const voiceScore = voiceStats.questions > 0 ? ((voiceStats.correct / voiceStats.questions) * 100).toFixed(0) : '-';
+    const totalScore = ps.totalQuestions ? ((ps.totalCorrect! / ps.totalQuestions!) * 100).toFixed(0) : '-';
+
+    // Assigned History
+    const history = user.assigned_history || [];
+    const historyHtml = history.length > 0 
+        ? history.slice(0, 5).map(h => { // Last 5
+            const isCompleted = h.status === 'COMPLETED';
+            const statusColor = isCompleted ? 'var(--success-color)' : 'var(--warning-color)';
+            const scoreDisplay = isCompleted ? `${h.score}/${h.max_score}` : '-';
+            const typeDisplay = h.drill_type === 'dsc' ? 'DSC' : (h.drill_type === 'radiotelephony' ? 'Voz' : 'Manual');
+            return `
+                <tr style="font-size: 0.9rem;">
+                    <td>${new Date(h.created_at).toLocaleDateString()}</td>
+                    <td>${typeDisplay}</td>
+                    <td><span style="color:${statusColor}; font-weight:700;">${h.status}</span></td>
+                    <td style="text-align:right;">${scoreDisplay}</td>
+                </tr>
+            `;
+        }).join('')
+        : '<tr><td colspan="4" style="text-align:center; padding:1rem; color:var(--text-secondary);">Sin simulacros asignados recientes.</td></tr>';
+
+    modalOverlay.innerHTML = `
+        <div class="modal-content" style="max-width: 600px; text-align: left; padding: 2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid var(--border-color);">
+                <div>
+                    <h2 class="modal-title" style="margin:0; font-size:1.5rem;">${user.username}</h2>
+                    <p style="margin:0; font-size:0.9rem; color:var(--text-secondary);">${user.email}</p>
+                </div>
+                <button class="secondary-btn modal-close-btn" style="padding:0.4rem 0.8rem;">✕</button>
+            </div>
+
+            <div class="user-detail-stats">
+                <div class="user-detail-stat-item">
+                    <div class="user-detail-stat-val" style="color:var(--accent-color-dark);">${totalScore}%</div>
+                    <div class="user-detail-stat-lbl">Media Global</div>
+                </div>
+                <div class="user-detail-stat-item">
+                    <div class="user-detail-stat-val">${dscScore}%</div>
+                    <div class="user-detail-stat-lbl">Técnica DSC</div>
+                </div>
+                <div class="user-detail-stat-item">
+                    <div class="user-detail-stat-val">${voiceScore}%</div>
+                    <div class="user-detail-stat-lbl">Voz / Fonía</div>
+                </div>
+            </div>
+
+            <h3 class="reference-table-subtitle" style="margin-top:0;">Últimas Asignaciones</h3>
+            <div class="table-wrapper" style="margin-bottom:2rem;">
+                <table class="reference-table">
+                    <thead>
+                        <tr><th>Fecha</th><th>Tipo</th><th>Estado</th><th style="text-align:right;">Nota</th></tr>
+                    </thead>
+                    <tbody>${historyHtml}</tbody>
+                </table>
+            </div>
+
+            <div style="text-align:right;">
+                <button class="primary-btn quick-assign-btn" data-user-id="${user.id}">Asignar Nuevo Simulacro</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalOverlay);
+
+    modalOverlay.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target === modalOverlay || target.closest('.modal-close-btn')) {
+            modalOverlay.remove();
+        }
+        
+        const assignBtn = target.closest('.quick-assign-btn');
+        if (assignBtn) {
+            modalOverlay.remove();
+            // Switch to assign tab and select this user
+            const uid = parseInt(assignBtn.getAttribute('data-user-id')!);
+            selectedUserIds = [uid];
+            currentTab = 'assign';
+            renderContent();
+            const tabBtn = document.querySelector('button[data-tab="assign"]');
+            if(tabBtn) (tabBtn as HTMLElement).click();
+        }
+    });
+}
+
+function renderAnalyticsSection() {
+    // 1. Completion Rate (Donut)
+    let totalAssigned = 0;
+    let totalCompleted = 0;
+    usersStats.forEach(u => {
+        const history = u.assigned_history || [];
+        totalAssigned += history.length;
+        totalCompleted += history.filter(h => h.status === 'COMPLETED').length;
+    });
+    
+    const completionRate = totalAssigned > 0 ? (totalCompleted / totalAssigned) * 100 : 0;
+    const circumference = 2 * Math.PI * 16; // r=16 -> ~100
+    const offset = circumference - (completionRate / 100) * circumference;
+
+    // 2. Global Category Performance (Bars)
+    let totalDscQ = 0, totalDscC = 0;
+    let totalVoiceQ = 0, totalVoiceC = 0;
+    
+    usersStats.forEach(u => {
+        const ps = u.personal_stats || {};
+        if (ps.dsc) { totalDscQ += ps.dsc.questions; totalDscC += ps.dsc.correct; }
+        if (ps.radiotelephony) { totalVoiceQ += ps.radiotelephony.questions; totalVoiceC += ps.radiotelephony.correct; }
+    });
+    
+    const avgDsc = totalDscQ > 0 ? (totalDscC / totalDscQ) * 100 : 0;
+    const avgVoice = totalVoiceQ > 0 ? (totalVoiceC / totalVoiceQ) * 100 : 0;
+
+    return `
+        <div class="supervisor-charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Estado de Asignaciones</div>
+                <div class="donut-chart-container">
+                    <svg class="donut-chart-svg" viewBox="0 0 36 36">
+                        <path class="donut-segment donut-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="donut-segment donut-value" stroke-dasharray="${completionRate}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div class="donut-center-text">
+                        <div class="donut-center-value">${Math.round(completionRate)}%</div>
+                        <div class="donut-center-label">Completado</div>
+                    </div>
+                </div>
+                <div style="margin-top:1rem; font-size:0.8rem; color:var(--text-secondary);">
+                    ${totalCompleted} de ${totalAssigned} simulacros
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">Rendimiento Global por Categoría</div>
+                <div class="bar-chart-container">
+                    <div class="bar-row">
+                        <div class="bar-label-row"><span>DSC (Técnica)</span><span>${avgDsc.toFixed(1)}%</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${avgDsc}%;"></div></div>
+                    </div>
+                    <div class="bar-row">
+                        <div class="bar-label-row"><span>Radiotelefonía (Voz)</span><span>${avgVoice.toFixed(1)}%</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${avgVoice}%; background-color: var(--info-color);"></div></div>
+                    </div>
+                </div>
+                <div style="margin-top:auto; padding-top:1rem; font-size:0.8rem; color:var(--text-secondary); text-align:center;">
+                    Media de todos los usuarios activos
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // --- RENDER FUNCTIONS ---
 
 function renderDashboardTab() {
+    // 1. FILTERING
+    let filteredUsers = usersStats;
+    if (dashboardFilter) {
+        const term = dashboardFilter.toLowerCase();
+        filteredUsers = usersStats.filter(u => 
+            u.username.toLowerCase().includes(term) || 
+            u.email.toLowerCase().includes(term)
+        );
+    }
+
+    // 2. SORTING
+    filteredUsers.sort((a, b) => {
+        let valA: any, valB: any;
+        
+        switch(dashboardSort.key) {
+            case 'kpi':
+                valA = getKPI(a);
+                valB = getKPI(b);
+                break;
+            case 'assigned':
+                valA = getCompletedAssignedCount(a);
+                valB = getCompletedAssignedCount(b);
+                break;
+            case 'last_activity':
+                valA = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+                valB = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+                break;
+            default: // username, email
+                valA = (a as any)[dashboardSort.key] || '';
+                valB = (b as any)[dashboardSort.key] || '';
+        }
+
+        if (valA < valB) return dashboardSort.dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dashboardSort.dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
     const totalDrills = usersStats.reduce((acc, u) => acc + (u.personal_stats?.totalDrills || 0), 0);
     const totalAssigned = usersStats.reduce((acc, u) => acc + (u.assigned_history?.length || 0), 0);
     
+    // Sort Icon Helper
+    const sortIcon = (key: string) => {
+        if (dashboardSort.key !== key) return '<span style="opacity:0.3; margin-left:5px;">↕</span>';
+        return dashboardSort.dir === 'asc' ? '<span style="color:var(--accent-color); margin-left:5px;">↑</span>' : '<span style="color:var(--accent-color); margin-left:5px;">↓</span>';
+    };
+
     return `
+        ${renderAnalyticsSection()}
+
         <div class="supervisor-stats-grid">
             <div class="supervisor-stat-card">
                 <div class="supervisor-stat-value">${usersStats.length}</div>
@@ -252,30 +481,60 @@ function renderDashboardTab() {
                 <div class="supervisor-stat-label">Simulacros Asignados</div>
             </div>
         </div>
+
+        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <input type="text" id="dashboard-search" class="filter-input" placeholder="Filtrar por nombre o email..." value="${dashboardFilter}" style="width: 300px; margin-bottom: 0;">
+            <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                ${filteredUsers.length} resultados
+            </div>
+        </div>
+
         <div class="table-wrapper">
             <table class="reference-table">
                 <thead>
                     <tr>
-                        <th>Usuario</th>
-                        <th>Email</th>
-                        <th>Última Actividad</th>
-                        <th style="text-align:center;">KPI Personal</th>
-                        <th style="text-align:center;">Asignados (Comp/Tot)</th>
+                        <th style="cursor:pointer;" data-sort="username">Usuario ${sortIcon('username')}</th>
+                        <th style="cursor:pointer;" data-sort="email">Email ${sortIcon('email')}</th>
+                        <th style="cursor:pointer;" data-sort="last_activity">Última Actividad ${sortIcon('last_activity')}</th>
+                        <th style="cursor:pointer; text-align:center;" data-sort="kpi">KPI Personal ${sortIcon('kpi')}</th>
+                        <th style="cursor:pointer; text-align:center;" data-sort="assigned">Asignados (Comp/Tot) ${sortIcon('assigned')}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${usersStats.map(u => {
-                        const pAvg = u.personal_stats?.totalQuestions 
-                            ? ((u.personal_stats.totalCorrect! / u.personal_stats.totalQuestions!) * 100).toFixed(0) 
-                            : '-';
+                    ${filteredUsers.map(u => {
+                        const pAvg = getKPI(u);
+                        const hasData = !!u.personal_stats?.totalQuestions;
+                        
+                        // KPI Badge Logic
+                        let kpiColor = 'var(--text-secondary)';
+                        if (hasData) {
+                            if (pAvg >= 70) kpiColor = 'var(--accent-color)'; // Green
+                            else if (pAvg >= 50) kpiColor = 'var(--warning-color)'; // Yellow
+                            else kpiColor = 'var(--danger-color)'; // Red
+                        }
+
+                        // Inactivity Logic
+                        const lastActDate = u.last_activity ? new Date(u.last_activity) : null;
+                        const daysInactive = lastActDate ? Math.floor((Date.now() - lastActDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+                        const inactiveWarning = daysInactive > 15 ? `<span title="Inactivo > 15 días" style="color:var(--danger-color); font-weight:bold; margin-left:0.5rem;">⚠</span>` : '';
+
                         const assigned = u.assigned_history || [];
                         const completed = assigned.filter(a => a.status === 'COMPLETED').length;
+                        
                         return `
-                            <tr>
+                            <tr class="user-row-interactive" data-user-id="${u.id}" style="cursor: pointer;">
                                 <td>${u.username}</td>
                                 <td>${u.email}</td>
-                                <td>${u.last_activity ? new Date(u.last_activity).toLocaleDateString() : '-'}</td>
-                                <td style="text-align:center;">${pAvg === '-' ? '-' : pAvg + '%'}</td>
+                                <td>
+                                    ${u.last_activity ? new Date(u.last_activity).toLocaleDateString() : '-'}
+                                    ${inactiveWarning}
+                                </td>
+                                <td style="text-align:center;">
+                                    ${hasData 
+                                        ? `<span style="font-weight:700; color:${kpiColor};">${pAvg.toFixed(0)}%</span>` 
+                                        : '-'
+                                    }
+                                </td>
                                 <td style="text-align:center;">${completed} / ${assigned.length}</td>
                             </tr>
                         `;
@@ -548,10 +807,33 @@ export function renderSupervisorPage(container: HTMLElement) {
     fetchUsersStats();
     attachEditorEvents(container);
 
+    // --- NEW EVENT LISTENERS ---
+    container.addEventListener('input', e => {
+        const target = e.target as HTMLInputElement;
+        if (target.id === 'dashboard-search') {
+            dashboardFilter = target.value;
+            renderContent();
+        }
+    });
+
     container.addEventListener('click', e => {
         const target = e.target as HTMLElement;
         const tabBtn = target.closest('button[data-tab]');
         
+        // Sorting Handler
+        const sortTh = target.closest('th[data-sort]');
+        if (sortTh) {
+            const key = sortTh.getAttribute('data-sort')!;
+            if (dashboardSort.key === key) {
+                dashboardSort.dir = dashboardSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                dashboardSort.key = key;
+                dashboardSort.dir = 'desc'; // Default desc for new columns
+            }
+            renderContent();
+        }
+        
+        // Tab switching
         if (tabBtn) {
             const newTab = tabBtn.getAttribute('data-tab') as any;
             if (newTab) {
@@ -560,6 +842,14 @@ export function renderSupervisorPage(container: HTMLElement) {
                 tabBtn.classList.add('active');
                 renderContent();
             }
+        }
+
+        // Row Click Handler (for User Detail Modal)
+        const userRow = target.closest('.user-row-interactive');
+        if (userRow) {
+            const uid = parseInt(userRow.getAttribute('data-user-id')!);
+            const user = usersStats.find(u => u.id === uid);
+            if (user) renderUserDetailModal(user);
         }
 
         if (target.id === 'export-csv-btn') exportToCSV();

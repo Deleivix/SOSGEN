@@ -70,7 +70,8 @@ export default async function handler(
                             'status', ad.status, 
                             'score', ad.score, 
                             'max_score', ad.max_score,
-                            'created_at', ad.created_at
+                            'created_at', ad.created_at,
+                            'drill_type', ad.drill_type
                         )) 
                         FROM assigned_drills ad 
                         WHERE ad.user_id = u.id
