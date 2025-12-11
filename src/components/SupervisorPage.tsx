@@ -876,96 +876,138 @@ function renderContent() {
         return;
     }
 
-    let html = '';
-    if (currentTab === 'dashboard') html = renderDashboardTab();
-    else if (currentTab === 'assign') html = renderAssignTab();
-    else html = '<p>Historial detallado en desarrollo.</p>';
-
-    container.innerHTML = html;
+    if (currentTab === 'dashboard') {
+        container.innerHTML = renderDashboardTab();
+    } else {
+        container.innerHTML = renderAssignTab();
+    }
 }
 
 function attachEditorEvents(container: HTMLElement) {
     container.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
-        
-        // Select All Logic
-        if (target.id === 'select-all-users-btn') {
-            const allIds = usersStats.map(u => u.id);
-            if (selectedUserIds.length === allIds.length) {
-                selectedUserIds = []; // Deselect all
-            } else {
-                selectedUserIds = allIds; // Select all
-            }
+
+        // Add Question
+        if (target.id === 'add-question-btn') {
+            if (!generatedDrillData) return;
+            generatedDrillData.questions.push({
+                type: 'choice',
+                questionText: '',
+                options: ['', ''],
+                correctAnswerIndex: 0
+            });
             renderContent();
         }
 
-        if (target.id === 'add-question-btn') {
-            const container = document.getElementById('editor-questions-container');
-            if (!container) return;
-            const idx = container.children.length;
-            const emptyQ = { type: 'choice', questionText: '', options: ['', ''], correctAnswerIndex: 0 };
-            container.insertAdjacentHTML('beforeend', renderQuestionBlock(emptyQ, idx));
+        // Remove Question
+        const removeQBtn = target.closest('.remove-q-btn');
+        if (removeQBtn) {
+            if (!generatedDrillData) return;
+            const block = removeQBtn.closest('.editor-question-block');
+            if (block) {
+                const idx = parseInt(block.id.replace('qblock-', ''));
+                generatedDrillData.questions.splice(idx, 1);
+                renderContent();
+            }
         }
-        if (target.classList.contains('remove-q-btn')) target.closest('.editor-question-block')?.remove();
-        if (target.classList.contains('add-opt-btn')) {
-            const block = target.closest('.editor-question-block');
-            const optsContainer = block?.querySelector('.q-options-container');
-            if (!block || !optsContainer) return;
-            const currentOpts = optsContainer.querySelectorAll('.q-option-row').length;
-            if (currentOpts >= 4) { showToast("Máximo 4 opciones por pregunta.", "info"); return; }
-            const isOrdering = (block.querySelector('.q-type-select') as HTMLSelectElement).value === 'ordering';
-            const idx = block.id.replace('qblock-', '');
-            const newOptIdx = currentOpts;
-            
-            const selectorHtml = isOrdering 
-                ? `<div style="width: 24px; height: 24px; background: var(--bg-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: var(--text-secondary); font-size: 0.8rem; border: 1px solid var(--border-color);">${newOptIdx + 1}</div>`
-                : `<input type="radio" name="radio-grp-qblock-${idx}" value="${newOptIdx}" title="Marcar como correcta" style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-color); cursor: pointer;">`;
-            
-            const html = `
-                <div class="q-option-row" style="display:flex; gap:0.75rem; align-items:center; margin-bottom:0.75rem;">
-                    ${selectorHtml}
-                    <input type="text" class="modern-input q-option-input" placeholder="Opción ${newOptIdx + 1}" style="flex:1;">
-                    <button class="tertiary-btn remove-opt-btn" style="padding:0.4rem 0.6rem; border-color: transparent; color: var(--text-secondary);" title="Eliminar opción">✕</button>
-                </div>`;
-            optsContainer.insertAdjacentHTML('beforeend', html);
+
+        // Add Option
+        const addOptBtn = target.closest('.add-opt-btn');
+        if (addOptBtn) {
+            const block = addOptBtn.closest('.editor-question-block');
+            if (block && generatedDrillData) {
+                const idx = parseInt(block.id.replace('qblock-', ''));
+                generatedDrillData.questions[idx].options.push('');
+                renderContent();
+            }
         }
-        if (target.classList.contains('remove-opt-btn')) {
-            const row = target.closest('.q-option-row');
-            const container = target.closest('.q-options-container');
-            if (row && container) {
-                if (container.querySelectorAll('.q-option-row').length <= 2) { showToast("Mínimo 2 opciones.", "info"); return; }
-                row.remove();
-                const block = container.closest('.editor-question-block');
-                if (block) refreshOptionsIndices(block as HTMLElement);
+
+        // Remove Option
+        const removeOptBtn = target.closest('.remove-opt-btn');
+        if (removeOptBtn) {
+            const block = removeOptBtn.closest('.editor-question-block');
+            const row = removeOptBtn.closest('.q-option-row');
+            if (block && row && generatedDrillData) {
+                const qIdx = parseInt(block.id.replace('qblock-', ''));
+                const optsContainer = block.querySelector('.q-options-container');
+                if (optsContainer) {
+                    const optRows = Array.from(optsContainer.children);
+                    const optIdx = optRows.indexOf(row);
+                    if (optIdx > -1) {
+                        generatedDrillData.questions[qIdx].options.splice(optIdx, 1);
+                        renderContent();
+                    }
+                }
+            }
+        }
+        
+        // Select All Users Button (inside assign tab)
+        if (target.id === 'select-all-users-btn') {
+            if (selectedUserIds.length === usersStats.length) {
+                selectedUserIds = [];
+            } else {
+                selectedUserIds = usersStats.map(u => u.id);
+            }
+            renderContent();
+        }
+    });
+
+    container.addEventListener('input', (e) => {
+        const target = e.target as HTMLElement;
+        
+        // Editor inputs sync with generatedDrillData
+        if (generatedDrillData) {
+            if (target.id === 'editor-scenario') {
+                generatedDrillData.scenario = (target as HTMLTextAreaElement).value;
+            }
+            if (target.id === 'editor-drill-type') {
+                generatedDrillData.type = (target as HTMLSelectElement).value;
+            }
+            if (target.classList.contains('q-text-input')) {
+                const block = target.closest('.editor-question-block');
+                if (block) {
+                    const idx = parseInt(block.id.replace('qblock-', ''));
+                    generatedDrillData.questions[idx].questionText = (target as HTMLInputElement).value;
+                }
+            }
+            if (target.classList.contains('q-option-input')) {
+                const block = target.closest('.editor-question-block');
+                const row = target.closest('.q-option-row');
+                if (block && row) {
+                    const qIdx = parseInt(block.id.replace('qblock-', ''));
+                    const optsContainer = block.querySelector('.q-options-container');
+                    if (optsContainer) {
+                        const optRows = Array.from(optsContainer.children);
+                        const optIdx = optRows.indexOf(row);
+                        if (optIdx > -1) {
+                            generatedDrillData.questions[qIdx].options[optIdx] = (target as HTMLInputElement).value;
+                        }
+                    }
+                }
             }
         }
     });
+
     container.addEventListener('change', (e) => {
         const target = e.target as HTMLElement;
-        if (target.classList.contains('q-type-select')) {
-            const block = target.closest('.editor-question-block') as HTMLElement;
-            if (block) refreshOptionsIndices(block);
-        }
-    });
-}
 
-function refreshOptionsIndices(block: HTMLElement) {
-    const isOrdering = (block.querySelector('.q-type-select') as HTMLSelectElement).value === 'ordering';
-    const rows = block.querySelectorAll('.q-option-row');
-    const idx = block.id.replace('qblock-', '');
-    const p = block.querySelector('p');
-    if (p) p.innerHTML = isOrdering 
-        ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg> Introduzca las opciones en el <strong>ORDEN CORRECTO</strong>. Se barajarán automáticamente.` 
-        : `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg> Marque la casilla de la respuesta correcta.`;
-    
-    rows.forEach((row, i) => {
-        row.firstElementChild?.remove();
-        const selectorHtml = isOrdering 
-            ? `<div style="width: 24px; height: 24px; background: var(--bg-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: var(--text-secondary); font-size: 0.8rem; border: 1px solid var(--border-color);">${i + 1}</div>`
-            : `<input type="radio" name="radio-grp-qblock-${idx}" value="${i}" ${i === 0 ? 'checked' : ''} title="Marcar como correcta" style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-color); cursor: pointer;">`;
-        row.insertAdjacentHTML('afterbegin', selectorHtml);
-        const input = row.querySelector('.q-option-input') as HTMLInputElement;
-        if (input) input.placeholder = `Opción ${i + 1}`;
+        if (generatedDrillData) {
+            if (target.classList.contains('q-type-select')) {
+                const block = target.closest('.editor-question-block');
+                if (block) {
+                    const idx = parseInt(block.id.replace('qblock-', ''));
+                    generatedDrillData.questions[idx].type = (target as HTMLSelectElement).value;
+                    renderContent();
+                }
+            }
+            if (target instanceof HTMLInputElement && target.type === 'radio' && target.name.startsWith('radio-grp-qblock-')) {
+                const block = target.closest('.editor-question-block');
+                if (block) {
+                    const idx = parseInt(block.id.replace('qblock-', ''));
+                    generatedDrillData.questions[idx].correctAnswerIndex = parseInt(target.value);
+                }
+            }
+        }
     });
 }
 
@@ -1018,13 +1060,17 @@ export function renderSupervisorPage(container: HTMLElement) {
             const user = usersStats.find(u => u.id === uid);
             if (user) renderUserDetailModal(user);
         }
-        if (target.id === 'export-csv-btn') exportToCSV();
-        if (target.classList.contains('gen-drill-btn')) {
-            const type = target.getAttribute('data-type');
+        
+        if (target.closest('#export-csv-btn')) exportToCSV();
+        
+        const genBtn = target.closest('.gen-drill-btn');
+        if (genBtn) {
+            const type = genBtn.getAttribute('data-type');
             if(type) generateDrillPreview(type);
         }
-        if (target.id === 'create-manual-btn') createManualDrill();
-        if (target.id === 'confirm-assign-btn') assignDrill();
+        
+        if (target.closest('#create-manual-btn')) createManualDrill();
+        if (target.closest('#confirm-assign-btn')) assignDrill();
     });
     container.addEventListener('change', e => {
         const target = e.target as HTMLInputElement;
