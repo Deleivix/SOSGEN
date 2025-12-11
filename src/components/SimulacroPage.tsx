@@ -29,38 +29,18 @@ async function fetchAssignedDrills() {
     const user = getCurrentUser();
     if (!user) return;
     try {
-        // Fetch ALL assigned drills (pending and completed) for history
-        const response = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills_all`); 
-        // Note: API endpoint logic needs to handle 'assigned_drills_all' or we filter on client if 'assigned_drills' returns all.
-        // Assuming current API returns all based on logic, or we update API. 
-        // For now, let's assume the API returns pending. 
-        // *Correction*: To populate calendar, we need completed ones too.
-        // Let's rely on the existing endpoint. If it filters by PENDING, we might miss completed history in calendar.
-        // The existing API implementation checks: WHERE ad.user_id = ${userId} AND ad.status = 'PENDING'.
-        // We need to fetch ALL to populate the calendar properly.
-        // Let's fetch 'assigned_drills_all' (requires API update or just fetch all here if supported)
-        
-        // Falling back to fetching 'assigned_drills' (pending) + separately getting history from stats?
-        // No, 'assigned_drills' usually implies active. 
-        // Let's change this to fetch ALL user data in utils if possible, or modify request.
-        
-        // Workaround without changing API file in this specific XML block (assuming user follows):
-        // We will fetch from the generic user-data endpoint which returns 'drillStats' and 'sosgenHistory'.
-        // It seems 'assigned_drills' table is separate.
-        
-        // Let's use a specific param to get ALL assigned
         const responseAll = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills_full_history`);
         if (responseAll.ok) {
             assignedDrills = await responseAll.json();
         } else {
-            // Fallback to just pending if endpoint fails (graceful degradation)
+            // Fallback
             const resPending = await fetch(`/api/user-data?username=${user.username}&type=assigned_drills`);
             if (resPending.ok) assignedDrills = await resPending.json();
         }
 
         renderAssignedList();
         updateAssignedTabBadge(); 
-        refreshDashboardAndCalendar(); // Update dashboard with new data
+        refreshDashboardAndCalendar();
     } catch (e) {
         console.error("Failed to load assigned drills");
     }
@@ -166,7 +146,6 @@ export function renderSimulacro(container: HTMLElement) {
     `;
     
     initializeSimulacro();
-    // Fetch calls will trigger rendering of dashboard and calendar once data arrives
     fetchAssignedDrills(); 
 
     stopSpeech();
@@ -315,10 +294,11 @@ function initializeSimulacro() {
         drillButtons.forEach(btn => btn.disabled = true);
 
         try {
-            const apiResponse = await fetch('/api/simulacro', {
+            // UPDATED ENDPOINT
+            const apiResponse = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: drillType })
+                body: JSON.stringify({ action: 'generate_drill', type: drillType })
             });
 
             if (!apiResponse.ok) throw new Error('Error de API');

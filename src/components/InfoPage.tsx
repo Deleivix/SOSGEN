@@ -296,10 +296,11 @@ async function initializeMmsiSearcher() {
         button.disabled = true;
 
         try {
-            const response = await fetch('/api/mmsi-search', {
+            // UPDATED ENDPOINT
+            const response = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mmsi })
+                body: JSON.stringify({ action: 'mmsi_search', mmsi })
             });
 
             if (!response.ok) {
@@ -530,10 +531,11 @@ async function initializeNauticalTranslator() {
         translateBtn.disabled = true;
 
         try {
-            const apiResponse = await fetch('/api/translator', {
+            // UPDATED ENDPOINT
+            const apiResponse = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ textToTranslate })
+                body: JSON.stringify({ action: 'translate', textToTranslate })
             });
 
             if (!apiResponse.ok) {
