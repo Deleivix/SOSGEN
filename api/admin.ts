@@ -34,14 +34,14 @@ export default async function handler(
 
         if (request.method === 'GET') {
             const adminUsername = request.query.adminUsername as string;
-            const type = request.query.type as string; // 'requests' (default) or 'audit'
+            const type = request.query.type as string; // 'requests' (default), 'audit' (access), or 'activity' (operational)
 
             if (!(await verifyAdmin(adminUsername))) {
                 return response.status(403).json({ error: 'Acceso denegado.' });
             }
             
             if (type === 'audit') {
-                // --- AUDIT LOGIC (Merged from api/audit.ts) ---
+                // --- AUDIT LOGIC (Access Logs) ---
                 const { rows } = await sql`
                     SELECT 
                         al.id, 
@@ -52,6 +52,22 @@ export default async function handler(
                     FROM access_logs al
                     JOIN users u ON al.user_id = u.id
                     ORDER BY al.timestamp DESC
+                    LIMIT 200; 
+                `;
+                return response.status(200).json(rows);
+            } else if (type === 'activity') {
+                // --- ACTIVITY LOGIC (Operational History) ---
+                // Fetches from the 'history' table used by Radioavisos
+                const { rows } = await sql`
+                    SELECT 
+                        id, 
+                        timestamp, 
+                        "user", 
+                        action, 
+                        nr_id as "nrId", 
+                        details 
+                    FROM history 
+                    ORDER BY timestamp DESC
                     LIMIT 200; 
                 `;
                 return response.status(200).json(rows);

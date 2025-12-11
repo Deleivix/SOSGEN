@@ -16,10 +16,20 @@ type AuditLog = {
     username: string;
 };
 
+type ActivityLog = {
+    id: string;
+    timestamp: string;
+    user: string;
+    action: string;
+    nrId: string;
+    details: string;
+};
+
 let pendingUsers: PendingUser[] = [];
 let auditLogs: AuditLog[] = [];
+let activityLogs: ActivityLog[] = [];
 let isLoading = false;
-let currentTab: 'requests' | 'audit' = 'requests';
+let currentTab: 'requests' | 'audit' | 'activity' = 'requests';
 
 async function fetchRequests() {
     const adminUser = getCurrentUser();
@@ -29,7 +39,6 @@ async function fetchRequests() {
     renderAdminContent();
 
     try {
-        // Updated Endpoint: /api/admin
         const response = await fetch(`/api/admin?adminUsername=${adminUser.username}`);
         if (!response.ok) throw new Error('Failed to fetch requests');
         pendingUsers = await response.json();
@@ -50,13 +59,32 @@ async function fetchAuditLogs() {
     renderAdminContent();
 
     try {
-        // Updated Endpoint: /api/admin?type=audit (was /api/audit)
         const response = await fetch(`/api/admin?type=audit&adminUsername=${adminUser.username}`);
         if (!response.ok) throw new Error('Failed to fetch audit logs');
         auditLogs = await response.json();
     } catch (error) {
         showToast("Error al cargar auditoría", "error");
         auditLogs = [];
+    } finally {
+        isLoading = false;
+        renderAdminContent();
+    }
+}
+
+async function fetchActivityLogs() {
+    const adminUser = getCurrentUser();
+    if (!adminUser) return;
+
+    isLoading = true;
+    renderAdminContent();
+
+    try {
+        const response = await fetch(`/api/admin?type=activity&adminUsername=${adminUser.username}`);
+        if (!response.ok) throw new Error('Failed to fetch activity logs');
+        activityLogs = await response.json();
+    } catch (error) {
+        showToast("Error al cargar historial de actividad", "error");
+        activityLogs = [];
     } finally {
         isLoading = false;
         renderAdminContent();
@@ -97,6 +125,7 @@ function renderAdminContent() {
     const tabsHtml = `
         <div class="info-nav-tabs" style="margin-bottom: 2rem;">
             <button class="info-nav-btn ${currentTab === 'requests' ? 'active' : ''}" data-tab="requests">Solicitudes de Registro</button>
+            <button class="info-nav-btn ${currentTab === 'activity' ? 'active' : ''}" data-tab="activity">Historial de Actividad</button>
             <button class="info-nav-btn ${currentTab === 'audit' ? 'active' : ''}" data-tab="audit">Historial de Accesos</button>
         </div>
     `;
@@ -135,6 +164,47 @@ function renderAdminContent() {
                                             <button class="tertiary-btn" data-action="reject">Rechazar</button>
                                         </div>
                                     </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+    } else if (currentTab === 'activity') {
+        if (activityLogs.length === 0) {
+            contentHtml = '<p class="drill-placeholder">No hay registros de actividad operativa recientes.</p>';
+        } else {
+            const getActionColor = (action: string) => {
+                switch(action) {
+                    case 'AÑADIDO': return 'var(--success-color)';
+                    case 'EDITADO': return 'var(--warning-color)';
+                    case 'CANCELADO': return 'var(--danger-color)';
+                    case 'BORRADO': return 'var(--danger-color)';
+                    default: return 'var(--text-secondary)';
+                }
+            };
+
+            contentHtml = `
+                <div class="table-wrapper">
+                    <table class="reference-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha/Hora</th>
+                                <th>Usuario</th>
+                                <th>Acción</th>
+                                <th>Objetivo</th>
+                                <th>Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${activityLogs.map(log => `
+                                <tr>
+                                    <td style="white-space:nowrap;">${new Date(log.timestamp).toLocaleString('es-ES')}</td>
+                                    <td>${log.user}</td>
+                                    <td><span class="category-badge" style="background-color: ${getActionColor(log.action)}">${log.action}</span></td>
+                                    <td style="font-family: var(--font-mono);">${log.nrId}</td>
+                                    <td style="font-size: 0.9em; color: var(--text-secondary);">${log.details}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -189,8 +259,9 @@ export function renderAdminPage(container: HTMLElement) {
         
         const tabBtn = target.closest('button[data-tab]');
         if (tabBtn) {
-            currentTab = tabBtn.getAttribute('data-tab') as 'requests' | 'audit';
+            currentTab = tabBtn.getAttribute('data-tab') as 'requests' | 'audit' | 'activity';
             if (currentTab === 'requests') fetchRequests();
+            else if (currentTab === 'activity') fetchActivityLogs();
             else fetchAuditLogs();
         }
 
