@@ -207,7 +207,7 @@ function renderFfaaContent(warnings: Warning[]) {
         container.innerHTML = `
             <div class="attention-panel" style="background-color: #E8F5E9; border-color: #2E7D32; color: #1B5E20; text-align: center;">
                 <h4 style="justify-content: center;">Sin Avisos Costeros Activos</h4>
-                <p style="margin-bottom: 0;">No se han detectado avisos costeros vigentes de nivel Naranja o Rojo en el feed de MeteoAlarm.</p>
+                <p style="margin-bottom: 0;">No se han detectado avisos costeros vigentes de nivel Naranja o Rojo en las zonas de interés.</p>
             </div>
         `;
         return;
@@ -239,7 +239,7 @@ function renderFfaaContent(warnings: Warning[]) {
         return a.localeCompare(b);
     });
 
-    let htmlContent = `<div style="text-align: right; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-secondary);">Fuente: MeteoAlarm (AEMET)</div>`;
+    let htmlContent = `<div style="text-align: right; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-secondary);">Fuente: MeteoAlarm (AEMET) | Filtrado: Norte Peninsular</div>`;
 
     sortedKeys.forEach(key => {
         const commWarnings = grouped[key];
@@ -391,8 +391,18 @@ async function fetchFfaaData() {
             });
         }
         
-        currentWarnings = parsedWarnings; 
-        renderFfaaContent(parsedWarnings);
+        // FILTER: Only keep specific northern communities as requested
+        const INTERESTED_COMMUNITIES = [
+            'de Galicia', 
+            'del Principado de Asturias', 
+            'de Cantabria', 
+            'del País Vasco'
+        ];
+
+        const filteredWarnings = parsedWarnings.filter(w => INTERESTED_COMMUNITIES.includes(getCommunity(w.area)));
+        
+        currentWarnings = filteredWarnings; 
+        renderFfaaContent(filteredWarnings);
 
     } catch (error) {
         console.error("FFAA Parsing Error:", error);
@@ -410,7 +420,7 @@ export function renderFfaaPage(container: HTMLElement) {
             <div class="meteos-header">
                 <div class="meteos-header-text">
                     <h2 class="content-card-title" style="margin-bottom: 0.5rem; border: none; padding: 0;">Fenómenos Adversos Costeros (FFAA)</h2>
-                    <p class="translator-desc" style="margin-bottom: 0;">Avisos vigentes (no caducados) de nivel Naranja y Rojo.</p>
+                    <p class="translator-desc" style="margin-bottom: 0;">Avisos vigentes (no caducados) de nivel Naranja y Rojo para Galicia y Cantábrico.</p>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
                     <button id="ffaa-bulletin-btn" class="primary-btn-small">
