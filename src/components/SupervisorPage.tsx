@@ -3,7 +3,7 @@ import { getCurrentUser } from "../utils/auth";
 import { showToast } from "../utils/helpers";
 
 // --- TYPES ---
-type UserStat = {
+type UserStats = {
     id: number;
     username: string;
     email: string;
@@ -14,399 +14,359 @@ type UserStat = {
         totalQuestions: number;
     };
     assigned_history: {
-        status: string;
-        score: number;
-        max_score: number;
+        status: 'PENDING' | 'COMPLETED';
+        score?: number;
+        max_score?: number;
         created_at: string;
-        completed_at: string | null;
+        completed_at?: string;
         drill_type: string;
     }[] | null;
 };
 
 // --- STATE ---
 let currentTab: 'dashboard' | 'assign' = 'dashboard';
-let usersStats: UserStat[] = [];
+let usersStats: UserStats[] = [];
+let isLoading = false;
 let dashboardFilter = '';
-let dashboardSort = { key: 'username', dir: 'asc' };
-let timeRange: '1M' | '1Y' | 'ALL' = '1M';
+let dashboardSort: { key: string; dir: 'asc' | 'desc' } = { key: 'username', dir: 'asc' };
+let timeRange: '1M' | '1Y' | 'ALL' = 'ALL';
 let selectedUserIds: number[] = [];
-let generatedDrillData: any = null;
+let drillPreviewData: any = null;
 
 // --- API ---
 async function fetchUsersStats() {
     const user = getCurrentUser();
     if (!user) return;
+    
+    isLoading = true;
+    renderContent(); // Show loader
+
     try {
-        const res = await fetch('/api/supervisor', {
+        const response = await fetch('/api/supervisor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'get_users_stats', supervisorUsername: user.username })
+            body: JSON.stringify({
+                action: 'get_users_stats',
+                supervisorUsername: user.username
+            })
         });
-        if (res.ok) {
-            usersStats = await res.json();
-            renderContent();
-        }
-    } catch (e) { 
-        console.error(e); 
-        showToast("Error al cargar estadísticas", "error");
+        if (!response.ok) throw new Error('Failed to fetch stats');
+        usersStats = await response.json();
+    } catch (e) {
+        showToast("Error al cargar datos de usuarios.", "error");
+    } finally {
+        isLoading = false;
+        renderContent();
     }
 }
 
 async function generateDrillPreview(type: string) {
-    const previewContainer = document.getElementById('drill-preview-area');
-    if (previewContainer) {
-        previewContainer.innerHTML = `<div class="loader-container"><div class="loader"></div><p style="margin-top:1rem;">Generando con IA...</p></div>`;
+    // Generate a drill using the existing simulation API but just for preview in supervisor
+    // We re-use /api/simulacro
+    const btn = document.querySelector(`.gen-drill-btn[data-type="${type}"]`) as HTMLButtonElement;
+    if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner" style="width:12px;height:12px;"></span> Generando...`;
     }
 
     try {
-        const res = await fetch('/api/simulacro', {
+        const response = await fetch('/api/simulacro', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type })
         });
-        
-        if (res.ok) {
-            generatedDrillData = await res.json();
-            if (!generatedDrillData.type) generatedDrillData.type = type;
-            renderDrillPreview();
-        } else {
-            showToast("Error al generar simulacro", "error");
-            if (previewContainer) previewContainer.innerHTML = '<p class="error">Error en la generación.</p>';
-        }
+        if (!response.ok) throw new Error('Error generando simulacro');
+        drillPreviewData = await response.json();
+        // Add type for saving later
+        drillPreviewData.type = type; 
+        renderDrillPreviewModal();
     } catch (e) {
-        showToast("Error de conexión", "error");
+        showToast("Error al generar vista previa.", "error");
+    } finally {
+        if(btn) {
+            btn.disabled = false;
+            btn.textContent = type === 'dsc' ? 'Generar DSC' : 'Generar Voz';
+        }
     }
 }
 
 async function assignDrill() {
     const user = getCurrentUser();
-    if (!user) return;
-
-    if (selectedUserIds.length === 0) {
-        showToast("Seleccione al menos un usuario.", "error");
-        return;
-    }
-    if (!generatedDrillData) {
-        showToast("No hay simulacro para asignar.", "error");
+    if (!user || selectedUserIds.length === 0 || !drillPreviewData) {
+        showToast("Seleccione usuarios y genere un simulacro primero.", "error");
         return;
     }
 
-    const btn = document.getElementById('confirm-assign-btn') as HTMLButtonElement;
-    if(btn) btn.disabled = true;
+    const confirmBtn = document.getElementById('confirm-assign-btn') as HTMLButtonElement;
+    if(confirmBtn) confirmBtn.disabled = true;
 
     try {
-        const res = await fetch('/api/supervisor', {
+        const response = await fetch('/api/supervisor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'assign_drill',
                 supervisorUsername: user.username,
                 targetUserIds: selectedUserIds,
-                drillType: generatedDrillData.type,
-                drillData: generatedDrillData
+                drillType: drillPreviewData.type,
+                drillData: drillPreviewData
             })
         });
-
-        if (res.ok) {
-            showToast("Simulacros asignados con éxito.", "success");
-            selectedUserIds = [];
-            generatedDrillData = null;
-            renderContent();
-        } else {
-            showToast("Error al asignar.", "error");
-        }
+        if (!response.ok) throw new Error('Error assigning drill');
+        showToast("Simulacros asignados correctamente.", "success");
+        selectedUserIds = []; // Clear selection
+        drillPreviewData = null; // Clear drill
+        renderContent(); // Re-render assign tab
     } catch (e) {
-        showToast("Error de conexión.", "error");
-    } finally {
-        if(btn) btn.disabled = false;
+        showToast("Error al asignar.", "error");
     }
 }
 
-function createManualDrill() {
-    // Placeholder for manual creation UI
-    // For now, let's just generate a simple template
-    generatedDrillData = {
-        type: 'manual',
-        scenario: "Ejercicio Manual: Redactar mensaje de socorro...",
-        questions: [
-            {
-                questionText: "¿Acción correcta?",
-                options: ["Opción A", "Opción B"],
-                correctAnswerIndex: 0,
-                feedback: "Retroalimentación manual."
-            }
-        ]
-    };
-    renderDrillPreview();
-    showToast("Plantilla manual cargada. (Funcionalidad completa pendiente)", "info");
-}
+// --- RENDER FUNCTIONS ---
 
-function exportToCSV() {
-    if (usersStats.length === 0) return;
-    
-    const headers = ["ID", "Usuario", "Email", "Última Actividad", "Simulacros Personales", "Simulacros Asignados", "Avg Score Asignado"];
-    const rows = usersStats.map(u => {
-        const assignedCompleted = u.assigned_history?.filter(h => h.status === 'COMPLETED') || [];
-        const avgScore = assignedCompleted.length > 0 
-            ? (assignedCompleted.reduce((acc, curr) => acc + (curr.score/curr.max_score), 0) / assignedCompleted.length * 100).toFixed(1) + '%' 
-            : 'N/A';
-            
-        return [
-            u.id,
-            u.username,
-            u.email,
-            u.last_activity ? new Date(u.last_activity).toLocaleString() : 'Nunca',
-            u.personal_stats.totalDrills,
-            assignedCompleted.length,
-            avgScore
-        ].join(',');
-    });
-    
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "reporte_usuarios_sosgen.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-// --- RENDER HELPERS ---
-
-function renderDrillPreview() {
-    const container = document.getElementById('drill-preview-area');
-    if (!container || !generatedDrillData) return;
-
-    container.innerHTML = `
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-            <h4>${generatedDrillData.type === 'dsc' ? 'Alerta DSC' : 'Radiotelefonía / Manual'}</h4>
-            <p style="white-space: pre-wrap; font-size: 0.9rem; margin-bottom: 1rem;">${generatedDrillData.scenario}</p>
-            <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                ${generatedDrillData.questions.length} preguntas generadas.
-            </div>
-        </div>
-        <div style="text-align: right;">
-            <button id="confirm-assign-btn" class="primary-btn" style="width: auto;">Confirmar Asignación (${selectedUserIds.length} usuarios)</button>
-        </div>
-    `;
-}
-
-function renderAssignView() {
+function renderContent() {
     const container = document.getElementById('supervisor-content');
     if (!container) return;
 
-    // Filter users list
-    let filteredUsers = usersStats;
-    if (dashboardFilter) {
-        const f = dashboardFilter.toLowerCase();
-        filteredUsers = usersStats.filter(u => u.username.toLowerCase().includes(f) || u.email.toLowerCase().includes(f));
+    if (isLoading) {
+        container.innerHTML = `<div class="loader-container"><div class="loader"></div></div>`;
+        return;
     }
 
-    const usersListHtml = filteredUsers.map(u => `
-        <label class="user-select-item" style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border-color); cursor: pointer;">
-            <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''} style="margin-right: 10px;">
-            <div style="flex-grow: 1;">
-                <div style="font-weight: 500;">${u.username}</div>
-                <div style="font-size: 0.8rem; color: var(--text-secondary);">${u.email}</div>
-            </div>
-        </label>
-    `).join('');
-
-    container.innerHTML = `
-        <div class="assign-layout" style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
-            <div class="assign-sidebar">
-                <h3 class="reference-table-subtitle">1. Seleccionar Usuarios</h3>
-                <input type="text" id="dashboard-search" class="filter-input" placeholder="Filtrar usuarios..." value="${dashboardFilter}">
-                <div class="users-list-scroll" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px;">
-                    ${usersListHtml}
-                </div>
-                <button id="select-all-users-btn" class="secondary-btn" style="margin-top: 0.5rem; width: 100%;">
-                    ${selectedUserIds.length === usersStats.length && usersStats.length > 0 ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
-                </button>
-            </div>
-            
-            <div class="assign-main">
-                <h3 class="reference-table-subtitle">2. Configurar Simulacro</h3>
-                <div class="drill-generation-controls" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                    <button class="gen-drill-btn primary-btn-small" data-type="dsc">Generar DSC (IA)</button>
-                    <button class="gen-drill-btn primary-btn-small" data-type="radiotelephony">Generar Voz (IA)</button>
-                    <button id="create-manual-btn" class="secondary-btn">Manual</button>
-                </div>
-                
-                <h3 class="reference-table-subtitle">3. Vista Previa y Confirmación</h3>
-                <div id="drill-preview-area" style="min-height: 200px; border: 2px dashed var(--border-color); border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                    ${generatedDrillData ? '' : '<p class="drill-placeholder">Genere o cree un simulacro para ver la vista previa.</p>'}
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Re-render preview if data exists
-    if (generatedDrillData) renderDrillPreview();
-    
-    // Attach Select All logic specific to this view
-    const selectAllBtn = document.getElementById('select-all-users-btn');
-    if (selectAllBtn) {
-        selectAllBtn.onclick = () => {
-            if (selectedUserIds.length === usersStats.length) {
-                selectedUserIds = [];
-            } else {
-                selectedUserIds = usersStats.map(u => u.id);
-            }
-            renderContent();
-        };
+    if (currentTab === 'dashboard') {
+        renderDashboard(container);
+    } else {
+        renderAssign(container);
     }
 }
 
-function renderDashboardView() {
-    const container = document.getElementById('supervisor-content');
-    if (!container) return;
+function renderDashboard(container: HTMLElement) {
+    let filtered = usersStats.filter(u => 
+        u.username.toLowerCase().includes(dashboardFilter.toLowerCase()) || 
+        u.email.toLowerCase().includes(dashboardFilter.toLowerCase())
+    );
 
-    // Filter & Sort
-    let displayUsers = [...usersStats];
-    if (dashboardFilter) {
-        const f = dashboardFilter.toLowerCase();
-        displayUsers = displayUsers.filter(u => u.username.toLowerCase().includes(f) || u.email.toLowerCase().includes(f));
-    }
-    
-    displayUsers.sort((a, b) => {
-        let valA: any = a[dashboardSort.key as keyof UserStat];
-        let valB: any = b[dashboardSort.key as keyof UserStat];
+    // Sort
+    filtered.sort((a: any, b: any) => {
+        let valA = a[dashboardSort.key];
+        let valB = b[dashboardSort.key];
         
-        if (dashboardSort.key === 'personal_stats') {
-            valA = a.personal_stats.totalDrills;
-            valB = b.personal_stats.totalDrills;
+        // Custom sort keys
+        if (dashboardSort.key === 'drill_avg') {
+            valA = a.personal_stats.totalQuestions > 0 ? a.personal_stats.totalCorrect / a.personal_stats.totalQuestions : 0;
+            valB = b.personal_stats.totalQuestions > 0 ? b.personal_stats.totalCorrect / b.personal_stats.totalQuestions : 0;
         }
-        
+
         if (valA < valB) return dashboardSort.dir === 'asc' ? -1 : 1;
         if (valA > valB) return dashboardSort.dir === 'asc' ? 1 : -1;
         return 0;
     });
 
-    const getSortIndicator = (key: string) => {
-        if (dashboardSort.key !== key) return '';
-        return dashboardSort.dir === 'asc' ? ' ▲' : ' ▼';
-    };
+    const rows = filtered.map(u => {
+        const pStats = u.personal_stats || { totalDrills: 0, totalCorrect: 0, totalQuestions: 0 };
+        const avg = pStats.totalQuestions > 0 ? Math.round((pStats.totalCorrect / pStats.totalQuestions) * 100) : 0;
+        const lastActive = u.last_activity ? new Date(u.last_activity).toLocaleDateString() : '-';
+        
+        // Assigned Stats
+        const assigned = u.assigned_history || [];
+        const completed = assigned.filter(a => a.status === 'COMPLETED').length;
+        const pending = assigned.filter(a => a.status === 'PENDING').length;
+
+        return `
+            <tr class="user-row-interactive" data-user-id="${u.id}">
+                <td>${u.username}</td>
+                <td>${lastActive}</td>
+                <td>${pStats.totalDrills} / ${avg}%</td>
+                <td><span style="color:var(--success-color); font-weight:bold;">${completed}</span> / <span style="color:var(--warning-color); font-weight:bold;">${pending}</span></td>
+                <td><button class="secondary-btn" style="padding:2px 8px; font-size:0.8rem;">Detalles</button></td>
+            </tr>
+        `;
+    }).join('');
 
     container.innerHTML = `
-        <div class="dashboard-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <input type="text" id="dashboard-search" class="filter-input" placeholder="Buscar usuario..." value="${dashboardFilter}" style="width: 300px; margin-bottom: 0;">
-            <button id="export-csv-btn" class="secondary-btn">Exportar CSV</button>
+        <div class="dashboard-controls" style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
+            <input type="text" id="dashboard-search" class="filter-input" placeholder="Buscar usuario..." value="${dashboardFilter}" style="margin:0; width:250px;">
+            <div style="display:flex; gap:0.5rem;">
+                <button class="secondary-btn ${timeRange === '1M' ? 'active' : ''}" data-range="1M">1 Mes</button>
+                <button class="secondary-btn ${timeRange === 'ALL' ? 'active' : ''}" data-range="ALL">Todo</button>
+                <button class="secondary-btn" id="export-csv-btn">Exportar CSV</button>
+            </div>
         </div>
         <div class="table-wrapper">
             <table class="reference-table">
                 <thead>
                     <tr>
-                        <th data-sort="id" style="cursor: pointer;">ID${getSortIndicator('id')}</th>
-                        <th data-sort="username" style="cursor: pointer;">Usuario${getSortIndicator('username')}</th>
-                        <th data-sort="last_activity" style="cursor: pointer;">Último Acceso${getSortIndicator('last_activity')}</th>
-                        <th data-sort="personal_stats" style="cursor: pointer; text-align: center;">Simulacros IA${getSortIndicator('personal_stats')}</th>
-                        <th style="text-align: center;">Asignados (Comp/Total)</th>
-                        <th>Estado</th>
+                        <th data-sort="username" style="cursor:pointer;">Usuario ${dashboardSort.key === 'username' ? (dashboardSort.dir === 'asc' ? '↑' : '↓') : ''}</th>
+                        <th data-sort="last_activity" style="cursor:pointer;">Último Acceso ${dashboardSort.key === 'last_activity' ? (dashboardSort.dir === 'asc' ? '↑' : '↓') : ''}</th>
+                        <th data-sort="drill_avg" style="cursor:pointer;">Personales (Nº / Med) ${dashboardSort.key === 'drill_avg' ? (dashboardSort.dir === 'asc' ? '↑' : '↓') : ''}</th>
+                        <th>Asignados (Ok / Pend)</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${displayUsers.map(u => {
-                        const assignedTotal = u.assigned_history?.length || 0;
-                        const assignedCompleted = u.assigned_history?.filter(h => h.status === 'COMPLETED').length || 0;
-                        const lastActive = u.last_activity ? new Date(u.last_activity).toLocaleDateString() : '-';
-                        return `
-                            <tr class="user-row-interactive" data-user-id="${u.id}" style="cursor: pointer;">
-                                <td>${u.id}</td>
-                                <td style="font-weight: 500;">${u.username}</td>
-                                <td>${lastActive}</td>
-                                <td style="text-align: center;">${u.personal_stats.totalDrills}</td>
-                                <td style="text-align: center;">
-                                    <span class="category-badge" style="background-color: var(--info-color);">${assignedCompleted} / ${assignedTotal}</span>
-                                </td>
-                                <td><span class="status-dot status-green"></span> Activo</td>
-                            </tr>
-                        `;
-                    }).join('')}
+                    ${rows}
                 </tbody>
             </table>
         </div>
     `;
 }
 
-function renderContent() {
-    if (currentTab === 'dashboard') renderDashboardView();
-    else renderAssignView();
+function renderAssign(container: HTMLElement) {
+    const userList = usersStats.map(u => `
+        <label class="user-select-item" style="display:flex; align-items:center; padding:0.5rem; border-bottom:1px solid var(--border-color);">
+            <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''} style="margin-right:10px;">
+            <span>${u.username}</span>
+        </label>
+    `).join('');
+
+    // If drill preview exists, render summary
+    let drillPreviewHtml = '<div class="drill-placeholder">Genere un simulacro para asignar.</div>';
+    if (drillPreviewData) {
+        drillPreviewHtml = `
+            <div class="drill-preview-card" style="border:1px solid var(--accent-color); padding:1rem; border-radius:8px; background:var(--bg-card);">
+                <h4 style="margin-top:0;">${drillPreviewData.type === 'dsc' ? 'Simulacro DSC' : (drillPreviewData.type === 'radiotelephony' ? 'Simulacro Voz' : 'Simulacro Manual')}</h4>
+                <p><strong>Escenario:</strong> ${drillPreviewData.scenario}</p>
+                <p><strong>Preguntas:</strong> ${drillPreviewData.questions.length}</p>
+                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                    <button class="primary-btn" id="confirm-assign-btn">Confirmar Asignación (${selectedUserIds.length} usuarios)</button>
+                    <button class="secondary-btn" onclick="drillPreviewData=null; renderContent();">Descartar</button>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="assign-layout" style="display:grid; grid-template-columns: 300px 1fr; gap:2rem;">
+            <div class="user-selector-panel" style="border-right:1px solid var(--border-color); padding-right:1rem;">
+                <h3>Seleccionar Usuarios</h3>
+                <button class="secondary-btn" id="select-all-users-btn" style="width:100%; margin-bottom:1rem;">
+                    ${selectedUserIds.length === usersStats.length && usersStats.length > 0 ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
+                </button>
+                <div class="user-list-scroll" style="max-height:500px; overflow-y:auto;">
+                    ${userList}
+                </div>
+            </div>
+            <div class="drill-creator-panel">
+                <h3>Configurar Simulacro</h3>
+                <div class="drill-actions" style="display:flex; gap:1rem; margin-bottom:2rem;">
+                    <button class="secondary-btn gen-drill-btn" data-type="dsc">Generar DSC</button>
+                    <button class="secondary-btn gen-drill-btn" data-type="radiotelephony">Generar Voz</button>
+                    <button class="secondary-btn" id="create-manual-btn">Crear Manual</button>
+                </div>
+                ${drillPreviewHtml}
+            </div>
+        </div>
+    `;
 }
 
-function renderUserDetailModal(user: UserStat) {
+function renderUserDetailModal(user: UserStats) {
     const modalId = `user-detail-${user.id}`;
-    if (document.getElementById(modalId)) return;
+    if(document.getElementById(modalId)) return;
 
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'modal-overlay';
-    modalOverlay.id = modalId;
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = modalId;
+    
+    // Sort history
+    const history = (user.assigned_history || []).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    const assignedHistoryRows = user.assigned_history?.map(h => `
+    const historyRows = history.map(h => `
         <tr>
             <td>${new Date(h.created_at).toLocaleDateString()}</td>
             <td>${h.drill_type}</td>
-            <td><span class="category-badge" style="background-color: ${h.status === 'COMPLETED' ? 'var(--success-color)' : 'var(--warning-color)'}">${h.status}</span></td>
-            <td>${h.status === 'COMPLETED' ? `${h.score}/${h.max_score}` : '-'}</td>
-            <td>${h.completed_at ? new Date(h.completed_at).toLocaleString() : '-'}</td>
+            <td><span class="category-badge" style="background-color:${h.status === 'COMPLETED' ? 'var(--success-color)' : 'var(--warning-color)'}">${h.status}</span></td>
+            <td>${h.score !== undefined ? h.score + '/' + h.max_score : '-'}</td>
         </tr>
-    `).join('') || '<tr><td colspan="5" style="text-align: center;">Sin historial de asignaciones.</td></tr>';
+    `).join('');
 
-    modalOverlay.innerHTML = `
-        <div class="modal-content" style="max-width: 800px; text-align: left;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h2 class="modal-title" style="margin: 0;">Detalle: ${user.username}</h2>
-                <button class="secondary-btn modal-close-btn">✕</button>
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:800px; text-align:left;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 class="modal-title" style="margin:0;">${user.username}</h2>
+                <button class="secondary-btn modal-close-btn" style="width:auto;">✕</button>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
-                <div class="stat-card">
-                    <div class="label">Simulacros IA (Autónomos)</div>
-                    <div class="value">${user.personal_stats.totalDrills}</div>
-                    <div class="subtext">Preguntas respondidas: ${user.personal_stats.totalQuestions}</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:2rem;">
+                <div class="stat-box">
+                    <h4>Personales</h4>
+                    <p>Total: ${user.personal_stats.totalDrills}</p>
+                    <p>Aciertos: ${user.personal_stats.totalCorrect} / ${user.personal_stats.totalQuestions}</p>
                 </div>
-                <div class="stat-card">
-                    <div class="label">Simulacros Asignados</div>
-                    <div class="value">${user.assigned_history?.length || 0}</div>
-                    <div class="subtext">Completados: ${user.assigned_history?.filter(h => h.status === 'COMPLETED').length || 0}</div>
+                <div class="stat-box">
+                    <h4>Asignados</h4>
+                    <p>Total: ${history.length}</p>
+                    <p>Completados: ${history.filter(h => h.status === 'COMPLETED').length}</p>
                 </div>
             </div>
 
-            <h3 class="reference-table-subtitle">Historial de Asignaciones</h3>
-            <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+            <h3>Historial de Asignaciones</h3>
+            <div class="table-wrapper" style="max-height:300px; overflow-y:auto;">
                 <table class="reference-table">
-                    <thead>
-                        <tr>
-                            <th>Fecha Asignación</th>
-                            <th>Tipo</th>
-                            <th>Estado</th>
-                            <th>Puntuación</th>
-                            <th>Fecha Completado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${assignedHistoryRows}
-                    </tbody>
+                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Estado</th><th>Puntuación</th></tr></thead>
+                    <tbody>${historyRows || '<tr><td colspan="4" style="text-align:center;">Sin historial</td></tr>'}</tbody>
                 </table>
             </div>
         </div>
     `;
-
-    document.body.appendChild(modalOverlay);
-    modalOverlay.addEventListener('click', e => {
-        if(e.target === modalOverlay || (e.target as HTMLElement).classList.contains('modal-close-btn')) {
-            modalOverlay.remove();
-        }
+    
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => {
+        if(e.target === modal || (e.target as HTMLElement).classList.contains('modal-close-btn')) modal.remove();
     });
 }
 
+function renderDrillPreviewModal() {
+    // Only used if we want a separate modal, but here we render inline in the assign tab.
+    // So we just call renderContent which handles the preview logic.
+    renderContent();
+}
+
 function attachEditorEvents(container: HTMLElement) {
-    // Just a placeholder if any specific editor events need direct attachment not handled by global listener
-    // Currently most events are handled by delegated listener in renderSupervisorPage
+    // Placeholder if manual editor logic is complex, for now simple buttons in render
+}
+
+function createManualDrill() {
+    // Basic prompt for now, could be a full modal editor
+    const scenario = prompt("Descripción del escenario:");
+    if(!scenario) return;
+    const q1 = prompt("Pregunta 1:");
+    if(!q1) return;
+    
+    drillPreviewData = {
+        type: 'manual',
+        scenario: scenario,
+        questions: [{
+            questionText: q1,
+            options: ["Verdadero", "Falso"],
+            correctAnswerIndex: 0,
+            feedback: "Manual entry"
+        }]
+    };
+    renderContent();
+}
+
+function exportToCSV() {
+    let csv = "ID,Usuario,Email,Ultimo_Acceso,Simulacros_Personales,Media_Personales,Asignados_Completados,Asignados_Pendientes\n";
+    usersStats.forEach(u => {
+        const pStats = u.personal_stats || { totalDrills: 0, totalCorrect: 0, totalQuestions: 0 };
+        const avg = pStats.totalQuestions > 0 ? Math.round((pStats.totalCorrect / pStats.totalQuestions) * 100) : 0;
+        const assigned = u.assigned_history || [];
+        const completed = assigned.filter(a => a.status === 'COMPLETED').length;
+        const pending = assigned.filter(a => a.status === 'PENDING').length;
+        
+        csv += `${u.id},${u.username},${u.email},${u.last_activity || ''},${pStats.totalDrills},${avg}%,${completed},${pending}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sosgen_users_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
 }
 
 export function renderSupervisorPage(container: HTMLElement) {
+    // See prompt for content
     container.innerHTML = `
         <div class="content-card">
             <h2 class="content-card-title">Panel de Supervisor</h2>
@@ -417,23 +377,16 @@ export function renderSupervisorPage(container: HTMLElement) {
             <div id="supervisor-content"></div>
         </div>
     `;
-    
     fetchUsersStats();
     attachEditorEvents(container);
-
-    // Event Delegation
     container.addEventListener('input', e => {
         const target = e.target as HTMLInputElement;
-        if (target.id === 'dashboard-search') { 
-            dashboardFilter = target.value; 
-            renderContent(); 
-        }
+        if (target.id === 'dashboard-search') { dashboardFilter = target.value; renderContent(); }
     });
-
     container.addEventListener('click', e => {
         const target = e.target as HTMLElement;
         
-        // Tabs
+        // Navigation Tabs
         const tabBtn = target.closest('button[data-tab]');
         if (tabBtn) {
             const newTab = tabBtn.getAttribute('data-tab') as any;
@@ -445,7 +398,7 @@ export function renderSupervisorPage(container: HTMLElement) {
             }
         }
         
-        // Sort
+        // Table Sorting
         const sortTh = target.closest('th[data-sort]');
         if (sortTh) {
             const key = sortTh.getAttribute('data-sort')!;
@@ -453,15 +406,15 @@ export function renderSupervisorPage(container: HTMLElement) {
             else { dashboardSort.key = key; dashboardSort.dir = 'desc'; }
             renderContent();
         }
-
-        // Time range (if used later)
+        
+        // Time Range Filter
         const rangeBtn = target.closest('button[data-range]');
         if (rangeBtn) {
-            timeRange = rangeBtn.getAttribute('data-range') as any;
+            timeRange = rangeBtn.getAttribute('data-range') as '1M' | '1Y' | 'ALL';
             renderContent();
         }
 
-        // User Details
+        // User Detail Modal
         const userRow = target.closest('.user-row-interactive');
         if (userRow) {
             const uid = parseInt(userRow.getAttribute('data-user-id')!);
@@ -469,7 +422,7 @@ export function renderSupervisorPage(container: HTMLElement) {
             if (user) renderUserDetailModal(user);
         }
 
-        // Actions
+        // Action Buttons (Using closest to handle inner clicks on icons/text)
         if (target.closest('#export-csv-btn')) exportToCSV();
         
         const genBtn = target.closest('.gen-drill-btn');
@@ -480,6 +433,15 @@ export function renderSupervisorPage(container: HTMLElement) {
         
         if (target.closest('#create-manual-btn')) createManualDrill();
         if (target.closest('#confirm-assign-btn')) assignDrill();
+        
+        if (target.closest('#select-all-users-btn')) {
+            if(selectedUserIds.length === usersStats.length && usersStats.length > 0) {
+                selectedUserIds = [];
+            } else {
+                selectedUserIds = usersStats.map(u => u.id);
+            }
+            renderContent();
+        }
     });
     
     container.addEventListener('change', e => {
@@ -489,6 +451,7 @@ export function renderSupervisorPage(container: HTMLElement) {
             if (target.checked) selectedUserIds.push(uid);
             else selectedUserIds = selectedUserIds.filter(id => id !== uid);
             
+            // Re-render button text only without full render if possible, or just re-render assign part
             const allSelectedBtn = document.getElementById('select-all-users-btn');
             if(allSelectedBtn) {
                 const allSelected = usersStats.length > 0 && selectedUserIds.length === usersStats.length;
