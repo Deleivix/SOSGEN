@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 
@@ -21,36 +22,53 @@ export default async function handler(
     let prompt;
     if (context === 'bulletin') {
       prompt = `
-      You are an expert translator specializing in maritime and meteorological texts, working for the Spanish Maritime Safety Agency. Your task is to translate the following Spanish weather bulletin into professional, accurate English.
-      **Key Translation Instructions:**
-      - Maintain the original structure and formatting (line breaks, capitalization of headers).
-      - Use standard international maritime terminology.
-      - **Preserve Spoken Numbers:** Translate numbers written as words into their English word equivalents (e.g., "seis cero cero UTC" -> "six zero zero UTC"). This is critical for Text-to-Speech (TTS) systems.
-      - Translate all content accurately.
-      **Spanish Bulletin to Translate:**
+      Translate this Spanish maritime weather bulletin to English.
+      - Keep formatting strictly.
+      - Translate numbers to words (e.g., "1000 UTC" -> "one zero zero zero UTC") for TTS.
+      - Use standard maritime terminology.
+      
+      TEXT:
       \`\`\`
       ${textToTranslate}
       \`\`\`
-      Provide ONLY the English translation, without any additional comments or explanations.
+      Output ONLY the translation.
       `;
-    } else { // General nautical translation
-      prompt = `Eres un experto traductor náutico y marítimo. Tu única tarea es traducir el siguiente texto entre español e inglés. Detecta el idioma de origen y traduce al otro. Proporciona únicamente la traducción directa sin explicaciones adicionales. Si el texto no es náutico, tradúcelo literalmente. Texto a traducir: "${textToTranslate}"`;
+    } else {
+      prompt = `Translate the following nautical text between Spanish/English (detect source). Output only translation: "${textToTranslate}"`;
     }
 
-    const genAIResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.1,
-      }
-    });
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite-latest'];
+    let genAIResponse;
+    let lastError;
 
-    const translation = genAIResponse.text?.trim() || '';
+    for (const model of modelsToTry) {
+        try {
+            genAIResponse = await ai.models.generateContent({
+                model: model,
+                contents: prompt,
+                config: { temperature: 0.1 }
+            });
+            if (genAIResponse?.text) break;
+        } catch (error: any) {
+            lastError = error;
+            if (error.status === 429 || error.status === 503 || (error.message && error.message.includes('429'))) {
+                console.warn(`Translator: Model ${model} failed. Switching...`);
+                continue;
+            }
+            throw error;
+        }
+    }
+
+    if (!genAIResponse || !genAIResponse.text) {
+        throw lastError || new Error("Translation Service Unavailable");
+    }
+
+    const translation = genAIResponse.text.trim();
     return response.status(200).json({ translation });
 
   } catch (error) {
     console.error(error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return response.status(500).json({ error: "Failed to get translation from AI.", details: errorMessage });
+    return response.status(500).json({ error: "Failed to get translation.", details: errorMessage });
   }
 }

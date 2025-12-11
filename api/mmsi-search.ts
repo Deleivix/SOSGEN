@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 
@@ -19,87 +20,58 @@ export default async function handler(
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const prompt = `
-    **ROLE:** You are an expert OSINT maritime analyst. Your mission is to find detailed, accurate information about a vessel using its MMSI.
-
-    **MISSION:** Conduct a thorough investigation for MMSI "${mmsi}". You MUST use the provided search tool. The information is public and findable on standard maritime websites. Failure to find basic information like the vessel's name is not an option.
-
-    **STRATEGIC SEARCH PROTOCOL (Follow these steps meticulously):**
-    1.  **Formulate & Execute Search Queries:** Start with the most direct query. If needed, use variations.
-        *   Primary Query: \`"${mmsi}" vessel name IMO\`
-        *   Secondary Query: \`MMSI ${mmsi} MarineTraffic\`
-        *   Tertiary Query: \`MMSI ${mmsi} VesselFinder\`
-    2.  **Analyze Search Results:** Prioritize results from well-known maritime sources: MarineTraffic, VesselFinder, MyShipTracking, FleetMon, Equasis. These sites almost always contain the primary identification data.
-    3.  **Extract Core Data:** Scrutinize the search results to extract the following key information.
-        *   \`stationName\`: The vessel's name. This is the most critical piece of information.
-        *   \`imo\`: IMO number.
-        *   \`callSign\`: Call sign.
-        *   \`flag\`: Flag country.
-        *   \`stationType\`: Vessel type (e.g., "General Cargo", "Oil Tanker").
-    4.  **Extract Detailed Data:** Once core data is identified, search for supplementary details:
-        *   \`length\` and \`beam\`: Dimensions (include units, e.g., "132 m").
-        *   \`grossTonnage\`: Gross Tonnage (GT).
-        *   \`lastPosition\`, \`positionTimestamp\`, and \`currentVoyage\` details (destination, eta, status).
-    5.  **Synthesize Summary:** Create a brief, informative summary based on the collected data.
-    6.  **Populate JSON:** Fill the JSON structure below with all extracted information. **USE \`null\` FOR ANY FIELD YOU CANNOT FIND.** Do not omit fields or invent data.
-
-    **EXAMPLE OF A SUCCESSFUL ANALYSIS (for a different MMSI):**
-    *   **Input MMSI:** \`224097470\`
-    *   **AI's Internal Process:**
-        1. Search \`"224097470" vessel name IMO\`.
-        2. Top results are for "PUNTA SALINAS" on VesselFinder and MarineTraffic.
-        3. Open VesselFinder page. Extract IMO \`9286983\`, Call Sign \`EADF\`, Flag \`Spain\`, Type \`Tug\`.
-        4. Open MarineTraffic. Confirm details and find dimensions: 30m x 10m.
-        5. Synthesize summary.
-        6. Populate JSON.
-    *   **AI's JSON Output for the example:**
-        \`\`\`json
-        {
-          "vesselInfo": {
-            "stationName": "PUNTA SALINAS",
-            "stationType": "Tug",
-            "mmsi": "224097470",
-            "callSign": "EADF",
-            "imo": "9286983",
-            "flag": "Spain",
-            "length": "30 m",
-            "beam": "10 m",
-            "grossTonnage": "350",
-            "lastPosition": "In port at Ferrol",
-            "positionTimestamp": "2024-07-29 10:00 UTC",
-            "currentVoyage": {
-              "destination": "FERROL",
-              "eta": null,
-              "status": "Moored"
-            },
-            "summary": "PUNTA SALINAS is a Spanish-flagged tug boat (IMO 9286983) currently moored at the port of Ferrol."
-          }
-        }
-        \`\`\`
-
-    **CRITICAL OUTPUT INSTRUCTIONS:**
-    -   Your final output for MMSI "${mmsi}" MUST be ONLY the JSON object, wrapped in a markdown code block (\`\`\`json ... \`\`\`).
-    -   Do not include your thought process or any other text outside the JSON block in your final response.
-    -   If you find absolutely nothing after an exhaustive search (highly unlikely), return the structure with all values as \`null\` except for the provided \`mmsi\`.
+    Find detailed vessel info for MMSI "${mmsi}" using standard maritime OSINT (MarineTraffic, VesselFinder).
+    Extract: stationName, imo, callSign, flag, stationType, length, beam, grossTonnage, lastPosition, destination.
+    Return JSON format only.
+    Use null if not found.
+    Format: {"vesselInfo": {...}}
     `;
 
-    const genAIResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.1,
-        tools: [{googleSearch: {}}],
-      }
-    });
+    // NOTE: 'gemini-2.5-flash-lite-latest' might not support Google Search tool in all regions/versions yet.
+    // If it fails due to tool support, the try-catch will handle it, but we prioritize Flash.
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite-latest'];
+    let genAIResponse;
+    let lastError;
 
-    let resultData = {};
-    let resultText = genAIResponse.text?.trim() || '';
+    for (const model of modelsToTry) {
+        try {
+            // Only add tools config if model supports it (Assuming Lite supports it or we accept graceful fail)
+            const config: any = { temperature: 0.1 };
+            // We attempt to use search on both. If Lite rejects it, it will be caught.
+            if (true) { 
+                config.tools = [{googleSearch: {}}];
+            }
+
+            genAIResponse = await ai.models.generateContent({
+                model: model,
+                contents: prompt,
+                config: config
+            });
+            
+            if (genAIResponse?.text) break;
+
+        } catch (error: any) {
+            lastError = error;
+            if (error.status === 429 || error.status === 503 || (error.message && error.message.includes('429'))) {
+                console.warn(`MMSI Search: Model ${model} failed. Switching...`);
+                continue;
+            }
+            // If tool is not supported by Lite, it might throw 400. We could try without tool or just fail. 
+            // For now, we propagate other errors.
+            throw error;
+        }
+    }
+
+    if (!genAIResponse || !genAIResponse.text) {
+        throw lastError || new Error("Search Service Unavailable");
+    }
+
+    let resultText = genAIResponse.text.trim();
     
     // Extract JSON from markdown code block if present
     const jsonMatch = resultText.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch && jsonMatch[1]) {
-        resultText = jsonMatch[1];
-    } else {
-        // Fallback for cases where the model might not use markdown
+    if (jsonMatch && jsonMatch[1]) resultText = jsonMatch[1];
+    else {
         const firstBrace = resultText.indexOf('{');
         const lastBrace = resultText.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace > firstBrace) {
@@ -107,15 +79,13 @@ export default async function handler(
         }
     }
 
-    if (!resultText) {
-      resultText = '{"vesselInfo": null}';
-    }
+    if (!resultText) resultText = '{"vesselInfo": null}';
 
+    let resultData = {};
     try {
         resultData = JSON.parse(resultText);
     } catch (e) {
-        console.error("Failed to parse JSON from AI response:", resultText);
-        throw new Error("La IA devolvió una respuesta con formato inválido.");
+        throw new Error("Invalid JSON response from AI.");
     }
 
     const sources = genAIResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
@@ -125,6 +95,6 @@ export default async function handler(
   } catch (error) {
     console.error(error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return response.status(500).json({ error: "Failed to fetch vessel data from AI.", details: errorMessage });
+    return response.status(500).json({ error: "Failed to fetch vessel data.", details: errorMessage });
   }
 }
