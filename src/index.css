@@ -270,7 +270,7 @@ nav {
   gap: 1.25rem;
   flex-shrink: 1;
   min-width: 0;
-  /* Fix: allow notifications to pop out */
+  /* Fix: allow notifications to pop out so they are not cut off */
   overflow: visible; 
 }
 .nav-icon {

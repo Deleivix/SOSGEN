@@ -93,31 +93,52 @@ async function checkNotifications() {
 }
 
 function updateNotificationBadges(unreadMessages: boolean, pendingDrills: boolean) {
-    // 1. Sidebar Trigger Badge (Generic Alert)
+    // 1. Sidebar Trigger Badge (User Name) -> ONLY Messages
     const sidebarTrigger = document.getElementById('sidebar-trigger');
-    const existingBadge = sidebarTrigger?.querySelector('.notification-badge');
-    if (unreadMessages || pendingDrills) {
-        if (!existingBadge && sidebarTrigger) sidebarTrigger.innerHTML += `<span class="notification-badge"></span>`;
+    const existingTriggerBadge = sidebarTrigger?.querySelector('.notification-badge');
+
+    if (unreadMessages) {
+        if (!existingTriggerBadge && sidebarTrigger) {
+            // Append badge
+            const badge = document.createElement('span');
+            badge.className = 'notification-badge';
+            sidebarTrigger.appendChild(badge);
+        }
     } else {
-        if (existingBadge) existingBadge.remove();
+        if (existingTriggerBadge) existingTriggerBadge.remove();
     }
 
-    // 2. Sidebar Messages Button Badge
+    // 2. Sidebar Messages Button Badge -> ONLY Messages
     const msgBtn = document.getElementById('sidebar-messages-btn');
     const msgBadge = msgBtn?.querySelector('.notification-badge');
     if (unreadMessages) {
-        if (!msgBadge && msgBtn) msgBtn.innerHTML += `<span class="notification-badge" style="top: 10px; right: 10px;"></span>`;
+         if (!msgBadge && msgBtn) {
+             const badge = document.createElement('span');
+             badge.className = 'notification-badge';
+             // Sidebar item is relative, explicit position for better visibility
+             badge.style.right = '10px';
+             badge.style.top = '15px';
+             msgBtn.appendChild(badge);
+         }
     } else {
         if (msgBadge) msgBadge.remove();
     }
 
-    // 3. Drill Tab Badge
-    const drillTab = document.querySelector('.nav-link[title="SIMULACRO"]');
-    const drillBadge = drillTab?.querySelector('.notification-badge');
+    // 3. Drill Tab Badge -> ONLY Drills
+    const drillTab = document.querySelector('.nav-link[title="SIMULACRO"]'); // "SIMULACRO" matches APP_PAGES name
+    const existingDrillBadge = drillTab?.querySelector('.notification-badge');
+
     if (pendingDrills) {
-        if (!drillBadge && drillTab) drillTab.innerHTML += `<span class="notification-badge" style="background-color: var(--warning-color); border: 1px solid #fff;"></span>`;
+        if (!existingDrillBadge && drillTab) {
+             const badge = document.createElement('span');
+             badge.className = 'notification-badge';
+             // Specific style for Drill warning (orange/yellow usually)
+             badge.style.backgroundColor = 'var(--warning-color)';
+             badge.style.border = '1px solid #fff';
+             drillTab.appendChild(badge);
+        }
     } else {
-        if (drillBadge) drillBadge.remove();
+        if (existingDrillBadge) existingDrillBadge.remove();
     }
 }
 
