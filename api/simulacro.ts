@@ -186,4 +186,11 @@ export default async function handler(
             LIMIT 1;
         `;
         if (rows.length > 0) {
-            return response.status(200).json(rows[0
+            return response.status(200).json(rows[0].drill_data);
+        }
+    } catch (dbFallbackError) {}
+
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    return response.status(500).json({ error: "Failed to generate drill from AI and no cached drills available.", details: errorMessage });
+  }
+}

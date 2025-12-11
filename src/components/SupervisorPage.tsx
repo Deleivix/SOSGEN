@@ -1,9 +1,7 @@
 
-// ... existing imports
 import { getCurrentUser } from "../utils/auth";
 import { showToast } from "../utils/helpers";
 
-// ... existing types and variables (usersStats, etc.)
 type UserStat = {
     id: number;
     username: string;
@@ -38,8 +36,6 @@ let currentTab: 'dashboard' | 'assign' = 'dashboard';
 let dashboardFilter = "";
 let dashboardSort: { key: string, dir: 'asc' | 'desc' } = { key: 'last_activity', dir: 'desc' };
 let timeRange: '1M' | '1Y' | 'ALL' = 'ALL'; 
-
-// ... existing helper functions ...
 
 function isDateInRange(dateStr: string): boolean {
     if (!dateStr) return false;
@@ -190,6 +186,35 @@ async function assignDrill() {
         showToast("Simulacro asignado correctamente.", "success");
         generatedDrillData = null; selectedUserIds = []; renderContent();
     } catch (e) { showToast("Error al asignar simulacro", "error"); }
+}
+
+async function generateDrillPreview(type: string) {
+    isLoading = true;
+    renderContent();
+    try {
+        const response = await fetch('/api/simulacro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type })
+        });
+        
+        if (!response.ok) throw new Error('API error');
+        
+        const data = await response.json();
+        
+        generatedDrillData = {
+            type: data.type || type,
+            scenario: data.scenario || '',
+            questions: data.questions || []
+        };
+        showToast("Simulacro generado. Revise y edite si es necesario.", "success");
+    } catch (e) {
+        console.error(e);
+        showToast("No se pudo generar el simulacro.", "error");
+    } finally {
+        isLoading = false;
+        renderContent();
+    }
 }
 
 function createManualDrill() {
@@ -353,7 +378,6 @@ function attachEditorEvents(container: HTMLElement) {
     });
 }
 
-// ... rest of renderSupervisorPage and existing code ...
 export function renderSupervisorPage(container: HTMLElement) {
     container.innerHTML = `
         <div class="content-card">
