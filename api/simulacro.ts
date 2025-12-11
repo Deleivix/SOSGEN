@@ -13,7 +13,6 @@ export default async function handler(
 
   const { type } = request.body;
 
-  // 1. Ensure DB Schema for Drill Library
   try {
     await sql`
         CREATE TABLE IF NOT EXISTS drills_library (
@@ -25,7 +24,6 @@ export default async function handler(
     `;
   } catch (e) {
     console.error("DB Init Error (Drills Library):", e);
-    // Continue execution, as AI generation might still work
   }
 
   try {
@@ -36,13 +34,16 @@ export default async function handler(
     let genAIResponse;
     let lastError;
 
-    // Define prompts logic
     const getPromptAndSchema = (modelType: string) => {
         if (modelType === 'dsc') {
             return {
                 prompt: `
                 Eres un instructor GMDSS experto. Genera un caso práctico completo de ALERTA DSC para un operador de un Centro de Coordinación de Salvamento (CCR) en España.
                 
+                **IMPORTANTE: REGLA DE ORO**
+                - Las opciones de las preguntas ('options') DEBEN contener texto descriptivo y real. NUNCA devuelvas opciones vacías, strings vacíos ni textos genéricos como "Opción 1".
+                - Cada pregunta debe tener entre 2 y 4 opciones bien redactadas.
+
                 **Estructura de respuesta obligatoria:**
                 1. 'title': Un título corto para identificación interna (ej: "Incendio en pesquero").
                 2. 'scenario': **ESTE CAMPO ES CRÍTICO.** Debe ser una NARRATIVA DETALLADA (3-4 frases completas).
@@ -86,6 +87,10 @@ export default async function handler(
                 prompt: `
                 Eres un instructor GMDSS. Genera un simulacro detallado de SOCORRO POR VOZ (Radiotelefonía).
                 
+                **IMPORTANTE: REGLA DE ORO**
+                - Las opciones de las preguntas ('options') DEBEN contener texto descriptivo y real. NUNCA devuelvas opciones vacías, strings vacíos ni textos genéricos como "Opción 1".
+                - Cada pregunta debe tener entre 2 y 4 opciones bien redactadas.
+
                 **Estructura de respuesta obligatoria:**
                 1. 'title': Título corto (ej: "Vía de agua").
                 2. 'scenario': **NARRATIVA DETALLADA.** Transcribe la llamada de socorro o describe la recepción con todo detalle.
@@ -136,7 +141,7 @@ export default async function handler(
                 config: { 
                     responseMimeType: "application/json", 
                     responseSchema: schema, 
-                    temperature: 0.9 // Higher entropy for variety
+                    temperature: 0.9 
                 }
             });
             
@@ -159,7 +164,6 @@ export default async function handler(
     const resultText = genAIResponse.text.trim();
     const jsonResult = JSON.parse(resultText);
 
-    // --- SAVE TO LIBRARY (Success path) ---
     try {
         await sql`
             INSERT INTO drills_library (drill_type, drill_data)
@@ -173,10 +177,7 @@ export default async function handler(
 
   } catch (error) {
     console.error("AI Generation Failed:", error);
-    
-    // --- FALLBACK: Retrieve from Library ---
     try {
-        console.log("Attempting to fetch cached drill from library...");
         const { rows } = await sql`
             SELECT drill_data 
             FROM drills_library
@@ -184,20 +185,5 @@ export default async function handler(
             ORDER BY RANDOM()
             LIMIT 1;
         `;
-        
         if (rows.length > 0) {
-            console.log("Serving cached drill from database.");
-            // Optional: Add a flag to indicate it's a cached drill
-            const cachedData = rows[0].drill_data;
-            return response.status(200).json(cachedData);
-        } else {
-            console.log("No cached drills found for this type.");
-        }
-    } catch (dbFallbackError) {
-        console.error("Database fallback failed:", dbFallbackError);
-    }
-
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return response.status(500).json({ error: "Failed to generate drill from AI and no cached drills available.", details: errorMessage });
-  }
-}
+            return response.status(200).json(rows[0
