@@ -704,55 +704,87 @@ function renderDashboardTab() {
 }
 
 function renderAssignTab() {
-    // ... (No logic changes here, just keeping existing render function)
     const userListHtml = usersStats.map(u => `
-        <label class="user-table-row" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border-bottom:1px solid var(--border-color);">
-            <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''}>
-            <span>${u.username}</span>
+        <label class="user-table-row" style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-bottom:1px solid var(--border-color); cursor:pointer; transition: background-color 0.2s;">
+            <input type="checkbox" class="user-select-cb" value="${u.id}" ${selectedUserIds.includes(u.id) ? 'checked' : ''} style="cursor:pointer;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+                <div style="width: 32px; height: 32px; background-color: var(--accent-color); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.9rem;">
+                    ${u.username.charAt(0).toUpperCase()}
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-weight:500; color:var(--text-primary);">${u.username}</span>
+                    <span style="font-size:0.8rem; color:var(--text-secondary);">${u.email}</span>
+                </div>
+            </div>
         </label>
     `).join('');
 
-    let editorHtml = '<div class="drill-placeholder" style="padding: 2rem;">Genere un simulacro o cree uno manual para editarlo.</div>';
+    let editorHtml = `
+        <div class="drill-placeholder" style="padding: 3rem 2rem; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--border-color);">
+            <div style="font-size: 2rem; color: var(--text-secondary); margin-bottom: 1rem;">✎</div>
+            Genera un simulacro con IA o crea uno manualmente para comenzar.
+        </div>`;
     
     if (generatedDrillData) {
         editorHtml = `
-            <div id="drill-editor" style="background:var(--bg-main); padding:1.5rem; border:1px solid var(--border-color); border-radius:8px; margin-bottom:1rem;">
-                <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
-                    <label style="font-weight: bold; font-size: 0.9rem;">Tipo General:</label>
-                    <select id="editor-drill-type" class="modern-input" style="width: auto; padding: 0.3rem;">
-                        <option value="dsc" ${generatedDrillData.type === 'dsc' ? 'selected' : ''}>Alerta DSC</option>
-                        <option value="radiotelephony" ${generatedDrillData.type === 'radiotelephony' ? 'selected' : ''}>Radiotelefonía</option>
-                        <option value="manual" ${generatedDrillData.type === 'manual' ? 'selected' : ''}>Manual / Otro</option>
-                    </select>
+            <div id="drill-editor" style="background:var(--bg-card); padding:2rem; border:1px solid var(--border-color); border-radius:12px; margin-bottom:1.5rem; box-shadow: 0 4px 12px var(--shadow-color);">
+                <div style="margin-bottom: 1.5rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap:wrap;">
+                    <div style="flex:1;">
+                        <label class="modern-label">Tipo General</label>
+                        <select id="editor-drill-type" class="modern-input">
+                            <option value="dsc" ${generatedDrillData.type === 'dsc' ? 'selected' : ''}>Alerta DSC</option>
+                            <option value="radiotelephony" ${generatedDrillData.type === 'radiotelephony' ? 'selected' : ''}>Radiotelefonía</option>
+                            <option value="manual" ${generatedDrillData.type === 'manual' ? 'selected' : ''}>Manual / Otro</option>
+                        </select>
+                    </div>
                 </div>
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">Escenario:</label>
-                    <textarea id="editor-scenario" class="styled-textarea" style="min-height: 100px;">${generatedDrillData.scenario}</textarea>
+                <div style="margin-bottom: 2rem;">
+                    <label class="modern-label">Escenario</label>
+                    <textarea id="editor-scenario" class="styled-textarea" style="min-height: 120px;">${generatedDrillData.scenario}</textarea>
                 </div>
-                <div id="editor-questions-container">
+                <label class="modern-label" style="margin-bottom:1rem;">Preguntas</label>
+                <div id="editor-questions-container" style="display:flex; flex-direction:column; gap:1.5rem;">
                     ${generatedDrillData.questions.map((q: any, idx: number) => renderQuestionBlock(q, idx)).join('')}
                 </div>
-                <button id="add-question-btn" class="secondary-btn" style="width: 100%; margin-top: 1rem; border-style: dashed;">+ Añadir Pregunta</button>
+                <button id="add-question-btn" class="secondary-btn" style="width: 100%; margin-top: 1.5rem; border-style: dashed; padding: 1rem;">+ Añadir Nueva Pregunta</button>
             </div>
-            <button id="confirm-assign-btn" class="primary-btn">Confirmar y Enviar a Seleccionados</button>
+            <div style="text-align: right;">
+                <button id="confirm-assign-btn" class="primary-btn" style="width: auto; padding: 0.8rem 2rem;">Confirmar y Enviar</button>
+            </div>
         `;
     }
 
+    const allSelected = usersStats.length > 0 && selectedUserIds.length === usersStats.length;
+
     return `
-        <div style="display:grid; grid-template-columns: 300px 1fr; gap:2rem;">
-            <div style="border:1px solid var(--border-color); border-radius:8px; height:600px; display:flex; flex-direction:column;">
-                <div style="padding:1rem; border-bottom:1px solid var(--border-color); font-weight:bold; background:var(--bg-card);">Seleccionar Usuarios</div>
-                <div style="overflow-y:auto; flex-grow:1; background:var(--bg-main);">
+        <div style="display:grid; grid-template-columns: 320px 1fr; gap:2rem; height: calc(100vh - 200px); min-height: 600px;">
+            <div style="border:1px solid var(--border-color); border-radius:12px; display:flex; flex-direction:column; background:var(--bg-card); overflow:hidden;">
+                <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; background:var(--bg-main);">
+                    <span style="font-weight:bold; color:var(--text-primary);">Usuarios (${usersStats.length})</span>
+                    <button id="select-all-users-btn" class="secondary-btn" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                        ${allSelected ? 'Deseleccionar' : 'Seleccionar Todos'}
+                    </button>
+                </div>
+                <div style="overflow-y:auto; flex-grow:1; background:var(--bg-card);">
                     ${userListHtml}
                 </div>
             </div>
-            <div>
-                <div style="margin-bottom:2rem;">
+            <div style="overflow-y: auto; padding-right: 0.5rem;">
+                <div style="margin-bottom:2rem; background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
                     <h3 class="reference-table-subtitle" style="margin-top:0;">Origen del Simulacro</h3>
                     <div style="display:flex; gap:1rem; flex-wrap: wrap;">
-                        <button class="secondary-btn gen-drill-btn" data-type="dsc">Generar DSC (IA)</button>
-                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony">Generar Voz (IA)</button>
-                        <button id="create-manual-btn" class="secondary-btn" style="border-color: var(--accent-color); color: var(--accent-color-dark);">Crear Manualmente</button>
+                        <button class="secondary-btn gen-drill-btn" data-type="dsc" style="flex:1;">
+                            <span style="display:block; font-weight:bold;">Generar DSC (IA)</span>
+                            <span style="font-size:0.8rem; opacity:0.8;">Escenarios aleatorios</span>
+                        </button>
+                        <button class="secondary-btn gen-drill-btn" data-type="radiotelephony" style="flex:1;">
+                            <span style="display:block; font-weight:bold;">Generar Voz (IA)</span>
+                            <span style="font-size:0.8rem; opacity:0.8;">Interacción hablada</span>
+                        </button>
+                        <button id="create-manual-btn" class="secondary-btn" style="flex:1; border-color: var(--accent-color); color: var(--accent-color-dark);">
+                            <span style="display:block; font-weight:bold;">Crear Manualmente</span>
+                            <span style="font-size:0.8rem; opacity:0.8;">Desde cero</span>
+                        </button>
                     </div>
                 </div>
                 <div id="drill-preview-area">${editorHtml}</div>
@@ -789,20 +821,20 @@ function renderQuestionBlock(q: any, idx: number) {
         : "Marque la casilla redonda de la respuesta correcta.";
 
     return `
-        <div class="editor-question-block" id="qblock-${idx}" style="background:var(--bg-card); padding:1rem; border:1px solid var(--border-color); border-radius:6px; margin-bottom:1rem; position:relative;">
-            <button class="tertiary-btn remove-q-btn" style="position:absolute; top:0.5rem; right:0.5rem; padding:0.2rem 0.5rem; font-size:0.8rem;">Eliminar Pregunta</button>
-            <div style="margin-bottom: 0.5rem; display:flex; justify-content:space-between; align-items:center; padding-right: 80px;">
+        <div class="editor-question-block" id="qblock-${idx}" style="background:var(--bg-main); padding:1.5rem; border:1px solid var(--border-color); border-radius:8px; margin-bottom:0; position:relative;">
+            <button class="tertiary-btn remove-q-btn" style="position:absolute; top:1rem; right:1rem; padding:0.3rem 0.6rem; font-size:0.8rem;">Eliminar</button>
+            <div style="margin-bottom: 1rem; display:flex; justify-content:space-between; align-items:center; padding-right: 80px;">
                 <label style="font-weight:bold; font-size:0.9rem;">Pregunta ${idx + 1}</label>
                 <select class="modern-input q-type-select" style="width: auto; padding: 0.2rem; font-size: 0.8rem;">
                     <option value="choice" ${!isOrdering ? 'selected' : ''}>Tipo Test (Selección)</option>
                     <option value="ordering" ${isOrdering ? 'selected' : ''}>Ordenar Secuencia</option>
                 </select>
             </div>
-            <input type="text" class="modern-input q-text-input" value="${q.questionText}" placeholder="Texto de la pregunta" style="margin-bottom:1rem; font-weight:500;">
-            <div style="background: var(--bg-main); padding: 0.5rem; border-radius: 4px;">
-                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.5rem;">${helperText}</p>
+            <input type="text" class="modern-input q-text-input" value="${q.questionText}" placeholder="Escriba la pregunta aquí..." style="margin-bottom:1.5rem; font-weight:500;">
+            <div style="background: var(--bg-card); padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1rem;">${helperText}</p>
                 <div class="q-options-container">${optionsHtml}</div>
-                <button class="secondary-btn add-opt-btn" style="width:100%; padding:0.3rem; margin-top:0.5rem; font-size:0.8rem;">+ Añadir Opción</button>
+                <button class="secondary-btn add-opt-btn" style="width:100%; padding:0.5rem; margin-top:1rem; font-size:0.8rem;">+ Añadir Opción</button>
             </div>
         </div>
     `;
@@ -828,6 +860,18 @@ function renderContent() {
 function attachEditorEvents(container: HTMLElement) {
     container.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
+        
+        // Select All Logic
+        if (target.id === 'select-all-users-btn') {
+            const allIds = usersStats.map(u => u.id);
+            if (selectedUserIds.length === allIds.length) {
+                selectedUserIds = []; // Deselect all
+            } else {
+                selectedUserIds = allIds; // Select all
+            }
+            renderContent();
+        }
+
         if (target.id === 'add-question-btn') {
             const container = document.getElementById('editor-questions-container');
             if (!container) return;
@@ -947,6 +991,14 @@ export function renderSupervisorPage(container: HTMLElement) {
             const uid = parseInt(target.value);
             if (target.checked) selectedUserIds.push(uid);
             else selectedUserIds = selectedUserIds.filter(id => id !== uid);
+            
+            // Re-render only to update "Select All" text if necessary, 
+            // but full re-render might be heavy. We can check if all selected.
+            const allSelectedBtn = document.getElementById('select-all-users-btn');
+            if(allSelectedBtn) {
+                const allSelected = usersStats.length > 0 && selectedUserIds.length === usersStats.length;
+                allSelectedBtn.textContent = allSelected ? 'Deseleccionar' : 'Seleccionar Todos';
+            }
         }
     });
 }
